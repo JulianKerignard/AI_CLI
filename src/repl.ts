@@ -1,6 +1,7 @@
 import readline from "node:readline";
 import { CWD } from "./utils/paths.js";
 import { log, chalk } from "./utils/logger.js";
+import { renderBanner } from "./utils/banner.js";
 import { createBaseRegistry } from "./tools/registry.js";
 import { DemoProvider } from "./agent/demo-provider.js";
 import { AgentLoop } from "./agent/loop.js";
@@ -36,17 +37,28 @@ export async function startRepl(): Promise<void> {
 
   const commands = new CommandRegistry();
 
-  log.banner("AI_CLI v0.1.0");
-  log.dim(`  provider: ${provider.name}  ·  cwd: ${CWD}`);
-  log.dim(
-    `  ${tools.list().length} outils  ·  ${skills.length} skills  ·  ${subAgents.length} sub-agents  ·  ${mcpServers.length} MCP`,
+  console.log(
+    renderBanner(
+      `v0.1.0  ·  provider: ${provider.name}  ·  ${tools.list().length} tools · ${skills.length} skills · ${subAgents.length} agents · ${mcpServers.length} MCP`,
+    ),
   );
-  log.dim("  Tape /help pour les commandes. Ctrl-D ou /exit pour quitter.\n");
+  log.dim(`  cwd: ${CWD}`);
+  log.dim("  Tape /help pour les commandes. Tab pour l'auto-complétion. Ctrl-D ou /exit pour quitter.\n");
+
+  const completer = (line: string): [string[], string] => {
+    if (!line.startsWith("/")) return [[], line];
+    const matches = commands
+      .list()
+      .map((c) => "/" + c.name)
+      .filter((c) => c.startsWith(line));
+    return [matches.length ? matches : [], line];
+  };
 
   const rl = readline.createInterface({
     input: process.stdin,
     output: process.stdout,
     prompt: chalk.bold.blue("» "),
+    completer,
   });
 
   const cleanup = () => {
