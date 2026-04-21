@@ -1,0 +1,28 @@
+{
+  "name": "aicli",
+  "version": "0.1.0",
+  "description": "Un CLI interactif à la Claude Code : slash commands, skills, sub-agents, MCP — avec provider démo (pas de clé API).",
+  "type": "module",
+  "bin": {
+    "aicli": "./dist/index.js"
+  },
+  "main": "./dist/index.js",
+  "scripts": {
+    "build": "tsc -p .",
+    "dev": "tsx src/index.ts",
+    "start": "node dist/index.js",
+    "typecheck": "tsc -p . --noEmit"
+  },
+  "dependencies": {
+    "chalk": "^5.3.0",
+    "yaml": "^2.5.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "tsx": "^4.7.0",
+    "typescript": "^5.4.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
