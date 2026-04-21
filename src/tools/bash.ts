@@ -18,7 +18,8 @@ export const bashTool: Tool = {
     if (!command) throw new Error("Bash: 'command' manquant");
 
     return await new Promise<string>((resolvePromise) => {
-      const child = spawn("sh", ["-c", command], {
+      const isWin = process.platform === "win32";
+      const child = spawn(isWin ? "cmd.exe" : "sh", [isWin ? "/c" : "-c", command], {
         cwd: ctx.cwd,
         env: process.env,
       });

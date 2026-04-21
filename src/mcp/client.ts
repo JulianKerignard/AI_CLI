@@ -48,6 +48,7 @@ export class McpClient {
     this.child = spawn(config.command, config.args ?? [], {
       env: { ...process.env, ...config.env },
       stdio: ["pipe", "pipe", "pipe"],
+      shell: process.platform === "win32",
     });
     this.child.stdout.setEncoding("utf8");
     this.child.stdout.on("data", (chunk: string) => this.onStdout(chunk));
