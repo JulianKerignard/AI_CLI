@@ -21,6 +21,8 @@ interface ApiModel {
 
 export class BetterModelWatcher {
   private timer: NodeJS.Timeout | null = null;
+  private abortCtrl: AbortController | null = null;
+  private stopped = false;
   private getToken: () => { token: string; baseUrl: string; model: string } | null;
   private mode: SelectionMode;
 
@@ -33,15 +35,19 @@ export class BetterModelWatcher {
   }
 
   start(): void {
-    if (this.timer) return;
-    // Première passe après 30s (laisse le startup se stabiliser), puis
-    // cycle régulier.
+    if (this.timer || this.stopped) return;
     this.timer = setTimeout(() => this.tick(), 30_000);
   }
 
   stop(): void {
+    this.stopped = true;
     if (this.timer) clearTimeout(this.timer);
     this.timer = null;
+    // Abort le fetch en cours si stop() arrive au milieu d'un tick.
+    if (this.abortCtrl) {
+      this.abortCtrl.abort();
+      this.abortCtrl = null;
+    }
   }
 
   setMode(mode: SelectionMode): void {
@@ -60,7 +66,7 @@ export class BetterModelWatcher {
     } catch {
       // Silencieux — si /v1/models tombe, on re-essaie au prochain tick.
     }
-    if (this.timer !== null) {
+    if (!this.stopped) {
       this.timer = setTimeout(() => this.tick(), POLL_INTERVAL_MS);
     }
   }
@@ -68,9 +74,21 @@ export class BetterModelWatcher {
   private async check(): Promise<void> {
     const creds = this.getToken();
     if (!creds) return;
-    const res = await fetch(`${creds.baseUrl}/v1/models`, {
-      headers: { "x-api-key": creds.token },
-    });
+    // AbortController pour couper le fetch si stop() arrive ou si le
+    // serveur hang (timeout 10s).
+    this.abortCtrl = new AbortController();
+    const timer = setTimeout(() => this.abortCtrl?.abort(), 10_000);
+    let res: Response;
+    try {
+      res = await fetch(`${creds.baseUrl}/v1/models`, {
+        headers: { "x-api-key": creds.token },
+        signal: this.abortCtrl.signal,
+      });
+    } finally {
+      clearTimeout(timer);
+      this.abortCtrl = null;
+    }
+    if (this.stopped) return;
     if (!res.ok) return;
     const data = (await res.json()) as { models: ApiModel[] };
     const models = data.models ?? [];

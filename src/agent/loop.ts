@@ -11,7 +11,9 @@ import { log, formatQuotaStatus, formatTurnStatus } from "../utils/logger.js";
 import type { PolicyState } from "../permissions/policy.js";
 import { decide } from "../permissions/policy.js";
 import { askPermission, logDenied } from "../permissions/prompt.js";
-import { compactMessages } from "./compactor.js";
+import { compactMessages, estimateTokens } from "./compactor.js";
+import { contextWindowFor } from "../lib/context-window.js";
+import { historyStore } from "../ui/history-store.js";
 import {
   updateStatus,
   setSessionTotals,
@@ -125,9 +127,14 @@ export class AgentLoop {
       // Compaction auto avant chaque tour : seuils absolus (30 msgs / 60k
       // tokens) OU seuil relatif 70% du context window du modèle courant.
       // Le relatif permet de gérer correctement les petits ctx (phi-4 16k).
+      //
+      // INVARIANT : appel synchrone avant provider.chat(). Pas de watcher
+      // async → évite race condition avec messages[] pendant streaming.
+      //
+      // Si compact fail ET que le tokens est vraiment > ctx window, on
+      // stop la boucle plutôt que de crash côté provider 400.
+      const ctxWin = contextWindowFor(this.opts.provider.name);
       try {
-        const { contextWindowFor } = await import("../lib/context-window.js");
-        const ctxWin = contextWindowFor(this.opts.provider.name);
         updateStatus({ phase: "compacting" });
         await compactMessages(
           this.messages,
@@ -137,8 +144,16 @@ export class AgentLoop {
         );
       } catch (err) {
         log.warn(
-          `[compact] erreur ignorée : ${err instanceof Error ? err.message : err}`,
+          `[compact] erreur : ${err instanceof Error ? err.message : err}`,
         );
+        // Vérifie si on est vraiment en danger de crash provider.
+        const estimated = estimateTokens(this.messages) * 1.2;
+        if (estimated > ctxWin) {
+          log.error(
+            `[compact] historique trop gros (${Math.round(estimated)} tokens > ${ctxWin} ctx window) et compaction a échoué. Tape /compact pour retenter, ou /exit et recommence.`,
+          );
+          return finalText;
+        }
       }
 
       // Status : 'loading' pendant la phase pre-premier-token (cold start
@@ -160,8 +175,6 @@ export class AgentLoop {
         streamStarted = true;
         updateStatus({ phase: "streaming" });
       };
-
-      const { historyStore } = await import("../ui/history-store.js");
 
       const response = await this.opts.provider.chat({
         system: this.opts.system,

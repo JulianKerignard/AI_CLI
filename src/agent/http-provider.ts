@@ -48,30 +48,29 @@ export function getSharedLimiter(): RateLimiter {
 // bar affiche "⏳ waiting Xs" avec countdown décroissant. Ne fait rien si
 // la slot est immédiatement dispo.
 async function waitWithStatus(limiter: RateLimiter): Promise<void> {
-  const initial = limiter.waitFor();
-  const snap = limiter.snapshot();
-  updateStatus({
-    bucketUsed: snap.used,
-    bucketCapacity: snap.capacity,
-  });
-  if (initial === 0) {
-    limiter.record();
-    const snap2 = limiter.snapshot();
+  // Atomique : réserve la slot si dispo (= 0ms wait), sinon retourne le
+  // delay sans toucher au bucket. Évite la race 2-callers qui dépassent
+  // la capacité.
+  let delayMs = limiter.reserveOrGetDelay();
+  if (delayMs === 0) {
+    const snap = limiter.snapshot();
     updateStatus({
-      bucketUsed: snap2.used,
-      bucketCapacity: snap2.capacity,
+      bucketUsed: snap.used,
+      bucketCapacity: snap.capacity,
     });
     return;
   }
-  const start = Date.now();
-  const end = start + initial;
-  updateStatus({ phase: "waiting-quota", waitingMsRemaining: initial });
-  while (Date.now() < end) {
-    const remainingMs = Math.max(0, end - Date.now());
-    updateStatus({ waitingMsRemaining: remainingMs });
-    await new Promise((r) => setTimeout(r, 500));
+  // Pas de slot immédiate : on attend, puis on retente à chaque tick
+  // (au cas où la concurrence a bougé).
+  updateStatus({
+    phase: "waiting-quota",
+    waitingMsRemaining: delayMs,
+  });
+  while (delayMs > 0) {
+    await new Promise((r) => setTimeout(r, Math.min(500, delayMs)));
+    delayMs = limiter.reserveOrGetDelay();
+    updateStatus({ waitingMsRemaining: delayMs > 0 ? delayMs : undefined });
   }
-  limiter.record();
   const snap3 = limiter.snapshot();
   // Phase "loading" : entre la fin du wait bucket et le premier token
   // reçu. Cold start NVIDIA peut être long — l'user voit 'chargement

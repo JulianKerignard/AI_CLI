@@ -43,13 +43,28 @@ export class RateLimiter {
   }
 
   // Temps d'attente en ms avant la prochaine slot libre (0 si dispo).
+  // Ne consomme PAS la slot — utiliser reserveOrGetDelay pour atomic.
   waitFor(): number {
     const now = Date.now();
     this.trim(now);
+    if (now < this.forcedWaitUntil) {
+      return this.forcedWaitUntil - now;
+    }
     if (this.timestamps.length < this.activeCapacity()) return 0;
-    // Prochaine slot = plus vieille + windowMs
     const oldest = this.timestamps[0];
     return Math.max(0, oldest + this.windowMs - now);
+  }
+
+  // Atomique : si une slot est libre, la réserve (push timestamp) et
+  // retourne 0. Sinon retourne le delay ms sans rien push. Évite la
+  // race où 2 callers voient tous deux waitFor()===0 et dépassent la
+  // capacité au double record().
+  reserveOrGetDelay(): number {
+    const delay = this.waitFor();
+    if (delay === 0) {
+      this.timestamps.push(Date.now());
+    }
+    return delay;
   }
 
   // Signale qu'on vient d'émettre une requête (à appeler APRÈS l'attente, juste
@@ -58,14 +73,20 @@ export class RateLimiter {
     this.timestamps.push(Date.now());
   }
 
-  // Marque comme "cold" suite à un 429. Prochain wait plus long.
+  // Marque comme "cold" suite à un 429. Au lieu de push un timestamp
+  // futur (qui ne serait jamais trimé et empoisonnerait le compteur),
+  // on stocke une deadline séparée forcedWaitUntil lue par waitFor().
   markCold(retryAfterMs?: number): void {
     this.coldUntil = Date.now() + this.COLD_DURATION_MS;
     if (retryAfterMs && retryAfterMs > 0) {
-      // Force une attente minimum = retryAfter.
-      this.timestamps.push(Date.now() + retryAfterMs);
+      this.forcedWaitUntil = Math.max(
+        this.forcedWaitUntil,
+        Date.now() + retryAfterMs,
+      );
     }
   }
+
+  private forcedWaitUntil = 0;
 
   // Attend le prochain slot puis record. Émet onWait avec un `cancel()` si
   // l'attente dépasse 100ms.

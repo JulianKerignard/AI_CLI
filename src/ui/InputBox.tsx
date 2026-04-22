@@ -50,8 +50,8 @@ function lineCount(value: string): number {
   return n;
 }
 
-// Cherche le début de la ligne de cursor, puis la position équivalente
-// sur la ligne précédente/suivante (même col si possible, sinon fin de ligne).
+// Cherche la position équivalente (même col si possible) sur la ligne
+// précédente/suivante. Retourne null si on est déjà au bord.
 function moveCursorVertical(
   value: string,
   cursor: number,
@@ -59,27 +59,19 @@ function moveCursorVertical(
 ): number | null {
   const { row, col } = cursorRowCol(value, cursor);
   const targetRow = row + delta;
-  const total = lineCount(value);
-  if (targetRow < 0 || targetRow >= total) return null;
+  if (targetRow < 0) return null;
 
-  // Scan pour trouver l'offset du targetRow.
-  let r = 0;
+  // Split ONE fois, accéder par index. Plus simple et correct pour tous
+  // les cas (targetRow=0, dernière ligne, lignes vides).
+  const lines = value.split("\n");
+  if (targetRow >= lines.length) return null;
+
+  // Offset du début de targetRow = somme des longueurs + \n des lignes précédentes.
   let startOfTarget = 0;
-  let endOfTarget = value.length;
-  for (let i = 0; i <= value.length; i++) {
-    if (r === targetRow && i !== value.length && startOfTarget === 0 && targetRow !== 0) {
-      // Devrait être atteint via la détection \n ; fallback
-    }
-    if (i === value.length || value[i] === "\n") {
-      if (r === targetRow) {
-        endOfTarget = i;
-        break;
-      }
-      r++;
-      if (r === targetRow) startOfTarget = i + 1;
-    }
+  for (let i = 0; i < targetRow; i++) {
+    startOfTarget += lines[i].length + 1; // +1 pour le \n
   }
-  const targetLen = endOfTarget - startOfTarget;
+  const targetLen = lines[targetRow].length;
   return startOfTarget + Math.min(col, targetLen);
 }
 

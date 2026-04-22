@@ -18,6 +18,7 @@ interface PermissionRequest {
 
 class PermissionController extends EventEmitter {
   private current: PermissionRequest | null = null;
+  private queue: PermissionRequest[] = [];
 
   getCurrent(): PermissionRequest | null {
     return this.current;
@@ -28,19 +29,22 @@ class PermissionController extends EventEmitter {
     category: Category,
     input: Record<string, unknown>,
   ): Promise<PromptDecision> {
-    if (this.current) {
-      // Un prompt en cours : on annule l'ancien par sécurité (deny).
-      this.current.resolve("deny");
-    }
     return new Promise<PromptDecision>((resolve) => {
-      this.current = { toolName, category, input, resolve };
-      this.emit("change");
+      const req: PermissionRequest = { toolName, category, input, resolve };
+      if (this.current) {
+        // Prompt déjà actif : on queue. L'user ne verra le nouveau
+        // qu'après avoir résolu le courant — évite les deny silencieux.
+        this.queue.push(req);
+      } else {
+        this.current = req;
+        this.emit("change");
+      }
     });
   }
 
   close(decision: PromptDecision): void {
     const cur = this.current;
-    this.current = null;
+    this.current = this.queue.shift() ?? null;
     if (cur) cur.resolve(decision);
     this.emit("change");
   }

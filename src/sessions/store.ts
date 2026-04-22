@@ -64,29 +64,41 @@ export function newSessionId(): string {
   return `${ts}-${rand}`;
 }
 
-// Crée le fichier session avec son header. Retourne le path.
-export function openSession(id: string, cwd: string, model: string): string {
-  const dir = dirForCwd(cwd);
-  mkdirSync(dir, { recursive: true, mode: 0o700 });
-  const path = join(dir, `${id}.jsonl`);
-  const header: SessionHeader = {
-    type: "session",
-    id,
-    cwd,
-    model,
-    startedAt: Date.now(),
-  };
-  writeFileSync(path, JSON.stringify(header) + "\n", { mode: 0o600 });
-  return path;
+// Crée le fichier session avec son header. Retourne le path, ou null
+// si I/O fail (disk full, perms, FS read-only) — le REPL continue sans
+// persistance plutôt que crash au boot.
+export function openSession(
+  id: string,
+  cwd: string,
+  model: string,
+): string | null {
+  try {
+    const dir = dirForCwd(cwd);
+    mkdirSync(dir, { recursive: true, mode: 0o700 });
+    const path = join(dir, `${id}.jsonl`);
+    const header: SessionHeader = {
+      type: "session",
+      id,
+      cwd,
+      model,
+      startedAt: Date.now(),
+    };
+    writeFileSync(path, JSON.stringify(header) + "\n", { mode: 0o600 });
+    return path;
+  } catch (err) {
+    console.warn("[session] openSession failed:", err);
+    return null;
+  }
 }
 
 // Append un event à la session courante. Best-effort — si écriture foire
-// (disk full, perms) on log mais on ne plante pas le REPL.
+// (disk full, perms) on log mais on ne plante pas le REPL. No-op si path=null.
 export function appendEvent(
-  path: string,
+  path: string | null,
   type: SessionEventType,
   content: unknown,
 ): void {
+  if (!path) return;
   try {
     const ev: SessionEvent = { type, content, ts: Date.now() };
     appendFileSync(path, JSON.stringify(ev) + "\n");
