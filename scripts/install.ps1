@@ -64,8 +64,8 @@ try {
   exit 1
 }
 
-# Extraction manuelle avec tar natif (Win10+). Contourne Windows Defender qui
-# intercepte l'extraction streaming de npm fichier par fichier dans AppData.
+# Extraction + install deps dans Temp (hors AppData où Defender est agressif),
+# puis install -g du dossier déjà résolu : plus rien à extraire dans AppData.
 Write-Host "Extraction du package..." -ForegroundColor White
 $extractDir = Join-Path $tmpDir "extracted"
 New-Item -ItemType Directory -Force -Path $extractDir | Out-Null
@@ -77,25 +77,53 @@ try {
   exit 1
 }
 
-Write-Host "Installation de aicli..." -ForegroundColor White
 $packageDir = Join-Path $extractDir "package"
+
+Write-Host "Installation des dependances (hors AppData)..." -ForegroundColor White
+Push-Location $packageDir
+try {
+  npm install --omit=dev --no-audit --no-fund 2>&1 | Out-Null
+  if ($LASTEXITCODE -ne 0) { throw "npm install deps exit $LASTEXITCODE" }
+} catch {
+  Pop-Location
+  Write-Host "Install deps echoue : $_" -ForegroundColor Red
+  exit 1
+}
+Pop-Location
+
+Write-Host "Installation globale de aicli..." -ForegroundColor White
 npm install -g $packageDir
+
+# Vérif que dist/index.js a bien été installé (Defender peut avoir mange le fichier).
+$npmRoot = (npm root -g).Trim()
+$installedIndex = Join-Path $npmRoot "aicli\dist\index.js"
+$installedOk = Test-Path $installedIndex
 
 # Nettoie les fichiers temporaires.
 Remove-Item -Recurse -Force $tmpDir -ErrorAction SilentlyContinue
 
 Write-Host ""
 
-# 5. Vérif.
-if (Test-Command "aicli") {
-  Write-Host "✓ AI_CLI installé avec succès !" -ForegroundColor Green
+if ($installedOk -and (Test-Command "aicli")) {
+  Write-Host "AI_CLI installe avec succes !" -ForegroundColor Green
   Write-Host ""
   Write-Host "Lance-le : aicli" -ForegroundColor Yellow
   Write-Host "Configure la connexion : aicli puis /login" -ForegroundColor Yellow
   Write-Host "Liste des commandes : /help" -ForegroundColor Yellow
+} elseif (-not $installedOk) {
+  Write-Host "Installation incomplete : dist/index.js manquant." -ForegroundColor Red
+  Write-Host ""
+  Write-Host "C'est Windows Defender qui supprime les fichiers pendant l'install." -ForegroundColor Yellow
+  Write-Host "Fix : ouvre PowerShell EN ADMIN et lance :" -ForegroundColor Yellow
+  Write-Host ""
+  Write-Host "  Add-MpPreference -ExclusionPath `"$npmRoot`"" -ForegroundColor Cyan
+  Write-Host ""
+  Write-Host "Puis relance ce script :" -ForegroundColor Yellow
+  Write-Host "  iwr -useb https://chat.juliankerignard.fr/install-aicli.ps1 | iex" -ForegroundColor Cyan
+  exit 1
 } else {
-  Write-Host "⚠ aicli n'est pas dans le PATH." -ForegroundColor Yellow
+  Write-Host "aicli n'est pas dans le PATH." -ForegroundColor Yellow
   $npmPrefix = (npm prefix -g)
-  Write-Host "Ajoute $npmPrefix à ton PATH, ou lance via :"
+  Write-Host "Ajoute $npmPrefix a ton PATH, ou lance via :"
   Write-Host "  $npmPrefix\aicli.cmd"
 }
