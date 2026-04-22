@@ -6,6 +6,8 @@ import { StatusLine } from "./StatusLine.js";
 import { inputController } from "./input-controller.js";
 import { pickerController } from "./picker-controller.js";
 import { ModelPicker } from "./ModelPicker.js";
+import { permissionController } from "./permission-controller.js";
+import { PermissionPicker } from "./PermissionPicker.js";
 
 // Layout :
 // ┌───────────────────────────┐
@@ -50,11 +52,30 @@ export function App() {
     };
   }, []);
 
+  // Permission prompt actif (ex: askPermission pour un tool call).
+  const [permissionActive, setPermissionActive] = useState(
+    () => permissionController.getCurrent(),
+  );
+  useEffect(() => {
+    const update = () => setPermissionActive(permissionController.getCurrent());
+    permissionController.on("change", update);
+    return () => {
+      permissionController.off("change", update);
+    };
+  }, []);
+
   return (
     <Box flexDirection="column">
       <HistoryView />
       <StreamingView />
-      {pickerActive ? (
+      {permissionActive ? (
+        <PermissionPicker
+          toolName={permissionActive.toolName}
+          category={permissionActive.category}
+          input={permissionActive.input}
+          onChoose={(d) => permissionController.close(d)}
+        />
+      ) : pickerActive ? (
         <ModelPicker
           items={pickerActive.items}
           initial={pickerActive.initial}
