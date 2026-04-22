@@ -324,15 +324,15 @@ export function initStatusBar(): void {
   if (enabled) return;
   enabled = true;
   state.cwd = process.cwd();
+  // teardown au exit Node (normal ou forcé). Suffisant pour nettoyer
+  // le status bar — pas besoin de handlers SIGINT/SIGTERM agressifs.
+  //
+  // IMPORTANT : on ne pose PAS de handler SIGINT qui call process.exit.
+  // Inquirer (picker @inquirer/search dans /model) émet SIGINT quand
+  // l'user appuie Ctrl-C pour cancel le picker — si on exitait ici, on
+  // tuerait tout le REPL au lieu de juste fermer le picker. Node et
+  // readline gèrent Ctrl-C nativement (cancel ligne / double Ctrl-C quit).
   process.on("exit", teardownStatusBar);
-  process.on("SIGINT", () => {
-    teardownStatusBar();
-    process.exit(130);
-  });
-  process.on("SIGTERM", () => {
-    teardownStatusBar();
-    process.exit(143);
-  });
 }
 
 export function teardownStatusBar(): void {
