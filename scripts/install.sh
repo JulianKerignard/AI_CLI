@@ -56,10 +56,10 @@ fi
 
 # 4. Install depuis npm registry.
 printf "${BOLD}Installation depuis npm registry...${RESET}\n"
-if ! npm install -g @juliankerignard/aicli@latest; then
+if ! npm install -g @juliank./aicli@latest; then
   printf "\n${RED}Install échoué.${RESET} Essaye :\n"
   printf "  ${YELLOW}npm cache clean --force${RESET}\n"
-  printf "  ${YELLOW}npm install -g @juliankerignard/aicli@latest${RESET}\n"
+  printf "  ${YELLOW}npm install -g @juliank./aicli@latest${RESET}\n"
   exit 1
 fi
 
