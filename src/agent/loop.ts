@@ -320,6 +320,8 @@ export class AgentLoop {
         }
       }
       this.messages.push({ role: "user", content: toolResults });
+      // Record les tool_results pour que /resume restore l'état complet.
+      this.opts.onRecord?.("tool_result", toolResults);
     }
 
     log.warn(`Boucle agent: limite d'itérations (${this.opts.maxIterations}) atteinte.`);

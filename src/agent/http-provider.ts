@@ -77,6 +77,35 @@ async function waitWithStatus(limiter: RateLimiter): Promise<void> {
   });
 }
 
+// Messages d'erreur user-friendly (vs "HTTP 401 depuis .../v1/messages :
+// {\"error\":...}") pour que l'user sache quoi faire.
+function buildFriendlyError(status: number, bodyText: string): Error {
+  if (status === 401) {
+    return new Error(
+      "Token API expiré ou invalide. Tape /login pour te reconnecter.",
+    );
+  }
+  if (status === 403) {
+    return new Error("Accès refusé. Vérifie ta clé API via /login.");
+  }
+  if (status === 429) {
+    return new Error(
+      "Quota dépassé ou rate limit. Attends ~1 min ou essaie un autre modèle via /best fast.",
+    );
+  }
+  if (status >= 500) {
+    return new Error(
+      `Serveur indisponible (HTTP ${status}). Réessaie dans quelques secondes.`,
+    );
+  }
+  if (status === 0) {
+    return new Error("Réseau injoignable. Vérifie ta connexion.");
+  }
+  // 4xx autres : on passe le message upstream (potentiellement utile).
+  const snippet = bodyText.slice(0, 160).replace(/\s+/g, " ").trim();
+  return new Error(`Erreur ${status}${snippet ? ` : ${snippet}` : ""}`);
+}
+
 // Provider HTTP qui parle Anthropic Messages API. Cible : endpoint Chat-Mistral
 // `POST /api/v1/messages` qui proxifie vers Mistral. Mode streaming SSE avec
 // support tool_use (accumule les input_json_delta, JSON.parse à la fin du bloc).
@@ -162,14 +191,10 @@ export class HttpProvider implements Provider {
         });
         continue;
       }
-      throw new Error(
-        `HTTP ${res.status} depuis ${this.opts.baseUrl}/v1/messages : ${lastErrText.slice(0, 200)}`,
-      );
+      throw buildFriendlyError(res.status, lastErrText);
     }
     if (!res || !res.ok || !res.body) {
-      throw new Error(
-        `HTTP ${res?.status ?? "?"} après ${maxAttempts} essais : ${lastErrText.slice(0, 200)}`,
-      );
+      throw buildFriendlyError(res?.status ?? 0, lastErrText);
     }
 
     // État accumulateur par index de content_block.

@@ -1,9 +1,11 @@
-import React, { useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Box, Text, useInput } from "ink";
 import type { SessionSummary } from "../sessions/store.js";
+import { colors as c } from "./theme.js";
 
 // Picker natif Ink pour /resume — liste les sessions du cwd courant
-// avec leur titre (1er user message), timestamp et nombre de messages.
+// avec filter texte (tape pour filtrer sur le title), timestamp et
+// nombre de messages.
 
 interface Props {
   items: SessionSummary[];
@@ -32,51 +34,78 @@ function formatDate(ts: number): string {
 }
 
 export function SessionPicker({ items, onChoose }: Props) {
+  const [query, setQuery] = useState("");
   const [idx, setIdx] = useState(0);
   const pageSize = 10;
 
-  useInput((_inp, key) => {
+  const filtered = useMemo(() => {
+    const q = query.toLowerCase();
+    if (!q) return items;
+    return items.filter((s) => s.title.toLowerCase().includes(q));
+  }, [items, query]);
+
+  useEffect(() => {
+    if (idx >= filtered.length) setIdx(0);
+  }, [filtered.length, idx]);
+
+  useInput((input, key) => {
     if (key.escape) {
       onChoose(null);
       return;
     }
     if (key.return) {
-      onChoose(items[idx]?.path ?? null);
+      onChoose(filtered[idx]?.path ?? null);
       return;
     }
     if (key.upArrow) {
-      setIdx((i) => (i - 1 + items.length) % Math.max(1, items.length));
+      setIdx((i) => (i - 1 + filtered.length) % Math.max(1, filtered.length));
       return;
     }
     if (key.downArrow) {
-      setIdx((i) => (i + 1) % Math.max(1, items.length));
+      setIdx((i) => (i + 1) % Math.max(1, filtered.length));
       return;
+    }
+    if (key.backspace || key.delete) {
+      setQuery((q) => q.slice(0, -1));
+      return;
+    }
+    if (key.ctrl || key.meta) return;
+    if (input && input.length > 0) {
+      setQuery((q) => q + input);
     }
   });
 
   const start = Math.max(
     0,
-    Math.min(idx - Math.floor(pageSize / 2), items.length - pageSize),
+    Math.min(idx - Math.floor(pageSize / 2), filtered.length - pageSize),
   );
-  const visible = items.slice(start, start + pageSize);
+  const visible = filtered.slice(start, start + pageSize);
 
   return (
     <Box
       flexDirection="column"
       borderStyle="round"
-      borderColor="#e27649"
+      borderColor={c.accent}
       paddingX={1}
     >
       <Box>
-        <Text color="#f6f1e8" bold>
+        <Text color={c.ink} bold>
           Reprendre une session
         </Text>
-        <Text color="#8a8270">{` (${items.length} dispo)`}</Text>
+        <Text color={c.inkDim}>{` (${filtered.length}/${items.length})`}</Text>
+      </Box>
+      <Box marginTop={1}>
+        <Text color={c.inkMuted}>filter </Text>
+        <Text color={c.inkDim}>› </Text>
+        <Text>{query}</Text>
+        <Text inverse> </Text>
       </Box>
       <Box flexDirection="column" marginTop={1}>
-        {items.length === 0 && (
-          <Text color="#8a8270">
-            aucune session pour ce dossier — lance juste une conversation
+        {filtered.length === 0 && (
+          <Text color={c.inkDim}>
+            {items.length === 0
+              ? "aucune session pour ce dossier — lance juste une conversation"
+              : `aucun match pour "${query}"`}
           </Text>
         )}
         {visible.map((s, i) => {
@@ -84,18 +113,18 @@ export function SessionPicker({ items, onChoose }: Props) {
           const active = realIdx === idx;
           return (
             <Box key={s.id}>
-              <Text color={active ? "#e27649" : "#4a4239"}>
+              <Text color={active ? c.accent : c.inkFaint}>
                 {active ? "›" : " "}
               </Text>
-              <Text color={active ? "#f6f1e8" : "#bdb3a1"}>
+              <Text color={active ? c.ink : c.inkMuted}>
                 {" "}
                 {s.title.padEnd(50).slice(0, 50)}
               </Text>
-              <Text color="#8a8270">
+              <Text color={c.inkDim}>
                 {"  "}
                 {formatDate(s.startedAt)} (il y a {formatRelative(s.startedAt)})
               </Text>
-              <Text color="#7fa670">
+              <Text color={c.success}>
                 {"  "}
                 {s.messageCount} msg
               </Text>
@@ -104,7 +133,9 @@ export function SessionPicker({ items, onChoose }: Props) {
         })}
       </Box>
       <Box marginTop={1}>
-        <Text color="#8a8270">↑↓ naviguer · Enter reprendre · Esc annuler</Text>
+        <Text color={c.inkDim}>
+          tape pour filtrer · ↑↓ naviguer · Enter reprendre · Esc annuler
+        </Text>
       </Box>
     </Box>
   );

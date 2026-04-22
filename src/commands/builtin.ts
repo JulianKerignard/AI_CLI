@@ -358,8 +358,9 @@ export function builtinCommands(allCommands: () => SlashCommand[]): SlashCommand
         }
 
         // Reconstruit les messages de l'agent depuis les events recorded.
-        // Format minimal : on reinsère user/assistant en messages[] pour
-        // que le prochain prompt continue dans le même contexte.
+        // Support complet : user (texte), assistant (content blocks avec
+        // tool_use), tool_result (content blocks). Permet de reprendre
+        // au milieu d'un flow tool_call sans perdre le contexte.
         agent.messages.length = 0;
         for (const ev of loaded.events) {
           if (ev.type === "user") {
@@ -373,9 +374,8 @@ export function builtinCommands(allCommands: () => SlashCommand[]): SlashCommand
             });
             historyStore.push({ type: "user", text });
           } else if (ev.type === "assistant") {
-            // content peut être string ou array de blocks — on normalise.
             const blocks = Array.isArray(ev.content)
-              ? (ev.content as Array<{ type: string; text?: string }>)
+              ? (ev.content as Array<{ type: string; text?: string; name?: string }>)
               : [];
             agent.messages.push({
               role: "assistant",
@@ -386,6 +386,30 @@ export function builtinCommands(allCommands: () => SlashCommand[]): SlashCommand
               .map((b) => b.text)
               .join("");
             if (text) historyStore.push({ type: "assistant", text });
+            // Affiche aussi les tool_use pour que l'user voie ce qui a
+            // été exécuté.
+            for (const b of blocks) {
+              if (b.type === "tool_use" && b.name) {
+                historyStore.push({
+                  type: "tool",
+                  text: `◆ ${b.name}`,
+                });
+              }
+            }
+          } else if (ev.type === "tool_result") {
+            const blocks = Array.isArray(ev.content)
+              ? (ev.content as Array<{ type: string; content?: string }>)
+              : [];
+            agent.messages.push({
+              role: "user",
+              content: blocks as never,
+            });
+            for (const b of blocks) {
+              if (b.type === "tool_result" && typeof b.content === "string") {
+                const summary = b.content.split("\n").length + " lines";
+                historyStore.push({ type: "tool", text: `  ⎿ ${summary}` });
+              }
+            }
           }
         }
         log.info(
