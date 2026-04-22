@@ -105,11 +105,29 @@ export class AgentLoop {
     let lastQuota: ProviderQuota | undefined;
 
     for (let i = 0; i < this.opts.maxIterations; i++) {
+      // Streaming : on imprime le prefix assistant "●" + les text deltas en
+      // live. À la fin du stream, newline pour que le status bar / tool calls
+      // suivants commencent sur une ligne propre.
+      let streamStarted = false;
+      const startStream = () => {
+        if (streamStarted) return;
+        streamStarted = true;
+        // Préfixe assistant sans newline à la fin : les deltas suivent direct.
+        process.stdout.write(log.streamPrefix());
+      };
+
       const response = await this.opts.provider.chat({
         system: this.opts.system,
         messages: this.messages,
         tools: this.opts.tools.list(),
+        onTextDelta: (delta) => {
+          startStream();
+          process.stdout.write(delta);
+        },
       });
+
+      // Fin du stream : newline pour clore la ligne "● texte…"
+      if (streamStarted) process.stdout.write("\n");
 
       if (response.usage) {
         turnInputTokens += response.usage.inputTokens;
@@ -120,7 +138,9 @@ export class AgentLoop {
       this.messages.push({ role: "assistant", content: response.content });
 
       const text = extractText(response.content);
-      if (text) log.assistant(text);
+      // Si le stream n'a pas affiché de texte (par ex. response vide ou tool_use
+      // only), on n'affiche rien. Si on a streamé du texte, inutile de ré-imprimer.
+      if (!streamStarted && text) log.assistant(text);
       finalText = text || finalText;
 
       if (response.stopReason !== "tool_use") {

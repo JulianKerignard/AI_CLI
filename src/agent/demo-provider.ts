@@ -1,20 +1,21 @@
-import type { Provider, ProviderResponse, Message, ContentBlock } from "./provider.js";
-import type { Tool } from "../tools/types.js";
+import type {
+  Provider,
+  ChatOptions,
+  ProviderResponse,
+  ContentBlock,
+} from "./provider.js";
 
 /**
  * Provider démo : pas de vraie IA. Inspecte le dernier tour utilisateur
  * pour émettre un tool_use plausible, ou répond en texte. Permet de
- * démontrer la boucle complète sans clé API.
+ * démontrer la boucle complète sans clé API. Pseudo-streaming via onTextDelta
+ * pour que l'UX corresponde au HttpProvider (newline final ajouté par AgentLoop).
  */
 export class DemoProvider implements Provider {
   name = "demo";
   private counter = 0;
 
-  async chat(opts: {
-    system: string;
-    messages: Message[];
-    tools: Tool[];
-  }): Promise<ProviderResponse> {
+  async chat(opts: ChatOptions): Promise<ProviderResponse> {
     const { messages, tools } = opts;
     const last = messages[messages.length - 1];
 

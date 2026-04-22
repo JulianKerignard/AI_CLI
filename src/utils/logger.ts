@@ -199,6 +199,10 @@ export const log = {
       ATH.accent(SYM.assistant + " ") +
         ATH.ink(msg.replace(/\n/g, "\n  ")),
     ),
+  // Prefix pour le streaming assistant : le texte vient en deltas juste après.
+  // Pas de \n à la fin — AgentLoop imprime les deltas directement, puis ajoute
+  // un \n final quand le stream se termine.
+  streamPrefix: () => ATH.accent(SYM.assistant + " "),
   tool: (name: string, detail: string) =>
     console.log(
       ATH.accentSoft(SYM.tool + " ") +

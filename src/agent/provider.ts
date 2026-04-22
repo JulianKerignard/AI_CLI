@@ -49,13 +49,22 @@ export interface ProviderResponse {
   quota?: ProviderQuota;
 }
 
+export interface ChatOptions {
+  system: string;
+  messages: Message[];
+  tools: Tool[];
+  // Callback streaming : appelé pour chaque delta de texte au fur et à mesure
+  // de la réception. Les providers qui ne supportent pas le streaming peuvent
+  // l'ignorer et tout renvoyer à la fin (mode non-streaming).
+  onTextDelta?: (delta: string) => void;
+  // Callback pour signaler qu'un tool_use a été reçu (block complet, args parsés).
+  // Utile pour afficher "◆ Read(…)" en live avant d'exécuter le tool.
+  onToolUse?: (block: ToolUseBlock) => void;
+}
+
 export interface Provider {
   name: string;
-  chat(opts: {
-    system: string;
-    messages: Message[];
-    tools: Tool[];
-  }): Promise<ProviderResponse>;
+  chat(opts: ChatOptions): Promise<ProviderResponse>;
 }
 
 export function extractToolCalls(response: ProviderResponse): ToolCall[] {
