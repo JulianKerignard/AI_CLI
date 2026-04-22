@@ -16,10 +16,22 @@ export interface AgentOptions {
 
 export class AgentLoop {
   readonly messages: Message[] = [];
-  private readonly opts: AgentOptions & { maxIterations: number };
+  private opts: AgentOptions & { maxIterations: number };
 
   constructor(opts: AgentOptions) {
     this.opts = { ...opts, maxIterations: opts.maxIterations ?? 8 };
+  }
+
+  get provider(): Provider {
+    return this.opts.provider;
+  }
+
+  setProvider(provider: Provider): void {
+    this.opts.provider = provider;
+  }
+
+  setSystem(system: string): void {
+    this.opts.system = system;
   }
 
   reset(): void {

@@ -1,5 +1,7 @@
 import type { SlashCommand } from "./types.js";
 import { log, chalk } from "../utils/logger.js";
+import { runLoginFlow } from "../auth/login.js";
+import { clearCredentials } from "../auth/store.js";
 
 export function builtinCommands(allCommands: () => SlashCommand[]): SlashCommand[] {
   return [
@@ -21,6 +23,44 @@ export function builtinCommands(allCommands: () => SlashCommand[]): SlashCommand
       async run({ agent }) {
         agent.reset();
         log.info("Historique effacé.");
+      },
+    },
+    {
+      name: "login",
+      description: "Se connecter à chat.juliankerignard.fr (flow navigateur).",
+      async run({ auth }) {
+        try {
+          const creds = await runLoginFlow();
+          auth.onLogin(creds);
+          log.info(
+            `Connecté. Provider basculé sur ${creds.baseUrl} (model: ${creds.model}).`,
+          );
+        } catch (err) {
+          log.error(`Login échoué : ${err instanceof Error ? err.message : err}`);
+        }
+      },
+    },
+    {
+      name: "logout",
+      description: "Supprime le token local et revient au provider démo.",
+      async run({ auth }) {
+        clearCredentials();
+        auth.onLogout();
+        log.info("Déconnecté. Retour au provider démo.");
+      },
+    },
+    {
+      name: "status",
+      description: "Affiche l'état d'authentification.",
+      async run({ auth }) {
+        const creds = auth.getCredentials();
+        if (creds) {
+          log.info(`Connecté à ${creds.baseUrl}`);
+          log.info(`Token  : ${creds.token.slice(0, 8)}… (masqué)`);
+          log.info(`Model  : ${creds.model}`);
+        } else {
+          log.info("Non connecté. Tape /login pour te connecter.");
+        }
       },
     },
     {

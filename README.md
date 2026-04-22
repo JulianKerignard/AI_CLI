@@ -8,7 +8,7 @@ Un CLI interactif **à la Claude Code**, écrit en TypeScript. Squelette complet
 - 🤖 **Sub-agents** spécialisés avec contexte isolé (`.aicli/agents/*.md`)
 - 🔌 **Client MCP** stdio (JSON-RPC 2.0) — branche des serveurs externes (`.aicli/mcp.json`)
 
-> ⚠️ Ce CLI tourne en **mode démo** : le provider IA est un stub qui simule les réponses et les tool calls à partir de mots-clés. Parfait pour tester l'architecture sans clé API. Pour brancher le vrai SDK Anthropic, remplace `src/agent/demo-provider.ts`.
+> Par défaut, AI_CLI tourne en **mode démo** (stub sans IA). Lance `/login` dans le REPL pour te brancher sur [chat.juliankerignard.fr](https://chat.juliankerignard.fr) et parler à Mistral via l'endpoint Anthropic-compatible.
 
 ## Quickstart
 
@@ -21,15 +21,42 @@ npm start          # ou: npm run dev  (via tsx)
 Dans le REPL :
 
 ```
-» /help
+» /login                 # ouvre le navigateur → autorise → token sauvegardé
+» /status                # affiche l'état d'auth
+» hello                  # parle à Mistral (si loggé) ou au stub
 » /tools
-» lis README.md          # le provider démo émet un tool_use Read
+» lis README.md          # tool_use Read
 » exécute `ls -la`        # tool_use Bash
-» skill hello            # charge le skill "hello"
-» agent explorer .       # délègue à un sub-agent
-» /review src/index.ts   # slash command custom
+» /logout                # supprime le token local
 » /exit
 ```
+
+## Login avec chat.juliankerignard.fr
+
+Le flow `/login` fonctionne comme `gh auth login` :
+
+1. Le CLI ouvre ton navigateur sur `https://chat.juliankerignard.fr/cli/auth?…`
+2. Si tu es déjà loggé, tu cliques **Autoriser** → le token est renvoyé automatiquement via un callback loopback (`http://127.0.0.1:PORT/callback`)
+3. Sinon tu te connectes d'abord, puis tu es redirigé sur la page d'approbation
+4. Le token est stocké dans `~/.aicli/credentials.json` (chmod 0600)
+
+### Fallback manuel
+
+Si le navigateur ne s'ouvre pas ou si le loopback est bloqué (firewall, Docker, SSH), l'URL s'affiche en clair dans le terminal et tu peux coller le token directement au prompt. La page web affiche aussi le token avec un bouton copier.
+
+### Variables d'environnement
+
+Priorité absolue sur le fichier de credentials — idéal en CI/Docker :
+
+| Variable | Rôle |
+|---|---|
+| `AICLI_AUTH_TOKEN` | Token `csm_…` (aussi : `ANTHROPIC_AUTH_TOKEN`) |
+| `AICLI_BASE_URL` | `https://chat.juliankerignard.fr/api` par défaut |
+| `AICLI_MODEL` | `mistral-large-latest` par défaut |
+
+### Révocation
+
+`/logout` supprime le fichier local mais **ne révoque pas la clé côté serveur**. Pour la révoquer, va sur [chat.juliankerignard.fr/profile](https://chat.juliankerignard.fr/profile) et supprime la clé `AI_CLI <date>`.
 
 ## Structure
 
@@ -93,9 +120,9 @@ Système prompt décrivant la mission du sub-agent.
 
 Copie `.aicli/mcp.json.example` → `.aicli/mcp.json` et adapte. Les outils seront préfixés `mcp__<server>__<tool>` et exposés à l'agent.
 
-## Brancher le vrai Claude
+## Brancher un autre backend Anthropic-compatible
 
-Remplace `DemoProvider` dans `src/agent/demo-provider.ts` par une implémentation qui appelle `@anthropic-ai/sdk` (en respectant `Provider` dans `src/agent/provider.ts`). Rien d'autre à changer.
+Le `HttpProvider` (`src/agent/http-provider.ts`) parle le format Anthropic Messages API (`POST /v1/messages`). Pour cibler un autre endpoint (Claude officiel, proxy maison, etc.), set `AICLI_BASE_URL` et `AICLI_AUTH_TOKEN` — le CLI s'en sert directement sans repasser par le flow `/login`.
 
 ## Licence
 
