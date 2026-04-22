@@ -137,6 +137,9 @@ function contextWindowFor(model: string): number {
   if (m.includes("llama-3.1-405b")) return 128_000;
   if (m.includes("llama-3.1-8b")) return 128_000;
   if (m.includes("phi-4")) return 16_000;
+  if (m.includes("glm-5") || m.includes("glm5")) return 200_000;
+  if (m.includes("glm4")) return 128_000;
+  if (m.includes("minimax-m")) return 1_000_000;
   // Mistral
   if (m.includes("codestral") || m.includes("devstral")) return 256_000;
   if (m.includes("small")) return 32_000;

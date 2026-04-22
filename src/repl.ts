@@ -223,19 +223,28 @@ export async function startRepl(): Promise<void> {
     getCredentials: () => currentCreds,
     onLogin: (creds: Credentials) => {
       currentCreds = creds;
-      // Persiste sur disque pour que /model et /login gardent leur valeur
-      // entre les relances du CLI. Sans ça, le model choisi via /model se
-      // perd au prochain lancement (retombe sur celui du creds initial).
       saveCredentials(creds);
       provider = makeProvider(creds);
       agent.setProvider(provider);
       registerAgentTool();
+      // Refresh le status bar : nouveau provider.name + reset contextWindow
+      // pour que contextWindowFor(newModel) recalcule au prochain render.
+      updateStatus({
+        provider: provider.name,
+        contextWindow: undefined,
+        phase: "idle",
+      });
     },
     onLogout: () => {
       currentCreds = null;
       provider = makeProvider(null);
       agent.setProvider(provider);
       registerAgentTool();
+      updateStatus({
+        provider: provider.name,
+        contextWindow: undefined,
+        phase: "offline",
+      });
     },
   };
 
