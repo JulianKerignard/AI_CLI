@@ -14,6 +14,7 @@ import { makeAgentTool } from "./agents/tool.js";
 import { loadMcpServers } from "./mcp/config.js";
 import {
   loadCredentials,
+  saveCredentials,
   checkCredentialsPerms,
   type Credentials,
 } from "./auth/store.js";
@@ -233,6 +234,10 @@ export async function startRepl(): Promise<void> {
     getCredentials: () => currentCreds,
     onLogin: (creds: Credentials) => {
       currentCreds = creds;
+      // Persiste sur disque pour que /model et /login gardent leur valeur
+      // entre les relances du CLI. Sans ça, le model choisi via /model se
+      // perd au prochain lancement (retombe sur celui du creds initial).
+      saveCredentials(creds);
       provider = makeProvider(creds);
       agent.setProvider(provider);
       registerAgentTool();
