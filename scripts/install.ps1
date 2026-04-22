@@ -64,10 +64,24 @@ try {
   exit 1
 }
 
-Write-Host "Installation de aicli..." -ForegroundColor White
-npm install -g $tarballPath
+# Extraction manuelle avec tar natif (Win10+). Contourne Windows Defender qui
+# intercepte l'extraction streaming de npm fichier par fichier dans AppData.
+Write-Host "Extraction du package..." -ForegroundColor White
+$extractDir = Join-Path $tmpDir "extracted"
+New-Item -ItemType Directory -Force -Path $extractDir | Out-Null
+try {
+  tar -xzf $tarballPath -C $extractDir
+  if ($LASTEXITCODE -ne 0) { throw "tar exit code $LASTEXITCODE" }
+} catch {
+  Write-Host "Extraction echouee : $_" -ForegroundColor Red
+  exit 1
+}
 
-# Nettoie le tarball temporaire.
+Write-Host "Installation de aicli..." -ForegroundColor White
+$packageDir = Join-Path $extractDir "package"
+npm install -g $packageDir
+
+# Nettoie les fichiers temporaires.
 Remove-Item -Recurse -Force $tmpDir -ErrorAction SilentlyContinue
 
 Write-Host ""
