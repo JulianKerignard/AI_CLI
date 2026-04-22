@@ -312,11 +312,13 @@ export async function startRepl(): Promise<void> {
 
     if (!input) continue;
     history.add(input);
-    // Echo l'input dans l'historique (sous Ink, InputBox se vide déjà
-    // mais on veut garder une trace visible de ce que l'user a envoyé).
     const { historyStore } = await import("./ui/history-store.js");
     historyStore.push({ type: "user", text: input });
 
+    // Désactive l'InputBox pendant l'exécution pour éviter les saisies
+    // parallèles. L'user ne peut pas envoyer un nouveau message tant
+    // que l'agent n'a pas terminé. Ré-enable dans finally.
+    inputController.setDisabled(true);
     try {
       if (input.startsWith("/")) {
         await commands.run(input, {
@@ -334,6 +336,10 @@ export async function startRepl(): Promise<void> {
       }
     } catch (err) {
       log.error((err as Error).message);
+    } finally {
+      // Ré-enable l'input pour le prochain tour — qu'il y ait eu erreur
+      // ou non, qu'on ait été /exit ou non.
+      inputController.setDisabled(false);
     }
 
     if (shouldExit) return;

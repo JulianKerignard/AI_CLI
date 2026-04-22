@@ -72,12 +72,14 @@ export function InputBox({ disabled, onSubmit, onInterrupt, placeholder }: Props
   return (
     <Box
       borderStyle="round"
-      borderColor="#4a4239"
+      borderColor={disabled ? "#2a2520" : "#4a4239"}
       paddingX={1}
       flexDirection="row"
     >
-      <Text color="#e27649">›{" "}</Text>
-      {showPlaceholder ? (
+      <Text color={disabled ? "#4a4239" : "#e27649"}>›{" "}</Text>
+      {disabled ? (
+        <Text color="#4a4239">…en cours — attend la fin de génération</Text>
+      ) : showPlaceholder ? (
         <Text color="#4a4239">{placeholder}</Text>
       ) : (
         <Text>
