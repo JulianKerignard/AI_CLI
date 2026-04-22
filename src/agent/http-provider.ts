@@ -18,31 +18,45 @@ interface Opts {
   model: string;
 }
 
-// Rate limiter singleton côté CLI : 3 req/min (marge 25% sous le plafond
-// Mistral free 4/min). Partagé entre tous les HttpProviders (même si on
-// hot-swap sur /login, le bucket reste).
-const SHARED_LIMITER = new RateLimiter({
-  capacity: 3,
-  windowMs: 60_000,
-});
+// Deux limiters côté CLI selon le provider du modèle actif :
+// - Mistral free : 4 req/min → on cible 3/min (marge 25%)
+// - NVIDIA NIM : ~300 req/min par modèle → 50/min largement suffisant
+//   pour un agent CLI qui fait ~5-20 tool calls par minute
+//
+// Les modèles NVIDIA sont préfixés "nvidia/" (convention Chat-Mistral).
+// Les personas (maxime-latest, etc.) routent vers Mistral côté serveur,
+// donc bucket Mistral côté client.
+const MISTRAL_LIMITER = new RateLimiter({ capacity: 3, windowMs: 60_000 });
+const NVIDIA_LIMITER = new RateLimiter({ capacity: 50, windowMs: 60_000 });
 
-export function getSharedLimiter(): RateLimiter {
-  return SHARED_LIMITER;
+function isNvidiaModel(model: string): boolean {
+  return model.startsWith("nvidia/");
 }
 
-// Attend la prochaine slot libre. Le status bar affiche "⏳ waiting Xs" avec
-// countdown décroissant. Ne fait rien si la slot est immédiatement dispo.
-async function waitWithStatus(): Promise<void> {
-  const initial = SHARED_LIMITER.waitFor();
-  const snap = SHARED_LIMITER.snapshot();
-  // Toujours push le bucket dans le status bar (pour visibilité même sans wait).
+function limiterFor(model: string): RateLimiter {
+  return isNvidiaModel(model) ? NVIDIA_LIMITER : MISTRAL_LIMITER;
+}
+
+// Rétrocompatibilité : certains callers (builtin.ts /usage, tests) veulent
+// le limiter "principal" sans connaître le modèle. On retourne le Mistral
+// (plus restrictif, c'est la valeur historique).
+export function getSharedLimiter(): RateLimiter {
+  return MISTRAL_LIMITER;
+}
+
+// Attend la prochaine slot libre du limiter associé au modèle. Le status
+// bar affiche "⏳ waiting Xs" avec countdown décroissant. Ne fait rien si
+// la slot est immédiatement dispo.
+async function waitWithStatus(limiter: RateLimiter): Promise<void> {
+  const initial = limiter.waitFor();
+  const snap = limiter.snapshot();
   updateStatus({
     bucketUsed: snap.used,
     bucketCapacity: snap.capacity,
   });
   if (initial === 0) {
-    SHARED_LIMITER.record();
-    const snap2 = SHARED_LIMITER.snapshot();
+    limiter.record();
+    const snap2 = limiter.snapshot();
     updateStatus({
       bucketUsed: snap2.used,
       bucketCapacity: snap2.capacity,
@@ -52,14 +66,13 @@ async function waitWithStatus(): Promise<void> {
   const start = Date.now();
   const end = start + initial;
   updateStatus({ phase: "waiting-quota", waitingMsRemaining: initial });
-  // Tick 500ms pour la déco du countdown dans le status bar.
   while (Date.now() < end) {
     const remainingMs = Math.max(0, end - Date.now());
     updateStatus({ waitingMsRemaining: remainingMs });
     await new Promise((r) => setTimeout(r, 500));
   }
-  SHARED_LIMITER.record();
-  const snap3 = SHARED_LIMITER.snapshot();
+  limiter.record();
+  const snap3 = limiter.snapshot();
   updateStatus({
     phase: "thinking",
     waitingMsRemaining: undefined,
@@ -105,12 +118,14 @@ export class HttpProvider implements Provider {
     // 429 (attente avant d'émettre). Si un 429 arrive quand même (d'autres
     // clients sur la même key, rate limit serveur côté scope), on honore
     // Retry-After + on passe le bucket en mode cold.
+    // Choix du bucket selon le provider : Mistral (3/min) ou NVIDIA (50/min).
+    const limiter = limiterFor(this.opts.model);
     const maxAttempts = 3;
     let res: Response | undefined;
     let lastErrText = "";
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
       // Attente bucket avec affichage live countdown dans le status bar.
-      await waitWithStatus();
+      await waitWithStatus(limiter);
 
       res = await fetch(`${this.opts.baseUrl}/v1/messages`, {
         method: "POST",
@@ -132,7 +147,7 @@ export class HttpProvider implements Provider {
         const retryAfterMs = retryAfterHeader
           ? Math.min(Number(retryAfterHeader) * 1000, 60_000)
           : 8_000 * 2 ** attempt;
-        SHARED_LIMITER.markCold(retryAfterMs);
+        limiter.markCold(retryAfterMs);
         // Status bar affiche le countdown du retry.
         updateStatus({
           phase: "waiting-quota",
