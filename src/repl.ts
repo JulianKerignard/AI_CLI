@@ -6,7 +6,6 @@ import { DemoProvider } from "./agent/demo-provider.js";
 import { HttpProvider } from "./agent/http-provider.js";
 import { AgentLoop } from "./agent/loop.js";
 import { CommandRegistry } from "./commands/registry.js";
-import { pickSlashCommand } from "./commands/picker.js";
 import { loadSkills } from "./skills/loader.js";
 import { makeSkillTool } from "./skills/tool.js";
 import { loadSubAgents } from "./agents/loader.js";
@@ -290,62 +289,16 @@ export async function startRepl(): Promise<void> {
     // complète le préfixe commun. Pas de config nécessaire.
   });
 
-  // Picker interactif : quand l'user tape `/` depuis un prompt vide, on
-  // intercepte et on ouvre un picker @inquirer/search (flèches ↑↓, filtrage
-  // à la frappe, Tab/Enter pour sélectionner, Esc pour annuler). Une fois
-  // choisie, la commande est injectée dans le readline.
-  let pickerActive = false;
-
-  process.stdin.on(
-    "keypress",
-    (
-      _str: string | undefined,
-      key: { sequence?: string; name?: string } | undefined,
-    ) => {
-      if (pickerActive) return;
-      if (!key || key.sequence !== "/") return;
-      // Défère d'un tick pour que rl.line reflète l'insertion du "/".
-      setImmediate(() => {
-        if (rl.line !== "/") return;
-        pickerActive = true;
-        void (async () => {
-          try {
-            // Efface le "/" du readline puis passe le contrôle à inquirer.
-            rl.write(null, { ctrl: true, name: "u" });
-            rl.pause();
-            process.stdout.write("\n");
-
-            const chosen = await pickSlashCommand(commands.list());
-
-            // Inquirer a restauré stdin en mode cooked. readline a besoin du
-            // raw mode pour ses keypress. Force la restauration avant de
-            // redonner la main à readline.
-            if (process.stdin.isTTY) process.stdin.setRawMode(true);
-            rl.resume();
-            if (chosen) {
-              rl.write(`/${chosen} `);
-            }
-            rl.prompt(true);
-          } catch (err) {
-            // ExitPromptError est déjà géré dans pickSlashCommand. Toute autre
-            // erreur : log + restore rl pour que le REPL reste utilisable.
-            log.error(
-              `Picker error: ${err instanceof Error ? err.message : err}`,
-            );
-            try {
-              if (process.stdin.isTTY) process.stdin.setRawMode(true);
-              rl.resume();
-              rl.prompt(true);
-            } catch {
-              /* noop */
-            }
-          } finally {
-            pickerActive = false;
-          }
-        })();
-      });
-    },
-  );
+  // NOTE : l'ancien picker auto sur `/` (qui ouvrait @inquirer/search dès
+  // qu'on tapait `/` sur un prompt vide) a été retiré. Il confondait l'user
+  // qui voulait juste taper `/model` normalement : le picker piquait le `/`,
+  // interceptait les frappes, et selon le mode de fermeture (Esc, erreur)
+  // l'user pouvait se retrouver avec "model" sans `/` qui partait au modèle.
+  //
+  // Comportement actuel : on tape `/model` directement, Tab pour la
+  // complétion. La commande /model (builtin) ouvre déjà son propre picker
+  // interactif via @inquirer/search quand elle est appelée sans arg, ce
+  // qui couvre le cas "je veux browse les commandes".
 
   const cleanup = () => {
     teardownStatusBar();
