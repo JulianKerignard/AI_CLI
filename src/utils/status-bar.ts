@@ -310,26 +310,25 @@ function writeStatus(): void {
 
   const { rule, line1, line2, line3 } = renderLines(cols);
 
-  // Save cursor → écrit les 4 lignes (rule + 3 data lines) depuis la base.
+  // Position absolue de chaque ligne (évite les \r\n qui peuvent déclencher
+  // des scrolls intempestifs à la limite du scroll region).
   // Ordre : rule = rows-3, line1 = rows-2, line2 = rows-1, line3 = rows.
-  const buf = [
-    `\x1b7`, // save cursor
-    `\x1b[${rows - STATUS_ROWS + 1};1H`,
-    `\x1b[2K`,
-    padToCols(rule, cols),
-    `\r\n`,
-    `\x1b[2K`,
-    padToCols(line1, cols),
-    `\r\n`,
-    `\x1b[2K`,
-    padToCols(line2, cols),
-    `\r\n`,
-    `\x1b[2K`,
-    padToCols(line3, cols),
-    `\x1b8`, // restore cursor
-  ].join("");
-
-  process.stdout.write(buf);
+  const baseRow = rows - STATUS_ROWS + 1;
+  const segments: string[] = [
+    // Reset scroll region à chaque render (idempotent) : si readline ou un
+    // autre lib a reset le scroll, on le restaure avant d'écrire.
+    `\x1b[1;${rows - STATUS_ROWS}r`,
+    // Save cursor avec ANSI standard (plus portable que \x1b7 DEC).
+    `\x1b[s`,
+  ];
+  const lines = [rule, line1, line2, line3];
+  for (let i = 0; i < lines.length; i++) {
+    segments.push(`\x1b[${baseRow + i};1H`);
+    segments.push(`\x1b[2K`);
+    segments.push(padToCols(lines[i], cols));
+  }
+  segments.push(`\x1b[u`); // restore cursor
+  process.stdout.write(segments.join(""));
   lastRenderAt = Date.now();
 }
 
@@ -367,6 +366,12 @@ export function initStatusBar(): void {
   state.cwd = process.cwd();
   resizeScrollRegion();
   process.stdout.on("resize", resizeScrollRegion);
+  // Re-render à chaque keystroke utilisateur : readline peut réécrire des
+  // lignes lors de son _refreshLine, écrasant potentiellement notre status.
+  // scheduleRender avec throttle 80ms évite de spam.
+  process.stdin.on("keypress", () => {
+    scheduleRender();
+  });
   process.on("exit", teardownStatusBar);
   process.on("SIGINT", () => {
     teardownStatusBar();
