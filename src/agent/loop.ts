@@ -122,12 +122,19 @@ export class AgentLoop {
     let lastQuota: ProviderQuota | undefined;
 
     for (let i = 0; i < this.opts.maxIterations; i++) {
-      // Compaction auto avant chaque tour : si l'historique dépasse les
-      // seuils (30 msgs ou 60k tokens estimés), résumé les N premiers messages
-      // via 1 appel LLM. Préserve les tool_use_id ↔ tool_result pending.
+      // Compaction auto avant chaque tour : seuils absolus (30 msgs / 60k
+      // tokens) OU seuil relatif 70% du context window du modèle courant.
+      // Le relatif permet de gérer correctement les petits ctx (phi-4 16k).
       try {
+        const { contextWindowFor } = await import("../lib/context-window.js");
+        const ctxWin = contextWindowFor(this.opts.provider.name);
         updateStatus({ phase: "compacting" });
-        await compactMessages(this.messages, this.opts.provider, this.opts.system);
+        await compactMessages(
+          this.messages,
+          this.opts.provider,
+          this.opts.system,
+          ctxWin,
+        );
       } catch (err) {
         log.warn(
           `[compact] erreur ignorée : ${err instanceof Error ? err.message : err}`,

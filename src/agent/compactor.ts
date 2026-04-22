@@ -15,9 +15,16 @@ import { log } from "../utils/logger.js";
 // - approxTokens(messages) > MAX_TOKENS_ESTIMATE
 
 const MAX_MESSAGES = 30; // ~15 turns user+assistant
-const MAX_TOKENS_ESTIMATE = 60_000; // char/4 approx
+const MAX_TOKENS_ESTIMATE = 60_000; // char/4 approx — fallback absolu
 const KEEP_TAIL_MESSAGES = 10; // garde les N derniers messages intacts
 const ABSOLUTE_MIN_HEAD = 4; // ne compact pas si moins de 4 messages à résumer
+
+// Seuil relatif au context window du modèle courant. On compact à 70%
+// avec un facteur de sécurité 1.2 sur l'estimation tokens (char/4 sous-
+// estime de ~15-20% sur JSON/code). Permet de gérer correctement les
+// petits ctx (phi-4 16k) comme les gros (kimi 256k).
+const RELATIVE_THRESHOLD = 0.70;
+const TOKEN_ESTIMATE_SAFETY = 1.2;
 
 // Flag opt-out via env AICLI_COMPACT_THRESHOLD=0.
 const DISABLED = process.env.AICLI_COMPACT_THRESHOLD === "0";
@@ -34,10 +41,22 @@ export function estimateTokens(messages: Message[]): number {
   return Math.ceil(chars / 4);
 }
 
-export function shouldCompact(messages: Message[]): boolean {
+export function shouldCompact(
+  messages: Message[],
+  contextWindow?: number,
+): boolean {
   if (DISABLED) return false;
+  const tokens = estimateTokens(messages);
+  // Critère relatif : déclenche quand l'estimation × 1.2 dépasse 70% du
+  // ctx window. Sauve les petits modèles (phi-4 16k) et évite de compacter
+  // trop tôt sur les gros (kimi 256k).
+  if (contextWindow && contextWindow > 0) {
+    const relativeLimit = contextWindow * RELATIVE_THRESHOLD;
+    if (tokens * TOKEN_ESTIMATE_SAFETY > relativeLimit) return true;
+  }
+  // Critère absolu (fallback si contextWindow inconnu).
   if (messages.length <= MAX_MESSAGES) {
-    return estimateTokens(messages) > MAX_TOKENS_ESTIMATE;
+    return tokens > MAX_TOKENS_ESTIMATE;
   }
   return true;
 }
@@ -58,12 +77,17 @@ function extractOpenToolUseIds(tailMessages: Message[]): Set<string> {
 
 // Compacte messages[] en place via 1 appel LLM (le provider courant).
 // Retourne true si une compaction a eu lieu, false sinon.
+//
+// INVARIANT : appel synchrone avant provider.chat() dans la boucle.
+// N'introduire JAMAIS un watcher async qui pourrait muter messages[]
+// pendant un streaming en cours → race condition.
 export async function compactMessages(
   messages: Message[],
   provider: Provider,
   systemPrompt: string,
+  contextWindow?: number,
 ): Promise<boolean> {
-  if (!shouldCompact(messages)) return false;
+  if (!shouldCompact(messages, contextWindow)) return false;
   if (messages.length <= ABSOLUTE_MIN_HEAD + KEEP_TAIL_MESSAGES) return false;
 
   const headCount = messages.length - KEEP_TAIL_MESSAGES;

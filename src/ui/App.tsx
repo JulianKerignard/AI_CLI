@@ -4,6 +4,7 @@ import { HistoryView, StreamingView } from "./HistoryView.js";
 import { InputBox } from "./InputBox.js";
 import { StatusLine } from "./StatusLine.js";
 import { inputController } from "./input-controller.js";
+import type { InputHistory } from "../utils/history.js";
 import { pickerController } from "./picker-controller.js";
 import { ModelPicker } from "./ModelPicker.js";
 import { permissionController } from "./permission-controller.js";
@@ -20,7 +21,11 @@ import { SessionPicker } from "./SessionPicker.js";
 // │ StatusLine (4 lignes)     │  ← status en dessous, toujours visible
 // └───────────────────────────┘
 
-export function App() {
+interface AppProps {
+  history?: InputHistory;
+}
+
+export function App({ history }: AppProps = {}) {
   const { stdout } = useStdout();
   const [columns, setColumns] = useState<number>(stdout?.columns ?? 100);
   const [inputDisabled, setInputDisabled] = useState<boolean>(false);
@@ -103,7 +108,8 @@ export function App() {
       ) : (
         <InputBox
           disabled={inputDisabled}
-          placeholder="écris un prompt ou /help"
+          placeholder="écris un prompt ou /help · \\+Enter = nouvelle ligne"
+          history={history}
           onSubmit={(line) => inputController.submit(line)}
           onInterrupt={() => inputController.interrupt()}
         />

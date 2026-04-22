@@ -181,10 +181,17 @@ export async function startRepl(): Promise<void> {
   // console.log direct) vers le store — sinon Ink capte mais masque.
   const { installConsolePatch } = await import("./ui/history-store.js");
   installConsolePatch();
-  const inkInstance = render(React.createElement(App), {
-    exitOnCtrlC: false,
-    patchConsole: false, // on fait le patch nous-même, plus fin
-  });
+  // InputHistory est instantiée tôt pour pouvoir être passée à l'App.
+  const history = new InputHistory();
+  const inkInstance = render(
+    React.createElement(App as React.ComponentType<{ history: InputHistory }>, {
+      history,
+    }),
+    {
+      exitOnCtrlC: false,
+      patchConsole: false,
+    },
+  );
 
   // Banner poussé dans l'historique après mount.
   log.banner("AI_CLI v0.1.0");
@@ -215,11 +222,6 @@ export async function startRepl(): Promise<void> {
     provider: provider.name,
     phase: currentCreds ? "idle" : "offline",
   });
-
-  // Boucle principale entièrement via @inquirer/input — plus de readline
-  // parallèle, plus de collision stdin. L'historique ↑↓ est géré en mode
-  // append-only (pas de navigation pour l'instant ; V2).
-  const history = new InputHistory();
 
   // Watcher background : déclaré tôt pour que cleanup() puisse le stop
   // sans TDZ. Start ci-dessous une fois auth setup.
