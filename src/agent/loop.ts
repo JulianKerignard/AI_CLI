@@ -15,6 +15,7 @@ import { compactMessages } from "./compactor.js";
 import {
   updateStatus,
   setSessionTotals,
+  printStatusBlock,
   resetTurn as resetStatusTurn,
 } from "../utils/status-bar.js";
 
@@ -192,17 +193,11 @@ export class AgentLoop {
         this.stats.outputTokens += turnOutputTokens;
         this.stats.turns += 1;
         setSessionTotals(this.stats.inputTokens, this.stats.outputTokens);
-        // Retour idle — la réponse complète a été affichée, le user peut saisir.
         updateStatus({ phase: "idle" });
         if (lastQuota) this.stats.lastQuota = lastQuota;
-        log.status(
-          formatTurnStatus(
-            turnInputTokens,
-            turnOutputTokens,
-            lastQuota,
-            this.opts.provider.name,
-          ),
-        );
+        // Block status inline à la fin de chaque turn complet (pas persistent :
+        // scrolle naturellement comme le reste, pas de race avec readline).
+        printStatusBlock();
         return finalText;
       }
 

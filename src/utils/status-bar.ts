@@ -1,15 +1,14 @@
 import { chalk } from "./logger.js";
-import { basename } from "node:path";
 import { getGitInfo } from "./git-info.js";
 
-// Status block multi-lignes persistent au bas du terminal (style Claude Code).
-// Reserved 4 rows + 1 rule au-dessus :
+// Status block multi-lignes style Claude Code, rendered INLINE après chaque
+// turn complet. Pas de scroll region (trop fragile avec readline). Le block
+// scrolle naturellement avec le reste du contenu.
 //
-//   ─────────────────────────────────────────────────────   [ session-tag ]
-//
+//   ─────────────────────────────────────────────────────   ┤ session-tag ├
 //   ◆ model (context) · /cwd · branch  │  ↑tokens_in ↓tokens_out  │  +add -del
 //   562k/1.0M ████████░░  56% · quota ████░░ 12/500  · bucket 2/3 · cold
-//   ►► streaming · Ls(src)                                    v0.1.0
+//   ● streaming · Ls(src)                                                 v0.1.0
 
 export type Phase =
   | "idle"
@@ -27,7 +26,6 @@ interface Segments {
   tokensOut?: number;
   sessionInTotal?: number;
   sessionOutTotal?: number;
-  // Estimation context window selon model (avec fallback 128k).
   contextWindow?: number;
   quotaUsed?: number;
   quotaLimit?: number;
@@ -38,19 +36,10 @@ interface Segments {
   bucketCapacity?: number;
   bucketCold?: boolean;
   cwd?: string;
-  // Tag affiché en haut à droite de la rule (style conv-name de Claude).
   sessionTag?: string;
 }
 
 const state: Segments = { phase: "idle" };
-let enabled = false;
-let lastRenderAt = 0;
-let pendingRender: NodeJS.Timeout | null = null;
-
-// Nombre de lignes reservées pour le status block (rule incluse).
-// La rule du haut + 1 ligne vide + 3 lignes d'info + 1 ligne vide = 5.
-const STATUS_ROWS = 4;
-const RENDER_THROTTLE_MS = 80;
 
 const VERSION = "0.1.0";
 
@@ -92,7 +81,6 @@ const ACCENT = chalk.hex("#e27649");
 const ACCENT_SOFT = chalk.hex("#ec9470");
 const DANGER = chalk.hex("#c76a5f");
 const SUCCESS = chalk.hex("#7fa670");
-// Teal-ish pour le tag session de la rule (distinct de l'accent orange).
 const TEAL = chalk.hex("#7fa8a6");
 
 function compact(n: number): string {
@@ -107,7 +95,6 @@ function cleanProvider(name: string): string {
   return m ? m[1] : name;
 }
 
-// Heuristique context window selon model name.
 function contextWindowFor(model: string): number {
   const m = cleanProvider(model).toLowerCase();
   if (m.includes("large")) return 128_000;
@@ -117,7 +104,6 @@ function contextWindowFor(model: string): number {
   return 128_000;
 }
 
-// Barre de progression ASCII : ▓ filled, ░ empty, taille configurable.
 function renderBar(
   pct: number,
   width: number,
@@ -127,7 +113,6 @@ function renderBar(
   return color("█".repeat(filled)) + FAINT("░".repeat(width - filled));
 }
 
-// Truncate chemin cwd en `.../parent/dir` si trop long.
 function shortCwd(cwd: string, max = 35): string {
   if (cwd.length <= max) return cwd;
   const parts = cwd.split("/").filter(Boolean);
@@ -147,85 +132,56 @@ function formatResetShort(iso: string): string {
   return m === 0 ? `${h}h` : `${h}h${m}m`;
 }
 
-// Strip ANSI codes pour mesurer la largeur visible d'une ligne.
 function visibleLen(s: string): number {
-  // eslint-disable-next-line no-control-regex
   return s.replace(/\x1b\[[0-9;]*m/g, "").length;
 }
 
-// Padding à droite jusqu'à une largeur donnée (compté sur visible chars).
-function padToCols(line: string, cols: number): string {
-  const vis = visibleLen(line);
-  if (vis >= cols) return line;
-  return line + " ".repeat(cols - vis);
-}
-
-interface RenderedLines {
-  rule: string;
-  line1: string;
-  line2: string;
-  line3: string;
-}
-
-function renderLines(cols: number): RenderedLines {
-  // Rule avec tag à droite. Ex: ─────────────  ┤ tag ├
+function renderBlock(cols: number): string[] {
+  // Rule avec tag à droite
   const tag = state.sessionTag ?? cleanProvider(state.provider ?? "");
-  const tagText = tag ? ` ${tag} ` : "";
   const tagBox = tag
-    ? chalk.bgHex("#245454").hex("#f6f1e8")(tagText)
+    ? chalk.bgHex("#245454").hex("#f6f1e8")(` ${tag} `)
     : "";
   const ruleLen = Math.max(0, cols - visibleLen(tagBox) - 2);
   const rule = TEAL("─".repeat(ruleLen)) + (tagBox ? "  " + tagBox : "");
 
-  // Line 1 : ◆ model (ctx) · cwd · branch │ ↑in ↓out │ +add -del
+  // Line 1 : model + cwd + branch + tokens + git diff
   const parts1: string[] = [];
   if (state.provider) {
     const ctxWin = state.contextWindow ?? contextWindowFor(state.provider);
-    const ctxStr = ctxWin >= 1_000_000 ? `${ctxWin / 1_000_000}M` : `${ctxWin / 1_000}k`;
+    const ctxStr =
+      ctxWin >= 1_000_000 ? `${ctxWin / 1_000_000}M` : `${ctxWin / 1_000}k`;
     parts1.push(
       ACCENT("◆ ") +
         INK_BRIGHT.bold(cleanProvider(state.provider)) +
         FAINT(` (${ctxStr} ctx)`),
     );
   }
-  if (state.cwd) {
-    parts1.push(MUTED(shortCwd(state.cwd)));
-  }
+  if (state.cwd) parts1.push(MUTED(shortCwd(state.cwd)));
   const git = state.cwd ? getGitInfo(state.cwd) : null;
-  if (git?.branch) {
-    parts1.push(INK("on ") + ACCENT_SOFT.italic(git.branch));
-  }
+  if (git?.branch) parts1.push(INK("on ") + ACCENT_SOFT.italic(git.branch));
 
-  // Tokens turn (séparateur vertical style Claude).
   const tokenSegs: string[] = [];
-  if ((state.tokensIn ?? 0) > 0) {
+  if ((state.tokensIn ?? 0) > 0)
     tokenSegs.push(MUTED("↑") + INK(compact(state.tokensIn!)));
-  }
-  if ((state.tokensOut ?? 0) > 0) {
+  if ((state.tokensOut ?? 0) > 0)
     tokenSegs.push(MUTED("↓") + INK(compact(state.tokensOut!)));
-  }
-  if (tokenSegs.length > 0) {
-    parts1.push(tokenSegs.join(" "));
-  }
+  if (tokenSegs.length > 0) parts1.push(tokenSegs.join(" "));
 
   if (git && (git.additions > 0 || git.deletions > 0)) {
-    parts1.push(
-      SUCCESS(`+${git.additions}`) + " " + DANGER(`-${git.deletions}`),
-    );
+    parts1.push(SUCCESS(`+${git.additions}`) + " " + DANGER(`-${git.deletions}`));
   }
 
   const sep = FAINT("  │  ");
   const softSep = FAINT("  ·  ");
-  const line1 = parts1
-    .slice(0, 3)
-    .join(softSep)
-    + (parts1.length > 3 ? sep + parts1.slice(3).join(sep) : "");
+  const line1 =
+    parts1.slice(0, 3).join(softSep) +
+    (parts1.length > 3 ? sep + parts1.slice(3).join(sep) : "");
 
-  // Line 2 : context bar · quota bar · bucket
+  // Line 2 : context + quota + bucket
   const parts2: string[] = [];
-
-  // Context : tokens session totaux / context window
-  const sessionTotal = (state.sessionInTotal ?? 0) + (state.sessionOutTotal ?? 0);
+  const sessionTotal =
+    (state.sessionInTotal ?? 0) + (state.sessionOutTotal ?? 0);
   const ctxWindow =
     state.contextWindow ??
     contextWindowFor(state.provider ?? "mistral-large-latest");
@@ -244,8 +200,6 @@ function renderLines(cols: number): RenderedLines {
         FAINT(" ctx"),
     );
   }
-
-  // Quota : bucket 5h côté serveur
   if (state.quotaUsed !== undefined && state.quotaLimit) {
     const pct = state.quotaUsed / state.quotaLimit;
     const pctNum = Math.round(pct * 100);
@@ -264,8 +218,6 @@ function renderLines(cols: number): RenderedLines {
         resetPart,
     );
   }
-
-  // Rate limiter bucket client
   if (state.bucketUsed !== undefined && state.bucketCapacity) {
     const coldBadge = state.bucketCold ? " " + DANGER("cold") : "";
     parts2.push(
@@ -274,7 +226,6 @@ function renderLines(cols: number): RenderedLines {
         coldBadge,
     );
   }
-
   const line2 = parts2.join(FAINT("  ·  "));
 
   // Line 3 : phase + tool + version à droite
@@ -284,135 +235,70 @@ function renderLines(cols: number): RenderedLines {
   if (state.phase === "executing-tool" && state.toolName) {
     phaseStr += MUTED(" " + state.toolName);
   }
+  if (state.phase === "waiting-quota" && state.waitingMsRemaining !== undefined) {
+    const s = Math.max(1, Math.ceil(state.waitingMsRemaining / 1000));
+    phaseStr += MUTED(` ${s}s`);
+  }
+  const versionPart = FAINT(`v${VERSION}`);
+  const leftLen = visibleLen(phaseStr);
+  const rightLen = visibleLen(versionPart);
+  const padding = Math.max(2, cols - leftLen - rightLen);
+  const line3 = phaseStr + " ".repeat(padding) + versionPart;
+
+  return [rule, line1, line2, line3];
+}
+
+// ===== API publique =====
+
+// Imprime le bloc status en output normal (scrolle avec le reste).
+// Appelé après chaque turn assistant complet. Pas de cursor manipulation,
+// pas de scroll region — 100% compatible avec readline.
+export function printStatusBlock(): void {
+  if (!process.stdout.isTTY) return;
+  const cols = Math.min(process.stdout.columns ?? 80, 120);
+  const lines = renderBlock(cols);
+  console.log();
+  for (const l of lines) console.log(l);
+}
+
+// Ligne de status transitoire une seule ligne (style " ⏳ waiting Xs"),
+// effacée quand on appelle avec "". Utilise \r pour rester sur la ligne
+// courante sans scroller.
+export function transientStatus(msg: string): void {
+  if (!process.stdout.isTTY) return;
+  if (msg === "") {
+    process.stdout.write("\r\x1b[2K");
+    return;
+  }
+  process.stdout.write("\r\x1b[2K" + msg);
+}
+
+// Update interne du state. Déclenche éventuellement un transientStatus
+// pendant les phases live (waiting-quota avec countdown).
+export function updateStatus(partial: Partial<Segments>): void {
+  Object.assign(state, partial);
+  // Phase waiting-quota : countdown live sur une ligne transitoire.
   if (
     state.phase === "waiting-quota" &&
     state.waitingMsRemaining !== undefined
   ) {
-    const s = Math.max(1, Math.ceil(state.waitingMsRemaining / 1000));
-    phaseStr += MUTED(` ${s}s`);
+    const sec = Math.max(1, Math.ceil(state.waitingMsRemaining / 1000));
+    const label = state.toolName ? ` (${state.toolName})` : "";
+    transientStatus(
+      chalk.hex("#ec9470")("⏳ ") +
+        chalk.hex("#bdb3a1")(
+          `waiting ${sec}s for Mistral quota${label}…`,
+        ),
+    );
+  } else if (partial.phase !== undefined || partial.waitingMsRemaining !== undefined) {
+    // Clear transient si on sort de waiting
+    if (state.phase !== "waiting-quota") transientStatus("");
   }
-
-  const versionPart = FAINT(`v${VERSION}`);
-  const line3Left = phaseStr;
-  const leftLen = visibleLen(line3Left);
-  const rightLen = visibleLen(versionPart);
-  const padding = Math.max(2, cols - leftLen - rightLen);
-  const line3 = line3Left + " ".repeat(padding) + versionPart;
-
-  return { rule, line1, line2, line3 };
-}
-
-function writeStatus(): void {
-  if (!enabled || !process.stdout.isTTY) return;
-  const rows = process.stdout.rows ?? 24;
-  const cols = process.stdout.columns ?? 80;
-  if (rows < STATUS_ROWS + 5) return; // terminal trop petit
-
-  const { rule, line1, line2, line3 } = renderLines(cols);
-
-  // Position absolue de chaque ligne (évite les \r\n qui peuvent déclencher
-  // des scrolls intempestifs à la limite du scroll region).
-  // Ordre : rule = rows-3, line1 = rows-2, line2 = rows-1, line3 = rows.
-  const baseRow = rows - STATUS_ROWS + 1;
-  const segments: string[] = [
-    // Reset scroll region à chaque render (idempotent) : si readline ou un
-    // autre lib a reset le scroll, on le restaure avant d'écrire.
-    `\x1b[1;${rows - STATUS_ROWS}r`,
-    // Save cursor avec ANSI standard (plus portable que \x1b7 DEC).
-    `\x1b[s`,
-  ];
-  const lines = [rule, line1, line2, line3];
-  for (let i = 0; i < lines.length; i++) {
-    segments.push(`\x1b[${baseRow + i};1H`);
-    segments.push(`\x1b[2K`);
-    segments.push(padToCols(lines[i], cols));
-  }
-  segments.push(`\x1b[u`); // restore cursor
-  process.stdout.write(segments.join(""));
-  lastRenderAt = Date.now();
-}
-
-function scheduleRender(): void {
-  if (!enabled) return;
-  const now = Date.now();
-  const sinceLast = now - lastRenderAt;
-  if (sinceLast >= RENDER_THROTTLE_MS) {
-    if (pendingRender) {
-      clearTimeout(pendingRender);
-      pendingRender = null;
-    }
-    writeStatus();
-  } else if (!pendingRender) {
-    pendingRender = setTimeout(() => {
-      pendingRender = null;
-      writeStatus();
-    }, RENDER_THROTTLE_MS - sinceLast);
-  }
-}
-
-function resizeScrollRegion(): void {
-  if (!enabled || !process.stdout.isTTY) return;
-  const rows = process.stdout.rows ?? 24;
-  // Scroll region [1, rows-STATUS_ROWS]. Le status occupe les 4 dernières lignes.
-  process.stdout.write(`\x1b[1;${Math.max(1, rows - STATUS_ROWS)}r`);
-  // Place cursor juste au-dessus du status (dernière ligne de scroll region).
-  process.stdout.write(`\x1b[${Math.max(1, rows - STATUS_ROWS)};1H`);
-  scheduleRender();
-}
-
-export function initStatusBar(): void {
-  if (enabled || !process.stdout.isTTY) return;
-  enabled = true;
-  state.cwd = process.cwd();
-  resizeScrollRegion();
-  process.stdout.on("resize", resizeScrollRegion);
-  // Re-render à chaque keystroke utilisateur : readline peut réécrire des
-  // lignes lors de son _refreshLine, écrasant potentiellement notre status.
-  // scheduleRender avec throttle 80ms évite de spam.
-  process.stdin.on("keypress", () => {
-    scheduleRender();
-  });
-  process.on("exit", teardownStatusBar);
-  process.on("SIGINT", () => {
-    teardownStatusBar();
-    process.exit(130);
-  });
-  process.on("SIGTERM", () => {
-    teardownStatusBar();
-    process.exit(143);
-  });
-}
-
-export function teardownStatusBar(): void {
-  if (!enabled) return;
-  enabled = false;
-  try {
-    process.stdout.write(`\x1b[r`);
-    const rows = process.stdout.rows ?? 24;
-    // Clear les 4 lignes status, move cursor tout en bas.
-    for (let i = 0; i < STATUS_ROWS; i++) {
-      process.stdout.write(`\x1b[${rows - i};1H\x1b[2K`);
-    }
-    process.stdout.write(`\x1b[${rows};1H`);
-  } catch {
-    /* noop */
-  }
-}
-
-export function updateStatus(partial: Partial<Segments>): void {
-  Object.assign(state, partial);
-  // Accumulate session totals automatically when tokens are updated.
-  if (partial.tokensIn !== undefined && partial.sessionInTotal === undefined) {
-    // Pas d'accum automatique — AgentLoop set sessionInTotal explicitement
-    // quand un turn complet finit.
-  }
-  scheduleRender();
 }
 
 export function setSessionTotals(inTotal: number, outTotal: number): void {
   state.sessionInTotal = inTotal;
   state.sessionOutTotal = outTotal;
-  scheduleRender();
 }
 
 export function getStatus(): Readonly<Segments> {
@@ -425,5 +311,12 @@ export function resetTurn(): void {
   state.toolName = undefined;
   state.waitingMsRemaining = undefined;
   state.phase = "idle";
-  scheduleRender();
+}
+
+// Pas de scroll region, pas d'init nécessaire — API no-op gardée pour compat.
+export function initStatusBar(): void {
+  state.cwd = process.cwd();
+}
+export function teardownStatusBar(): void {
+  transientStatus("");
 }
