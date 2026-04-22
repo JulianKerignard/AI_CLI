@@ -1,5 +1,5 @@
 {
-  "name": "aicli",
+  "name": "@juliankerignard/aicli",
   "version": "0.1.0",
   "description": "Un CLI interactif à la Claude Code : slash commands, skills, sub-agents, MCP — avec provider démo (pas de clé API).",
   "type": "module",
