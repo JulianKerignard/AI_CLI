@@ -28,9 +28,25 @@ export interface Message {
   content: ContentBlock[];
 }
 
+export interface ProviderUsage {
+  inputTokens: number;
+  outputTokens: number;
+}
+
+export interface ProviderQuota {
+  used: number;
+  limit: number;
+  remaining: number;
+  windowHours: number;
+  resetAt?: string;
+  weight?: number;
+}
+
 export interface ProviderResponse {
   content: ContentBlock[];
   stopReason: "end_turn" | "tool_use";
+  usage?: ProviderUsage;
+  quota?: ProviderQuota;
 }
 
 export interface Provider {

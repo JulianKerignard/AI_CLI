@@ -1,5 +1,5 @@
 import type { SlashCommand } from "./types.js";
-import { log, chalk } from "../utils/logger.js";
+import { log, chalk, formatQuotaStatus } from "../utils/logger.js";
 import { runLoginFlow } from "../auth/login.js";
 import { clearCredentials } from "../auth/store.js";
 
@@ -67,6 +67,28 @@ export function builtinCommands(allCommands: () => SlashCommand[]): SlashCommand
         } else {
           log.info("Non connecté. Tape /login pour te connecter.");
         }
+      },
+    },
+    {
+      name: "usage",
+      description: "Affiche tokens session + quota restant.",
+      async run({ agent }) {
+        const stats = agent.getStats();
+        log.banner("Usage");
+        const lines = formatQuotaStatus(stats, stats.lastQuota);
+        for (const l of lines) console.log(l);
+        console.log();
+      },
+    },
+    {
+      name: "tokens",
+      description: "Alias de /usage.",
+      async run({ agent }) {
+        const stats = agent.getStats();
+        log.banner("Usage");
+        const lines = formatQuotaStatus(stats, stats.lastQuota);
+        for (const l of lines) console.log(l);
+        console.log();
       },
     },
     {

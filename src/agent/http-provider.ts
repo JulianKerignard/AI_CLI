@@ -2,6 +2,8 @@ import type {
   Provider,
   Message,
   ProviderResponse,
+  ProviderUsage,
+  ProviderQuota,
   ContentBlock,
 } from "./provider.js";
 import type { Tool } from "../tools/types.js";
@@ -71,6 +73,7 @@ export class HttpProvider implements Provider {
     const data = (await res.json()) as {
       content?: ContentBlock[];
       stop_reason?: string;
+      usage?: { input_tokens?: number; output_tokens?: number };
     };
 
     const content = Array.isArray(data.content) ? data.content : [];
@@ -79,6 +82,43 @@ export class HttpProvider implements Provider {
     const stopReason: "end_turn" | "tool_use" =
       data.stop_reason === "tool_use" ? "tool_use" : "end_turn";
 
-    return { content, stopReason };
+    const usage: ProviderUsage | undefined =
+      typeof data.usage?.input_tokens === "number" &&
+      typeof data.usage?.output_tokens === "number"
+        ? {
+            inputTokens: data.usage.input_tokens,
+            outputTokens: data.usage.output_tokens,
+          }
+        : undefined;
+
+    // Quota headers X-Chat-Mistral-Quota-* exposés par /api/v1/messages.
+    // Fallback silencieux si absents (autre backend Anthropic-compatible).
+    const quota = parseQuotaHeaders(res.headers);
+
+    return { content, stopReason, usage, quota };
   }
+}
+
+function parseQuotaHeaders(h: Headers): ProviderQuota | undefined {
+  const used = num(h.get("X-Chat-Mistral-Quota-Used"));
+  const limit = num(h.get("X-Chat-Mistral-Quota-Limit"));
+  const remaining = num(h.get("X-Chat-Mistral-Quota-Remaining"));
+  const windowHours = num(h.get("X-Chat-Mistral-Quota-Window-Hours"));
+  if (
+    used === undefined ||
+    limit === undefined ||
+    remaining === undefined ||
+    windowHours === undefined
+  ) {
+    return undefined;
+  }
+  const weight = num(h.get("X-Chat-Mistral-Weight"));
+  const resetAt = h.get("X-Chat-Mistral-Quota-Reset-At") ?? undefined;
+  return { used, limit, remaining, windowHours, resetAt, weight };
+}
+
+function num(v: string | null): number | undefined {
+  if (v === null) return undefined;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : undefined;
 }

@@ -1,8 +1,13 @@
-import type { Provider, Message, ContentBlock } from "./provider.js";
+import type {
+  Provider,
+  Message,
+  ContentBlock,
+  ProviderQuota,
+} from "./provider.js";
 import { extractText } from "./provider.js";
 import type { ToolRegistry } from "../tools/registry.js";
 import type { ToolContext } from "../tools/types.js";
-import { log } from "../utils/logger.js";
+import { log, formatQuotaStatus, formatTurnStatus } from "../utils/logger.js";
 
 export interface AgentOptions {
   system: string;
@@ -14,12 +19,39 @@ export interface AgentOptions {
   onToolResult?: (name: string, output: string) => void;
 }
 
+export interface SessionStats {
+  inputTokens: number;
+  outputTokens: number;
+  turns: number;
+  toolCalls: number;
+  lastQuota?: ProviderQuota;
+}
+
 export class AgentLoop {
   readonly messages: Message[] = [];
   private opts: AgentOptions & { maxIterations: number };
+  private stats: SessionStats = {
+    inputTokens: 0,
+    outputTokens: 0,
+    turns: 0,
+    toolCalls: 0,
+  };
 
   constructor(opts: AgentOptions) {
     this.opts = { ...opts, maxIterations: opts.maxIterations ?? 8 };
+  }
+
+  getStats(): SessionStats {
+    return { ...this.stats };
+  }
+
+  resetStats(): void {
+    this.stats = {
+      inputTokens: 0,
+      outputTokens: 0,
+      turns: 0,
+      toolCalls: 0,
+    };
   }
 
   get provider(): Provider {
@@ -57,6 +89,11 @@ export class AgentLoop {
   private async runUntilEnd(): Promise<string> {
     const ctx: ToolContext = { cwd: this.opts.cwd };
     let finalText = "";
+    // Agrège les tokens de cette commande utilisateur (tous les sous-tours
+    // tool_use inclus). Affichés en une seule ligne à la fin.
+    let turnInputTokens = 0;
+    let turnOutputTokens = 0;
+    let lastQuota: ProviderQuota | undefined;
 
     for (let i = 0; i < this.opts.maxIterations; i++) {
       const response = await this.opts.provider.chat({
@@ -65,18 +102,39 @@ export class AgentLoop {
         tools: this.opts.tools.list(),
       });
 
+      if (response.usage) {
+        turnInputTokens += response.usage.inputTokens;
+        turnOutputTokens += response.usage.outputTokens;
+      }
+      if (response.quota) lastQuota = response.quota;
+
       this.messages.push({ role: "assistant", content: response.content });
 
       const text = extractText(response.content);
       if (text) log.assistant(text);
       finalText = text || finalText;
 
-      if (response.stopReason !== "tool_use") return finalText;
+      if (response.stopReason !== "tool_use") {
+        this.stats.inputTokens += turnInputTokens;
+        this.stats.outputTokens += turnOutputTokens;
+        this.stats.turns += 1;
+        if (lastQuota) this.stats.lastQuota = lastQuota;
+        log.status(
+          formatTurnStatus(
+            turnInputTokens,
+            turnOutputTokens,
+            lastQuota,
+            this.opts.provider.name,
+          ),
+        );
+        return finalText;
+      }
 
       // Exécute chaque tool_use et injecte les tool_result en un seul message user.
       const toolResults: ContentBlock[] = [];
       for (const block of response.content) {
         if (block.type !== "tool_use") continue;
+        this.stats.toolCalls += 1;
         this.opts.onToolUse?.(block.name, block.input);
         log.tool(block.name, JSON.stringify(block.input).slice(0, 120));
         try {
@@ -103,6 +161,13 @@ export class AgentLoop {
     }
 
     log.warn(`Boucle agent: limite d'itérations (${this.opts.maxIterations}) atteinte.`);
+    this.stats.inputTokens += turnInputTokens;
+    this.stats.outputTokens += turnOutputTokens;
+    this.stats.turns += 1;
+    if (lastQuota) this.stats.lastQuota = lastQuota;
     return finalText;
   }
 }
+
+// Ré-export helper pour consommation externe (commande /usage).
+export { formatQuotaStatus };
