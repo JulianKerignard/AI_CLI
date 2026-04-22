@@ -260,6 +260,72 @@ export function builtinCommands(allCommands: () => SlashCommand[]): SlashCommand
       },
     },
     {
+      name: "resume",
+      description:
+        "Reprend une conversation passée lancée depuis ce dossier.",
+      async run({ agent }) {
+        const { CWD } = await import("../utils/paths.js");
+        const { listSessions, loadSession } = await import(
+          "../sessions/store.js"
+        );
+        const { sessionController } = await import(
+          "../ui/session-controller.js"
+        );
+        const { historyStore } = await import("../ui/history-store.js");
+
+        const sessions = listSessions(CWD, 30);
+        if (sessions.length === 0) {
+          log.info(
+            "Aucune session pour ce dossier. Lance une conversation pour en créer une.",
+          );
+          return;
+        }
+        const chosen = await sessionController.open(sessions);
+        if (!chosen) return;
+
+        const loaded = loadSession(chosen);
+        if (!loaded) {
+          log.error("Impossible de charger la session (fichier corrompu ?)");
+          return;
+        }
+
+        // Reconstruit les messages de l'agent depuis les events recorded.
+        // Format minimal : on reinsère user/assistant en messages[] pour
+        // que le prochain prompt continue dans le même contexte.
+        agent.messages.length = 0;
+        for (const ev of loaded.events) {
+          if (ev.type === "user") {
+            const text =
+              typeof ev.content === "string"
+                ? ev.content
+                : String(ev.content);
+            agent.messages.push({
+              role: "user",
+              content: [{ type: "text", text }],
+            });
+            historyStore.push({ type: "user", text });
+          } else if (ev.type === "assistant") {
+            // content peut être string ou array de blocks — on normalise.
+            const blocks = Array.isArray(ev.content)
+              ? (ev.content as Array<{ type: string; text?: string }>)
+              : [];
+            agent.messages.push({
+              role: "assistant",
+              content: blocks as never,
+            });
+            const text = blocks
+              .filter((b) => b.type === "text" && typeof b.text === "string")
+              .map((b) => b.text)
+              .join("");
+            if (text) historyStore.push({ type: "assistant", text });
+          }
+        }
+        log.info(
+          `Session reprise : ${loaded.events.length} events, ${agent.messages.length} messages restaurés.`,
+        );
+      },
+    },
+    {
       name: "compact",
       description:
         "Force un résumé auto de l'historique agent (utile si session longue).",

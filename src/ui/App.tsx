@@ -8,6 +8,8 @@ import { pickerController } from "./picker-controller.js";
 import { ModelPicker } from "./ModelPicker.js";
 import { permissionController } from "./permission-controller.js";
 import { PermissionPicker } from "./PermissionPicker.js";
+import { sessionController } from "./session-controller.js";
+import { SessionPicker } from "./SessionPicker.js";
 
 // Layout :
 // ┌───────────────────────────┐
@@ -64,6 +66,18 @@ export function App() {
     };
   }, []);
 
+  // Session picker actif (/resume).
+  const [sessionActive, setSessionActive] = useState(
+    () => sessionController.getCurrent(),
+  );
+  useEffect(() => {
+    const update = () => setSessionActive(sessionController.getCurrent());
+    sessionController.on("change", update);
+    return () => {
+      sessionController.off("change", update);
+    };
+  }, []);
+
   return (
     <Box flexDirection="column">
       <HistoryView />
@@ -74,6 +88,11 @@ export function App() {
           category={permissionActive.category}
           input={permissionActive.input}
           onChoose={(d) => permissionController.close(d)}
+        />
+      ) : sessionActive ? (
+        <SessionPicker
+          items={sessionActive.items}
+          onChoose={(p) => sessionController.close(p)}
         />
       ) : pickerActive ? (
         <ModelPicker

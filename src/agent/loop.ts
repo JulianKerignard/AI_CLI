@@ -37,6 +37,11 @@ export interface AgentOptions {
   onAllowPersist?: (toolName: string) => void;
   onToolUse?: (name: string, input: Record<string, unknown>) => void;
   onToolResult?: (name: string, output: string) => void;
+  // Session recorder (ex: écrit chaque message dans un JSONL). Optionnel.
+  onRecord?: (
+    type: "user" | "assistant" | "tool_use" | "tool_result",
+    content: unknown,
+  ) => void;
 }
 
 export interface SessionStats {
@@ -103,6 +108,7 @@ export class AgentLoop {
       role: "user",
       content: [{ type: "text", text: userInput }],
     });
+    this.opts.onRecord?.("user", userInput);
     return await this.runUntilEnd();
   }
 
@@ -187,6 +193,7 @@ export class AgentLoop {
       });
 
       this.messages.push({ role: "assistant", content: response.content });
+      this.opts.onRecord?.("assistant", response.content);
 
       const text = extractText(response.content);
       // Si le stream n'a pas affiché de texte (par ex. response vide ou tool_use

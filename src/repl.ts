@@ -5,6 +5,11 @@ import { log } from "./utils/logger.js";
 import { InputHistory } from "./utils/history.js";
 import { App } from "./ui/App.js";
 import { inputController } from "./ui/input-controller.js";
+import {
+  newSessionId,
+  openSession,
+  appendEvent,
+} from "./sessions/store.js";
 import { createBaseRegistry } from "./tools/registry.js";
 import { DemoProvider } from "./agent/demo-provider.js";
 import { HttpProvider } from "./agent/http-provider.js";
@@ -118,12 +123,21 @@ export async function startRepl(): Promise<void> {
     alwaysAllow: new Set(permConfig.alwaysAllow),
   });
 
+  // Ouverture d'une session AI_CLI — écrit un JSONL dans
+  // ~/.aicli/sessions/<cwd-hash>/<sessionId>.jsonl. Permet /resume de
+  // retrouver les conversations lancées depuis ce même dossier.
+  const sessionId = newSessionId();
+  const sessionPath = openSession(sessionId, CWD, provider.name);
+
   const agent = new AgentLoop({
     system: buildSystemPrompt(CWD),
     provider,
     tools,
     cwd: CWD,
     getPolicyState,
+    onRecord: (type, content) => {
+      appendEvent(sessionPath, type, content);
+    },
     onAllowSession: (toolName) => {
       sessionAllowed.add(toolName);
     },
