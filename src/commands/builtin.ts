@@ -11,10 +11,16 @@ export function builtinCommands(allCommands: () => SlashCommand[]): SlashCommand
       async run() {
         log.banner("Commandes disponibles");
         for (const c of allCommands()) {
-          console.log(`  ${chalk.bold("/" + c.name.padEnd(12))} ${chalk.gray(c.description)}`);
+          console.log(
+            "  " +
+              log.accent.bold("/" + c.name.padEnd(12)) +
+              log.inkMuted(c.description),
+          );
         }
         console.log();
-        log.dim("Tape du texte libre pour parler à l'agent. Ctrl-D ou /exit pour quitter.");
+        log.faint(
+          "Tape du texte libre pour parler à l'agent. Ctrl-D ou /exit pour quitter.",
+        );
       },
     },
     {
@@ -76,7 +82,11 @@ export function builtinCommands(allCommands: () => SlashCommand[]): SlashCommand
       async run({ tools }) {
         log.banner("Outils");
         for (const t of tools.list()) {
-          console.log(`  ${chalk.magenta(t.name.padEnd(22))} ${chalk.gray(t.description)}`);
+          console.log(
+            "  " +
+              log.accentSoft(t.name.padEnd(22)) +
+              log.inkMuted(t.description),
+          );
         }
       },
     },
@@ -86,11 +96,15 @@ export function builtinCommands(allCommands: () => SlashCommand[]): SlashCommand
       async run({ skills }) {
         log.banner("Skills");
         if (skills.length === 0) {
-          log.dim("  (aucun)");
+          log.faint("  (aucun)");
           return;
         }
         for (const s of skills) {
-          console.log(`  ${chalk.cyan(s.name.padEnd(18))} ${chalk.gray(s.description)}`);
+          console.log(
+            "  " +
+              log.accent(s.name.padEnd(18)) +
+              log.inkMuted(s.description),
+          );
         }
       },
     },
@@ -100,12 +114,16 @@ export function builtinCommands(allCommands: () => SlashCommand[]): SlashCommand
       async run({ subAgents }) {
         log.banner("Sub-agents");
         if (subAgents.length === 0) {
-          log.dim("  (aucun)");
+          log.faint("  (aucun)");
           return;
         }
         for (const a of subAgents) {
-          console.log(`  ${chalk.yellow(a.name.padEnd(18))} ${chalk.gray(a.description)}`);
-          if (a.tools) log.dim(`    tools: ${a.tools.join(", ")}`);
+          console.log(
+            "  " +
+              log.accentSoft(a.name.padEnd(18)) +
+              log.inkMuted(a.description),
+          );
+          if (a.tools) log.faint(`    tools: ${a.tools.join(", ")}`);
         }
       },
     },
@@ -115,12 +133,16 @@ export function builtinCommands(allCommands: () => SlashCommand[]): SlashCommand
       async run({ mcpServers }) {
         log.banner("Serveurs MCP");
         if (mcpServers.length === 0) {
-          log.dim("  (aucun — crée .aicli/mcp.json pour en configurer)");
+          log.faint("  (aucun — crée .aicli/mcp.json pour en configurer)");
           return;
         }
         for (const s of mcpServers) {
-          console.log(`  ${chalk.blue(s.name.padEnd(14))} ${chalk.gray(s.status)}`);
-          for (const t of s.tools) log.dim(`    ↳ ${t.name}`);
+          console.log(
+            "  " +
+              log.accent(s.name.padEnd(14)) +
+              log.inkMuted(s.status),
+          );
+          for (const t of s.tools) log.faint(`    ↳ ${t.name}`);
         }
       },
     },

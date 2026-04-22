@@ -101,14 +101,16 @@ export async function runLoginFlow(opts: LoginOptions = {}): Promise<Credentials
       const authUrl = `${webUrl}/cli/auth?redirect=${encodeURIComponent(redirect)}&state=${state}`;
 
       console.log();
-      log.info("Ouvre ce lien dans ton navigateur pour autoriser AI_CLI :");
-      console.log("  " + chalk.cyan.underline(authUrl));
+      log.info("Ouvre ce lien pour autoriser AI_CLI :");
+      console.log("  " + chalk.hex("#e27649").underline(authUrl));
       console.log();
-      log.dim("  (le CLI écoute sur 127.0.0.1:" + port + ", timeout 3 min)");
-      log.dim(
-        "  Si le navigateur ne s'ouvre pas, copie-colle l'URL. Tu peux aussi",
+      log.faint(
+        "  (écoute sur 127.0.0.1:" + port + ", timeout 3 min)",
       );
-      log.dim("  paste directement ton token ici (commence par csm_).");
+      log.faint(
+        "  Si le navigateur ne s'ouvre pas, copie-colle l'URL ci-dessus",
+      );
+      log.faint("  ou paste ton token directement ici (commence par csm_).");
       console.log();
 
       openBrowser(authUrl);
@@ -128,7 +130,7 @@ export async function runLoginFlow(opts: LoginOptions = {}): Promise<Credentials
     const rl = createInterface({ input: stdin, output: stdout });
     void (async () => {
       try {
-        const pasted = (await rl.question(chalk.dim("paste token ou Entrée pour attendre le browser › "))).trim();
+        const pasted = (await rl.question(chalk.hex("#8a8270")("paste token ou Entrée pour attendre le browser › "))).trim();
         rl.close();
         if (!pasted) return; // attendre le callback
         if (!pasted.startsWith("csm_") || pasted.length < 20) {

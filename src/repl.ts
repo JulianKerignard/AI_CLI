@@ -90,19 +90,50 @@ export async function startRepl(): Promise<void> {
   const commands = new CommandRegistry();
 
   log.banner("AI_CLI v0.1.0");
-  log.dim(`  provider: ${provider.name}  ·  cwd: ${CWD}`);
-  log.dim(
-    `  ${tools.list().length} outils  ·  ${skills.length} skills  ·  ${subAgents.length} sub-agents  ·  ${mcpServers.length} MCP`,
+  console.log(
+    "  " +
+      log.kicker("provider") +
+      "  " +
+      log.ink(provider.name) +
+      "   " +
+      log.kicker("cwd") +
+      "  " +
+      log.inkMuted(CWD),
   );
+  console.log(
+    "  " +
+      log.kicker("loaded") +
+      "  " +
+      log.inkMuted(
+        `${tools.list().length} tools · ${skills.length} skills · ${subAgents.length} agents · ${mcpServers.length} MCP`,
+      ),
+  );
+  console.log();
   if (!currentCreds) {
-    log.dim("  Tape /login pour te connecter à chat.juliankerignard.fr.");
+    console.log(
+      "  " +
+        log.accentSoft("→") +
+        "  tape " +
+        log.accent.bold("/login") +
+        log.inkMuted(" pour te connecter à chat.juliankerignard.fr"),
+    );
   }
-  log.dim("  Tape /help pour les commandes. Ctrl-D ou /exit pour quitter.\n");
+  console.log(
+    "  " +
+      log.inkFaint("→") +
+      "  " +
+      log.inkMuted("tape ") +
+      log.accent.bold("/help") +
+      log.inkMuted(" pour les commandes, ") +
+      log.accent.bold("Ctrl-D") +
+      log.inkMuted(" pour quitter"),
+  );
+  console.log();
 
   const rl = readline.createInterface({
     input: process.stdin,
     output: process.stdout,
-    prompt: chalk.bold.blue("» "),
+    prompt: chalk.hex("#e27649").bold("» "),
   });
 
   const cleanup = () => {
