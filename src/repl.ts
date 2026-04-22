@@ -230,6 +230,25 @@ export async function startRepl(): Promise<void> {
     );
   }
 
+  // Update check non-bloquant : fire-and-forget, résultat push dans
+  // l'historique si une nouvelle version est dispo. Cache 6h → n'affiche
+  // pas plus d'1 fois par session typique.
+  void (async () => {
+    try {
+      const { checkForUpdate } = await import("./lib/update-check.js");
+      const status = await checkForUpdate();
+      if (status?.updateAvailable && status.latest) {
+        const local = status.current.slice(0, 7);
+        const latest = status.latest.slice(0, 7);
+        log.info(
+          `${log.accentSoft("↻")} mise à jour dispo : ${log.inkMuted(local)} → ${log.accent.bold(latest)} · tape ${log.accent.bold("/update")}`,
+        );
+      }
+    } catch {
+      /* silencieux — check échoué n'est pas bloquant */
+    }
+  })();
+
   updateStatus({
     provider: provider.name,
     phase: currentCreds ? "idle" : "offline",

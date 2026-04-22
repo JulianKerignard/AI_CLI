@@ -328,6 +328,71 @@ export function builtinCommands(allCommands: () => SlashCommand[]): SlashCommand
       },
     },
     {
+      name: "update",
+      description:
+        "Check si une nouvelle version de aicli est dispo. /update apply pour installer.",
+      async run(_ctx, args) {
+        const { checkForUpdate, getLocalSha, compareUrl } = await import(
+          "../lib/update-check.js"
+        );
+        const arg = args.trim();
+        const status = await checkForUpdate(true);
+        if (!status) {
+          log.warn(
+            "Impossible de vérifier (pas de réseau ou version inconnue).",
+          );
+          return;
+        }
+        const localShort = status.current.slice(0, 7);
+        const latestShort = status.latest?.slice(0, 7) ?? "?";
+        if (!status.updateAvailable) {
+          log.success(`Tu es à jour (${localShort}).`);
+          return;
+        }
+        log.info(
+          `Mise à jour dispo : ${chalk.hex("#8a8270")(localShort)} → ${chalk.hex("#e27649")(latestShort)}`,
+        );
+        if (status.latest) {
+          log.dim(`Diff : ${compareUrl(status.current, status.latest)}`);
+        }
+
+        if (arg !== "apply") {
+          log.info(
+            `Tape ${chalk.hex("#e27649").bold("/update apply")} pour installer.`,
+          );
+          return;
+        }
+
+        // /update apply → lance npm install -g github:...
+        log.info("Installation de la dernière version…");
+        const { spawn } = await import("node:child_process");
+        await new Promise<void>((resolve) => {
+          const child = spawn(
+            "npm",
+            ["install", "-g", "github:JulianKerignard/AI_CLI"],
+            {
+              stdio: "inherit",
+              env: process.env,
+            },
+          );
+          child.on("close", (code) => {
+            if (code === 0) {
+              log.success(
+                "Mise à jour installée. Quitte (/exit) et relance aicli pour charger la nouvelle version.",
+              );
+            } else {
+              log.error(`npm install a échoué (exit ${code}).`);
+            }
+            resolve();
+          });
+          child.on("error", (err) => {
+            log.error(`Impossible de lancer npm : ${err.message}`);
+            resolve();
+          });
+        });
+      },
+    },
+    {
       name: "resume",
       description:
         "Reprend une conversation passée lancée depuis ce dossier.",

@@ -8,14 +8,16 @@
   },
   "main": "./dist/index.js",
   "scripts": {
-    "build": "tsc -p .",
+    "build": "tsc -p . && node scripts/set-version.mjs",
+    "postinstall": "node scripts/set-version.mjs || true",
     "dev": "tsx src/index.ts",
     "start": "node dist/index.js",
     "typecheck": "tsc -p . --noEmit",
-    "prepare": "tsc -p . || true"
+    "prepare": "tsc -p . && node scripts/set-version.mjs || true"
   },
   "files": [
     "dist",
+    "scripts/set-version.mjs",
     "package.json",
     "README.md"
   ],
