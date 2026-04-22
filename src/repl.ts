@@ -180,10 +180,128 @@ export async function startRepl(): Promise<void> {
   );
   console.log();
 
+  // Tab completion pour les slash commands + sous-commandes connues.
+  // - `/` + Tab → liste toutes les commandes
+  // - `/pe` + Tab → complete à `/permissions ` (unique match)
+  // - `/permissions ` + Tab → complete sur les sous-commandes (mode, allow, etc.)
+  // - `/permissions mode ` + Tab → complete sur les noms de modes
+  const SUBCOMMANDS: Record<string, string[]> = {
+    permissions: [
+      "status",
+      "mode",
+      "allow",
+      "revoke",
+      "reset",
+    ],
+  };
+  const MODE_VALUES = ["default", "accept-edits", "bypass", "plan"];
+
+  const completer = (line: string): [string[], string] => {
+    if (!line.startsWith("/")) return [[], line];
+    const body = line.slice(1);
+    const parts = body.split(" ");
+
+    // 1er segment : nom de commande
+    if (parts.length === 1) {
+      const prefix = parts[0].toLowerCase();
+      const names = commands.list().map((c) => "/" + c.name);
+      const hits = names.filter((n) => n.toLowerCase().startsWith("/" + prefix));
+      // Ajoute un espace aux matchs uniques → enchaîne avec les args
+      const expanded = hits.length === 1 ? [hits[0] + " "] : hits;
+      return [expanded.length ? expanded : names, line];
+    }
+
+    // 2e segment : sous-commandes (ex: /permissions <sub>)
+    if (parts.length === 2) {
+      const cmdName = parts[0];
+      const subs = SUBCOMMANDS[cmdName];
+      if (!subs) return [[], line];
+      const prefix = parts[1].toLowerCase();
+      const hits = subs
+        .filter((s) => s.toLowerCase().startsWith(prefix))
+        .map((s) => `/${cmdName} ${s} `);
+      return [hits.length ? hits : subs.map((s) => `/${cmdName} ${s} `), line];
+    }
+
+    // 3e segment : valeurs (ex: /permissions mode <value> ou /permissions allow <tool>)
+    if (parts.length === 3 && parts[0] === "permissions") {
+      if (parts[1] === "mode") {
+        const prefix = parts[2].toLowerCase();
+        const hits = MODE_VALUES.filter((v) =>
+          v.toLowerCase().startsWith(prefix),
+        ).map((v) => `/permissions mode ${v}`);
+        return [hits.length ? hits : MODE_VALUES.map((v) => `/permissions mode ${v}`), line];
+      }
+      if (parts[1] === "allow" || parts[1] === "revoke") {
+        const toolNames = tools.list().map((t) => t.name);
+        const prefix = parts[2];
+        const hits = toolNames
+          .filter((t) => t.startsWith(prefix))
+          .map((t) => `/permissions ${parts[1]} ${t}`);
+        return [
+          hits.length
+            ? hits
+            : toolNames.map((t) => `/permissions ${parts[1]} ${t}`),
+          line,
+        ];
+      }
+    }
+
+    return [[], line];
+  };
+
   const rl = readline.createInterface({
     input: process.stdin,
     output: process.stdout,
     prompt: chalk.hex("#e27649").bold("» "),
+    completer,
+    // Node readline : deux Tab consécutifs affichent les matches ; un seul
+    // complète le préfixe commun. Pas de config nécessaire.
+  });
+
+  // Slash menu : quand l'user tape juste `/` (single char), on affiche les
+  // commandes au-dessus du prompt. Affiché UNE fois (pas de redraw à chaque
+  // keypress pour éviter les artefacts de curseur). Pour ré-afficher, backspace
+  // jusqu'au vide puis retaper `/`.
+  let menuShownForCurrentSlash = false;
+
+  const showSlashMenu = () => {
+    const all = commands.list();
+    const out = process.stdout;
+    out.write("\n");
+    out.write(
+      "  " +
+        chalk.hex("#8a8270").bold("COMMANDES") +
+        "  " +
+        chalk.hex("#8a8270")("(Tab pour compléter)") +
+        "\n",
+    );
+    for (const c of all) {
+      out.write(
+        "  " +
+          chalk.hex("#e27649").bold("/" + c.name.padEnd(14)) +
+          chalk.hex("#bdb3a1")(c.description) +
+          "\n",
+      );
+    }
+    out.write("\n");
+    // Redessine le prompt (readline ne le refait pas après un write direct).
+    // Utilise la méthode publique `_refreshLine` via cast pour garder la ligne.
+    const rlAny = rl as unknown as { _refreshLine?: () => void };
+    if (typeof rlAny._refreshLine === "function") rlAny._refreshLine();
+    else rl.prompt(true);
+  };
+
+  process.stdin.on("keypress", () => {
+    setImmediate(() => {
+      const current = rl.line ?? "";
+      if (current === "/" && !menuShownForCurrentSlash) {
+        menuShownForCurrentSlash = true;
+        showSlashMenu();
+      } else if (current === "" || !current.startsWith("/")) {
+        menuShownForCurrentSlash = false;
+      }
+    });
   });
 
   const cleanup = () => {
@@ -254,6 +372,7 @@ export async function startRepl(): Promise<void> {
 
   rl.prompt();
   for await (const line of rl) {
+    menuShownForCurrentSlash = false;
     const input = line.trim();
     if (!input) {
       rl.prompt();
