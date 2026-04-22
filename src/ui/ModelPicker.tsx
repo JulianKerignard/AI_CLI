@@ -81,6 +81,17 @@ export function ModelPicker({ items, initial, pageSize = 10, onChoose }: Props) 
   const providerColor = (p: string): string =>
     p === "nvidia" ? "#7fa670" : p === "persona" ? "#ec9470" : "#e27649";
 
+  // Extrait le suffixe "rapide"/"moyen"/"lent" depuis la description
+  // server-side (format 'NVIDIA · owner · tier · speed'). Couleur :
+  // rapide = vert, moyen = orange, lent = rouge.
+  const speedBadge = (desc?: string): { label: string; color: string } | null => {
+    if (!desc) return null;
+    if (/\brapide\b/i.test(desc)) return { label: "rapide", color: "#7fa670" };
+    if (/\bmoyen\b/i.test(desc)) return { label: "moyen", color: "#ec9470" };
+    if (/\blent\b/i.test(desc)) return { label: "lent", color: "#c76a5f" };
+    return null;
+  };
+
   return (
     <Box
       flexDirection="column"
@@ -101,6 +112,7 @@ export function ModelPicker({ items, initial, pageSize = 10, onChoose }: Props) 
         {visible.map((m, i) => {
           const realIdx = start + i;
           const active = realIdx === idx;
+          const speed = speedBadge(m.description);
           return (
             <Box key={m.id}>
               <Text color={active ? "#e27649" : "#4a4239"}>
@@ -115,6 +127,13 @@ export function ModelPicker({ items, initial, pageSize = 10, onChoose }: Props) 
                 {"  "}
                 {m.category}
               </Text>
+              {speed && (
+                <Text color={speed.color}>
+                  {"  ("}
+                  {speed.label}
+                  {")"}
+                </Text>
+              )}
             </Box>
           );
         })}
