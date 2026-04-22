@@ -27,6 +27,11 @@ import type {
   PermissionMode,
   PolicyState,
 } from "./permissions/policy.js";
+import {
+  initStatusBar,
+  teardownStatusBar,
+  updateStatus,
+} from "./utils/status-bar.js";
 
 function buildSystemPrompt(cwd: string): string {
   return `Tu es AI_CLI, un agent de code qui tourne dans un terminal, inspiré de Claude Code.
@@ -191,6 +196,15 @@ export async function startRepl(): Promise<void> {
   );
   console.log();
 
+  // Status bar persistant façon tmux : réserve la dernière ligne, scrolle
+  // le reste dans la région [1, rows-1]. Mis à jour sur chaque phase (thinking /
+  // streaming / waiting-quota / executing-tool), tokens, quota.
+  initStatusBar();
+  updateStatus({
+    provider: provider.name,
+    phase: currentCreds ? "idle" : "offline",
+  });
+
   // Tab completion pour les slash commands + sous-commandes connues.
   // - `/` + Tab → liste toutes les commandes
   // - `/pe` + Tab → complete à `/permissions ` (unique match)
@@ -328,6 +342,7 @@ export async function startRepl(): Promise<void> {
   );
 
   const cleanup = () => {
+    teardownStatusBar();
     for (const s of mcpServers) s.close();
     rl.close();
   };

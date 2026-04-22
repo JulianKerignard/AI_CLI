@@ -12,6 +12,7 @@ import type { PolicyState } from "../permissions/policy.js";
 import { decide } from "../permissions/policy.js";
 import { askPermission, logDenied } from "../permissions/prompt.js";
 import { compactMessages } from "./compactor.js";
+import { updateStatus, resetTurn as resetStatusTurn } from "../utils/status-bar.js";
 
 export interface AgentOptions {
   system: string;
@@ -110,6 +111,7 @@ export class AgentLoop {
       // seuils (30 msgs ou 60k tokens estimés), résumé les N premiers messages
       // via 1 appel LLM. Préserve les tool_use_id ↔ tool_result pending.
       try {
+        updateStatus({ phase: "compacting" });
         await compactMessages(this.messages, this.opts.provider, this.opts.system);
       } catch (err) {
         log.warn(
@@ -117,15 +119,25 @@ export class AgentLoop {
         );
       }
 
+      // Status : thinking dès qu'on lance la requête, streaming au 1er delta.
+      updateStatus({
+        provider: this.opts.provider.name,
+        phase: "thinking",
+        tokensIn: 0,
+        tokensOut: 0,
+      });
+
       // Streaming : on imprime le prefix assistant "●" + les text deltas en
       // live. À la fin du stream, newline pour que le status bar / tool calls
       // suivants commencent sur une ligne propre.
       let streamStarted = false;
+      let streamedChars = 0;
       const startStream = () => {
         if (streamStarted) return;
         streamStarted = true;
         // Préfixe assistant sans newline à la fin : les deltas suivent direct.
         process.stdout.write(log.streamPrefix());
+        updateStatus({ phase: "streaming" });
       };
 
       const response = await this.opts.provider.chat({
@@ -135,6 +147,9 @@ export class AgentLoop {
         onTextDelta: (delta) => {
           startStream();
           process.stdout.write(delta);
+          streamedChars += delta.length;
+          // Estimation tokens out live (~4 chars/token) pour le status bar.
+          updateStatus({ tokensOut: Math.ceil(streamedChars / 4) });
         },
       });
 
@@ -146,6 +161,19 @@ export class AgentLoop {
         turnOutputTokens += response.usage.outputTokens;
       }
       if (response.quota) lastQuota = response.quota;
+
+      // Update status bar avec les tokens réels + quota dès qu'ils arrivent.
+      updateStatus({
+        tokensIn: response.usage?.inputTokens ?? 0,
+        tokensOut: response.usage?.outputTokens ?? Math.ceil(streamedChars / 4),
+        ...(response.quota
+          ? {
+              quotaUsed: response.quota.used,
+              quotaLimit: response.quota.limit,
+              resetAt: response.quota.resetAt,
+            }
+          : {}),
+      });
 
       this.messages.push({ role: "assistant", content: response.content });
 
@@ -159,6 +187,8 @@ export class AgentLoop {
         this.stats.inputTokens += turnInputTokens;
         this.stats.outputTokens += turnOutputTokens;
         this.stats.turns += 1;
+        // Retour idle — la réponse complète a été affichée, le user peut saisir.
+        updateStatus({ phase: "idle" });
         if (lastQuota) this.stats.lastQuota = lastQuota;
         log.status(
           formatTurnStatus(
@@ -219,6 +249,7 @@ export class AgentLoop {
 
         this.opts.onToolUse?.(block.name, block.input);
         log.tool(block.name, JSON.stringify(block.input).slice(0, 120));
+        updateStatus({ phase: "executing-tool", toolName: block.name });
         try {
           const output = await this.opts.tools.run(block.name, block.input, ctx);
           this.opts.onToolResult?.(block.name, output);

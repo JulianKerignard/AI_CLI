@@ -10,6 +10,7 @@ import type {
 } from "./provider.js";
 import { RateLimiter } from "../lib/rate-limiter.js";
 import { log, chalk } from "../utils/logger.js";
+import { updateStatus } from "../utils/status-bar.js";
 
 interface Opts {
   token: string;
@@ -29,30 +30,42 @@ export function getSharedLimiter(): RateLimiter {
   return SHARED_LIMITER;
 }
 
-// Attend la prochaine slot libre en affichant un countdown "⏳ waiting Xs" en
-// place. Ne fait rien si la slot est immédiatement dispo.
+// Attend la prochaine slot libre. Le status bar affiche "⏳ waiting Xs" avec
+// countdown décroissant. Ne fait rien si la slot est immédiatement dispo.
 async function waitWithStatus(): Promise<void> {
   const initial = SHARED_LIMITER.waitFor();
+  const snap = SHARED_LIMITER.snapshot();
+  // Toujours push le bucket dans le status bar (pour visibilité même sans wait).
+  updateStatus({
+    bucketUsed: snap.used,
+    bucketCapacity: snap.capacity,
+  });
   if (initial === 0) {
     SHARED_LIMITER.record();
+    const snap2 = SHARED_LIMITER.snapshot();
+    updateStatus({
+      bucketUsed: snap2.used,
+      bucketCapacity: snap2.capacity,
+    });
     return;
   }
   const start = Date.now();
   const end = start + initial;
-  // Tick 500ms jusqu'à expiration.
+  updateStatus({ phase: "waiting-quota", waitingMsRemaining: initial });
+  // Tick 500ms pour la déco du countdown dans le status bar.
   while (Date.now() < end) {
     const remainingMs = Math.max(0, end - Date.now());
-    const sec = Math.ceil(remainingMs / 1000);
-    log.waitingStatus(
-      chalk.hex("#ec9470")("⏳ ") +
-        chalk.hex("#bdb3a1")(
-          `waiting ${sec}s for Mistral quota (bucket ${SHARED_LIMITER.snapshot().used}/${SHARED_LIMITER.snapshot().capacity})…`,
-        ),
-    );
+    updateStatus({ waitingMsRemaining: remainingMs });
     await new Promise((r) => setTimeout(r, 500));
   }
-  log.waitingStatus("");
   SHARED_LIMITER.record();
+  const snap3 = SHARED_LIMITER.snapshot();
+  updateStatus({
+    phase: "thinking",
+    waitingMsRemaining: undefined,
+    bucketUsed: snap3.used,
+    bucketCapacity: snap3.capacity,
+  });
 }
 
 // Provider HTTP qui parle Anthropic Messages API. Cible : endpoint Chat-Mistral
@@ -120,14 +133,22 @@ export class HttpProvider implements Provider {
           ? Math.min(Number(retryAfterHeader) * 1000, 60_000)
           : 8_000 * 2 ** attempt;
         SHARED_LIMITER.markCold(retryAfterMs);
-        log.waitingStatus(
-          chalk.hex("#ec9470")("⚠ ") +
-            chalk.hex("#bdb3a1")(
-              `429 reçu — attente ${Math.ceil(retryAfterMs / 1000)}s avant retry (${attempt + 1}/${maxAttempts})…`,
-            ),
-        );
-        await new Promise((r) => setTimeout(r, retryAfterMs));
-        log.waitingStatus("");
+        // Status bar affiche le countdown du retry.
+        updateStatus({
+          phase: "waiting-quota",
+          waitingMsRemaining: retryAfterMs,
+          toolName: `retry ${attempt + 1}/${maxAttempts}`,
+        });
+        const end = Date.now() + retryAfterMs;
+        while (Date.now() < end) {
+          updateStatus({ waitingMsRemaining: Math.max(0, end - Date.now()) });
+          await new Promise((r) => setTimeout(r, 500));
+        }
+        updateStatus({
+          waitingMsRemaining: undefined,
+          toolName: undefined,
+          phase: "thinking",
+        });
         continue;
       }
       throw new Error(
