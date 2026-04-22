@@ -63,6 +63,16 @@ Workflow typique sur une tâche :
 3. Edit (ou Write pour un nouveau) pour la modification
 4. Bash pour tester (\`npm run build\`, \`npm test\`, etc.)
 
+# Parallélisation des tools (IMPORTANT)
+Quand plusieurs actions sont indépendantes, émets TOUS les tool_use dans la MÊME
+réponse au lieu de les faire un par un. Exemples :
+- Explorer un projet : 1 seul turn avec Ls("src") + Ls("tests") + Read("package.json") + Read("README.md") en parallèle
+- Lire plusieurs fichiers liés : tous les Read en même temps
+- Cherche dans plusieurs dossiers : Glob x3 dans le même turn
+Ne fais séquentiel QUE si l'action N dépend du résultat de l'action N-1 (ex: Ls
+d'abord pour découvrir les fichiers, puis Read ensuite). Chaque turn sans
+parallélisation = 1 requête Mistral de plus vers un rate limit bas.
+
 # Style de code
 Conventions standard : code propre, noms explicites, pas de commentaires triviaux. Respecte le style existant du projet (lis quelques fichiers avant d'écrire pour capter les conventions).`;
 }
