@@ -12,7 +12,11 @@ import type { PolicyState } from "../permissions/policy.js";
 import { decide } from "../permissions/policy.js";
 import { askPermission, logDenied } from "../permissions/prompt.js";
 import { compactMessages } from "./compactor.js";
-import { updateStatus, resetTurn as resetStatusTurn } from "../utils/status-bar.js";
+import {
+  updateStatus,
+  setSessionTotals,
+  resetTurn as resetStatusTurn,
+} from "../utils/status-bar.js";
 
 export interface AgentOptions {
   system: string;
@@ -187,6 +191,7 @@ export class AgentLoop {
         this.stats.inputTokens += turnInputTokens;
         this.stats.outputTokens += turnOutputTokens;
         this.stats.turns += 1;
+        setSessionTotals(this.stats.inputTokens, this.stats.outputTokens);
         // Retour idle — la réponse complète a été affichée, le user peut saisir.
         updateStatus({ phase: "idle" });
         if (lastQuota) this.stats.lastQuota = lastQuota;
