@@ -128,10 +128,11 @@ export class AgentLoop {
         );
       }
 
-      // Status : thinking dès qu'on lance la requête, streaming au 1er delta.
+      // Status : 'loading' pendant la phase pre-premier-token (cold start
+      // NVIDIA peut être long). Passe à 'streaming' dès le 1er delta.
       updateStatus({
         provider: this.opts.provider.name,
-        phase: "thinking",
+        phase: "loading",
         tokensIn: 0,
         tokensOut: 0,
       });

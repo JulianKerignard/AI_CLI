@@ -73,8 +73,12 @@ async function waitWithStatus(limiter: RateLimiter): Promise<void> {
   }
   limiter.record();
   const snap3 = limiter.snapshot();
+  // Phase "loading" : entre la fin du wait bucket et le premier token
+  // reçu. Cold start NVIDIA peut être long — l'user voit 'chargement
+  // du modèle…' pour comprendre que c'est normal. Bascule automatique
+  // en "streaming" dès le premier delta (agent/loop.ts).
   updateStatus({
-    phase: "thinking",
+    phase: "loading",
     waitingMsRemaining: undefined,
     bucketUsed: snap3.used,
     bucketCapacity: snap3.capacity,
@@ -162,7 +166,7 @@ export class HttpProvider implements Provider {
         updateStatus({
           waitingMsRemaining: undefined,
           toolName: undefined,
-          phase: "thinking",
+          phase: "loading",
         });
         continue;
       }

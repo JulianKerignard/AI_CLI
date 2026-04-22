@@ -30,6 +30,7 @@ export function subscribeStatus(cb: () => void): () => void {
 
 export type Phase =
   | "idle"
+  | "loading"
   | "thinking"
   | "streaming"
   | "waiting-quota"
@@ -73,6 +74,7 @@ const VERSION = "0.1.0";
 
 const PHASE_LABEL: Record<Phase, string> = {
   idle: "idle",
+  loading: "chargement du modèle…",
   thinking: "thinking…",
   streaming: "streaming",
   "waiting-quota": "waiting quota",
@@ -83,6 +85,7 @@ const PHASE_LABEL: Record<Phase, string> = {
 
 const PHASE_SYM: Record<Phase, string> = {
   idle: "·",
+  loading: "↻",
   thinking: "●",
   streaming: "●",
   "waiting-quota": "⏳",
@@ -93,6 +96,7 @@ const PHASE_SYM: Record<Phase, string> = {
 
 const PHASE_COLOR: Record<Phase, (s: string) => string> = {
   idle: chalk.hex("#8a8270"),
+  loading: chalk.hex("#7fa8a6"),
   thinking: chalk.hex("#ec9470"),
   streaming: chalk.hex("#e27649"),
   "waiting-quota": chalk.hex("#c76a5f"),
