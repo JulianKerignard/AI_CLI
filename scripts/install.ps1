@@ -57,12 +57,12 @@ if (Test-Command "aicli") {
 
 # 4. Install depuis npm registry (whitelist Defender/SmartScreen).
 Write-Host "Installation depuis npm registry..." -ForegroundColor White
-npm install -g @juliank./aicli@latest
+npm install -g "@juliank./aicli@latest"
 if ($LASTEXITCODE -ne 0) {
   Write-Host ""
   Write-Host "Install echoue. Essaye :" -ForegroundColor Red
   Write-Host "  npm cache clean --force" -ForegroundColor Yellow
-  Write-Host "  npm install -g @juliank./aicli@latest" -ForegroundColor Yellow
+  Write-Host '  npm install -g "@juliank./aicli@latest"' -ForegroundColor Yellow
   exit 1
 }
 
