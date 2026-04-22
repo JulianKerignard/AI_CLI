@@ -7,13 +7,9 @@
 # Ou direct depuis le repo :
 #   curl -fsSL https://raw.githubusercontent.com/JulianKerignard/AI_CLI/main/scripts/install.sh | bash
 #
-# Prérequis : Node.js 18+ (le script propose un install si absent).
+# Prerequis : Node.js 18+ (le script verifie).
 
 set -e
-
-# Tarball npm pré-packé sur GitHub Releases : install direct sans
-# git clone, sans pack local, plus rapide.
-TARBALL_URL="https://github.com/JulianKerignard/AI_CLI/releases/latest/download/aicli-0.1.0.tgz"
 
 # Couleurs ANSI pour un output lisible.
 RED=$'\e[31m'
@@ -49,24 +45,23 @@ if ! command -v npm >/dev/null 2>&1; then
   exit 1
 fi
 
-printf "${GREEN}✓${RESET} npm $(npm -v) détecté\n"
+printf "${GREEN}✓${RESET} npm $(npm -v) détecté\n\n"
 
-printf "\n"
-
-# 3. Download + install le tarball pré-packé.
-TMPDIR=$(mktemp -d -t aicli-install.XXXXXX)
-TARBALL="$TMPDIR/aicli.tgz"
-
-printf "${BOLD}Téléchargement du package...${RESET}\n"
-if ! curl -fsSL -o "$TARBALL" "$TARBALL_URL"; then
-  printf "${RED}Téléchargement échoué.${RESET}\n"
-  exit 1
+# 3. Désinstalle silencieusement toute version précédente cassée
+# (les v0.1.x installées via tarball GitHub ont souffert de Defender mangeant dist/).
+if command -v aicli >/dev/null 2>&1; then
+  printf "${BOLD}Version précédente détectée, nettoyage...${RESET}\n"
+  npm uninstall -g aicli >/dev/null 2>&1 || true
 fi
 
-printf "${BOLD}Installation de aicli...${RESET}\n"
-npm install -g "$TARBALL"
-
-rm -rf "$TMPDIR"
+# 4. Install depuis npm registry.
+printf "${BOLD}Installation depuis npm registry...${RESET}\n"
+if ! npm install -g aicli@latest; then
+  printf "\n${RED}Install échoué.${RESET} Essaye :\n"
+  printf "  ${YELLOW}npm cache clean --force${RESET}\n"
+  printf "  ${YELLOW}npm install -g aicli@latest${RESET}\n"
+  exit 1
+fi
 
 printf "\n"
 

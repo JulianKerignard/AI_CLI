@@ -15,10 +15,31 @@
   },
   "files": [
     "dist",
-    "scripts/set-version.mjs",
     "package.json",
     "README.md"
   ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/JulianKerignard/AI_CLI.git"
+  },
+  "homepage": "https://github.com/JulianKerignard/AI_CLI",
+  "bugs": {
+    "url": "https://github.com/JulianKerignard/AI_CLI/issues"
+  },
+  "license": "MIT",
+  "author": "Julian Kerignard",
+  "keywords": [
+    "cli",
+    "ai",
+    "llm",
+    "repl",
+    "mistral",
+    "nvidia",
+    "ink"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
   "dependencies": {
     "@inquirer/input": "^5.0.12",
     "@inquirer/search": "^4.1.8",
