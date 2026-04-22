@@ -9,11 +9,9 @@
   "main": "./dist/index.js",
   "scripts": {
     "build": "tsc -p . && node scripts/set-version.mjs",
-    "postinstall": "node scripts/set-version.mjs || true",
     "dev": "tsx src/index.ts",
     "start": "node dist/index.js",
-    "typecheck": "tsc -p . --noEmit",
-    "prepare": "tsc -p . && node scripts/set-version.mjs || true"
+    "typecheck": "tsc -p . --noEmit"
   },
   "files": [
     "dist",
