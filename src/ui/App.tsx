@@ -4,6 +4,8 @@ import { HistoryView, StreamingView } from "./HistoryView.js";
 import { InputBox } from "./InputBox.js";
 import { StatusLine } from "./StatusLine.js";
 import { inputController } from "./input-controller.js";
+import { pickerController } from "./picker-controller.js";
+import { ModelPicker } from "./ModelPicker.js";
 
 // Layout :
 // ┌───────────────────────────┐
@@ -36,16 +38,36 @@ export function App() {
     };
   }, []);
 
+  // Picker actif (ex: /model) → remplace temporairement l'InputBox.
+  const [pickerActive, setPickerActive] = useState(
+    () => pickerController.getCurrent(),
+  );
+  useEffect(() => {
+    const update = () => setPickerActive(pickerController.getCurrent());
+    pickerController.on("change", update);
+    return () => {
+      pickerController.off("change", update);
+    };
+  }, []);
+
   return (
     <Box flexDirection="column">
       <HistoryView />
       <StreamingView />
-      <InputBox
-        disabled={inputDisabled}
-        placeholder="écris un prompt ou /help"
-        onSubmit={(line) => inputController.submit(line)}
-        onInterrupt={() => inputController.interrupt()}
-      />
+      {pickerActive ? (
+        <ModelPicker
+          items={pickerActive.items}
+          initial={pickerActive.initial}
+          onChoose={(id) => pickerController.close(id)}
+        />
+      ) : (
+        <InputBox
+          disabled={inputDisabled}
+          placeholder="écris un prompt ou /help"
+          onSubmit={(line) => inputController.submit(line)}
+          onInterrupt={() => inputController.interrupt()}
+        />
+      )}
       <StatusLine columns={columns} />
     </Box>
   );

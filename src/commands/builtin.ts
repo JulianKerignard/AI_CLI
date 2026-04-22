@@ -245,56 +245,17 @@ export function builtinCommands(allCommands: () => SlashCommand[]): SlashCommand
           return;
         }
 
-        // Picker interactif via @inquirer/search.
-        const { default: search } = await import("@inquirer/search");
-        try {
-          const chosen = await search({
-            message: "model",
-            pageSize: 12,
-            source: async (input) => {
-              const q = (input ?? "").toLowerCase();
-              const filtered = models.filter(
-                (m) =>
-                  !q ||
-                  m.id.toLowerCase().includes(q) ||
-                  m.category.toLowerCase().includes(q) ||
-                  m.provider.toLowerCase().includes(q),
-              );
-              return filtered.map((m) => {
-                const marker =
-                  m.provider === "nvidia"
-                    ? chalk.hex("#7fa670")("nvidia")
-                    : m.provider === "persona"
-                      ? chalk.hex("#ec9470")("persona")
-                      : chalk.hex("#e27649")("mistral");
-                const current =
-                  m.id === creds.model ? chalk.hex("#7fa670")(" (current)") : "";
-                return {
-                  name: `${m.id}${current}`,
-                  value: m.id,
-                  description: `  ${marker} · ${m.category} · weight ${m.weight}${m.description ? " · " + m.description : ""}`,
-                };
-              });
-            },
-            default: creds.model,
-          });
-          if (typeof chosen === "string" && chosen !== creds.model) {
-            const updated = { ...creds, model: chosen };
-            auth.onLogin(updated);
-            const picked = models.find((m) => m.id === chosen);
-            log.info(
-              `Modèle → ${chalk.hex("#e27649")(chosen)} ${chalk.hex("#8a8270")(`(${picked?.provider ?? "?"})`)}`,
-            );
-          }
-        } catch (err) {
-          if (
-            !(err instanceof Error) ||
-            (!/user force closed/i.test(err.message) && err.name !== "ExitPromptError")
-          ) {
-            log.error(
-              `Picker error : ${err instanceof Error ? err.message : err}`,
-            );
-          }
+        // Picker natif Ink — remplace @inquirer/search qui créait un
+        // readline parallèle et laissait des artefacts visuels.
+        const { pickerController } = await import("../ui/picker-controller.js");
+        const chosen = await pickerController.open(models, creds.model);
+        if (typeof chosen === "string" && chosen !== creds.model) {
+          const updated = { ...creds, model: chosen };
+          auth.onLogin(updated);
+          const picked = models.find((m) => m.id === chosen);
+          log.info(
+            `Modèle → ${chalk.hex("#e27649")(chosen)} ${chalk.hex("#8a8270")(`(${picked?.provider ?? "?"})`)}`,
+          );
         }
       },
     },
