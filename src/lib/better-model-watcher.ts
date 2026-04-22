@@ -74,24 +74,21 @@ export class BetterModelWatcher {
   private async check(): Promise<void> {
     const creds = this.getToken();
     if (!creds) return;
-    // AbortController pour couper le fetch si stop() arrive ou si le
-    // serveur hang (timeout 10s).
     this.abortCtrl = new AbortController();
     const timer = setTimeout(() => this.abortCtrl?.abort(), 10_000);
-    let res: Response;
+    const { fetchCatalog } = await import("./model-catalog.js");
+    let models: ApiModel[];
     try {
-      res = await fetch(`${creds.baseUrl}/v1/models`, {
-        headers: { "x-api-key": creds.token },
-        signal: this.abortCtrl.signal,
-      });
+      // Cache partagé avec /model et /best — 1 seul fetch TTL 60s.
+      const cached = await fetchCatalog(creds, { signal: this.abortCtrl.signal });
+      models = cached as ApiModel[];
+    } catch {
+      return;
     } finally {
       clearTimeout(timer);
       this.abortCtrl = null;
     }
     if (this.stopped) return;
-    if (!res.ok) return;
-    const data = (await res.json()) as { models: ApiModel[] };
-    const models = data.models ?? [];
     if (models.length === 0) return;
 
     const scored = models

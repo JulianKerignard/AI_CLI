@@ -17,12 +17,7 @@ import { historyStore } from "../ui/history-store.js";
 import {
   updateStatus,
   setSessionTotals,
-  printStatusBlock,
   resetTurn as resetStatusTurn,
-  hideStatus,
-  showStatus,
-  suspendStatus,
-  resumeStatus,
 } from "../utils/status-bar.js";
 
 export interface AgentOptions {
@@ -228,9 +223,6 @@ export class AgentLoop {
         setSessionTotals(this.stats.inputTokens, this.stats.outputTokens);
         updateStatus({ phase: "idle" });
         if (lastQuota) this.stats.lastQuota = lastQuota;
-        // Block status inline à la fin de chaque turn complet (pas persistent :
-        // scrolle naturellement comme le reste, pas de race avec readline).
-        printStatusBlock();
         return finalText;
       }
 
@@ -288,7 +280,6 @@ export class AgentLoop {
         // formatters, fallback sur l'ancien affichage verbeux.
         const toolDef = this.opts.tools.get(block.name);
         const hasCompact = !!(toolDef?.formatInvocation || toolDef?.formatResult);
-        hideStatus();
         if (hasCompact) {
           const label = toolDef?.formatInvocation?.(block.input) ?? "";
           log.toolCompact(block.name, label);
@@ -308,7 +299,6 @@ export class AgentLoop {
             const lines = output.split("\n").length;
             log.toolResultCompact(`${lines} lines returned`);
           }
-          showStatus();
           toolResults.push({
             type: "tool_result",
             tool_use_id: block.id,

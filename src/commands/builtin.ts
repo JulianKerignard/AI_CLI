@@ -215,12 +215,8 @@ export function builtinCommands(allCommands: () => SlashCommand[]): SlashCommand
           description?: string;
         }> = [];
         try {
-          const res = await fetch(`${creds.baseUrl}/v1/models`, {
-            headers: { "x-api-key": creds.token },
-          });
-          if (!res.ok) throw new Error(`HTTP ${res.status}`);
-          const data = (await res.json()) as { models: typeof models };
-          models = data.models;
+          const { fetchCatalog } = await import("../lib/model-catalog.js");
+          models = await fetchCatalog(creds);
         } catch (err) {
           log.error(
             `Impossible de récupérer les modèles : ${err instanceof Error ? err.message : err}`,
@@ -286,12 +282,8 @@ export function builtinCommands(allCommands: () => SlashCommand[]): SlashCommand
           description?: string;
         }> = [];
         try {
-          const res = await fetch(`${creds.baseUrl}/v1/models`, {
-            headers: { "x-api-key": creds.token },
-          });
-          if (!res.ok) throw new Error(`HTTP ${res.status}`);
-          const data = (await res.json()) as { models: typeof models };
-          models = data.models;
+          const { fetchCatalog } = await import("../lib/model-catalog.js");
+          models = await fetchCatalog(creds);
         } catch (err) {
           log.error(
             `Impossible de récupérer les modèles : ${err instanceof Error ? err.message : err}`,

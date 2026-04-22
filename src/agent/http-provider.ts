@@ -37,13 +37,6 @@ function limiterFor(model: string): RateLimiter {
   return isNvidiaModel(model) ? NVIDIA_LIMITER : MISTRAL_LIMITER;
 }
 
-// Rétrocompatibilité : certains callers (builtin.ts /usage, tests) veulent
-// le limiter "principal" sans connaître le modèle. On retourne le Mistral
-// (plus restrictif, c'est la valeur historique).
-export function getSharedLimiter(): RateLimiter {
-  return MISTRAL_LIMITER;
-}
-
 // Attend la prochaine slot libre du limiter associé au modèle. Le status
 // bar affiche "⏳ waiting Xs" avec countdown décroissant. Ne fait rien si
 // la slot est immédiatement dispo.

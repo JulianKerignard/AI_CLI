@@ -87,7 +87,3 @@ export function getGitInfo(cwd: string): GitInfo {
   return info;
 }
 
-// Invalide le cache — utile si on veut un refresh immédiat après un commit.
-export function invalidateGitInfo(): void {
-  cached = null;
-}

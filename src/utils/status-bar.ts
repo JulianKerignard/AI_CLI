@@ -76,16 +76,8 @@ interface Segments {
 
 const state: Segments = { phase: "idle" };
 let enabled = false;
-// Nombre de lignes actuellement occupées par le status à l'écran. 0 si caché.
-let visibleRows = 0;
-let lastRenderAt = 0;
-let pendingRender: NodeJS.Timeout | null = null;
-// Flag : pendant le streaming, on ne repush PAS le status à chaque delta
-// (sinon flicker). On le push après le dernier delta.
-let suspended = false;
 
 const STATUS_LINES = 4; // rule + 3 info lines
-const RENDER_THROTTLE_MS = 120;
 const VERSION = "0.1.0";
 
 const PHASE_LABEL: Record<Phase, string> = {
@@ -316,23 +308,6 @@ export function renderStatusLines(cols: number): string[] {
   return [rule, line1, line2, line3];
 }
 
-// ⚠ Compat layer. Ces fonctions étaient utilisées quand le status bar
-// était imprimé sur stdout. Avec Ink qui rend la status line en React,
-// elles deviennent no-op. L'API est gardée pour ne pas casser les
-// callers (http-provider, agent/loop, permissions/prompt).
-export function hideStatus(): void {
-  /* no-op sous Ink */
-}
-export function showStatus(): void {
-  /* no-op sous Ink */
-}
-export function suspendStatus(): void {
-  suspended = true;
-}
-export function resumeStatus(): void {
-  suspended = false;
-}
-
 function scheduleRender(): void {
   // Émet un 'change' — StatusLine component re-render.
   emitter.emit("change");
@@ -355,7 +330,6 @@ export function initStatusBar(): void {
 
 export function teardownStatusBar(): void {
   if (!enabled) return;
-  hideStatus();
   enabled = false;
 }
 
@@ -383,14 +357,3 @@ export function resetTurn(): void {
   scheduleRender();
 }
 
-// Compat no-op (anciennement utilisé pour le countdown wait, remplacé par
-// la phase "waiting-quota" dans le status block).
-export function transientStatus(_msg: string): void {
-  /* no-op */
-}
-
-// Compat : appelé par AgentLoop en fin de turn, le status est déjà sticky.
-// Force un refresh explicite.
-export function printStatusBlock(): void {
-  scheduleRender();
-}

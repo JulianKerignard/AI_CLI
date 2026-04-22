@@ -41,8 +41,6 @@ import {
   initStatusBar,
   teardownStatusBar,
   updateStatus,
-  hideStatus,
-  showStatus,
 } from "./utils/status-bar.js";
 
 function buildSystemPrompt(cwd: string): string {
@@ -252,6 +250,8 @@ export async function startRepl(): Promise<void> {
       provider = makeProvider(creds);
       agent.setProvider(provider);
       registerAgentTool();
+      // Invalide le cache catalog — nouveau serveur/modèle possible.
+      void import("./lib/model-catalog.js").then((m) => m.invalidateCatalog());
       updateStatus({
         provider: provider.name,
         contextWindow: undefined,

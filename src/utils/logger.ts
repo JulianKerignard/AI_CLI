@@ -206,9 +206,6 @@ export const log = {
       ATH.accent(SYM.assistant + " ") +
         ATH.ink(msg.replace(/\n/g, "\n  ")),
     ),
-  // Prefix pour le streaming assistant (unused sous Ink — le streaming
-  // passe par historyStore.appendAssistantDelta côté agent/loop).
-  streamPrefix: () => ATH.accent(SYM.assistant + " "),
   tool: (name: string, detail: string) =>
     ui(
       ATH.accentSoft(SYM.tool + " ") +
@@ -252,9 +249,6 @@ export const log = {
     ui("  " + line);
     ui(ATH.inkFaint("─".repeat(width)));
   },
-  // Déprécié sous Ink (le status bar affiche le countdown via phase).
-  // No-op pour compat.
-  waitingStatus: (_msg: string) => {},
   rule: () => ui(ATH.inkFaint("─".repeat(40))),
   // Kicker micro-typo en couleur (sans règle), pour une section inline.
   kicker: (label: string) => ATH.inkFaint.bold(label.toUpperCase()),

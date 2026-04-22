@@ -1,6 +1,7 @@
 import React, { useState, useCallback, useMemo } from "react";
 import { Box, Text, useInput } from "ink";
 import type { InputHistory } from "../utils/history.js";
+import { colors as c } from "./theme.js";
 
 // Saisie avec bordure (style Claude Code). Features :
 // - Multi-ligne : `\`+Enter insère un \n, Enter seul submit
@@ -261,24 +262,24 @@ export function InputBox({
   return (
     <Box
       borderStyle="round"
-      borderColor={disabled ? "#2a2520" : "#4a4239"}
+      borderColor={disabled ? c.borderDim : c.border}
       paddingX={1}
       flexDirection="column"
     >
       {disabled ? (
         <Box flexDirection="row">
-          <Text color="#4a4239">›{"  "}</Text>
-          <Text color="#4a4239">…en cours — attend la fin de génération</Text>
+          <Text color={c.inkFaint}>›{"  "}</Text>
+          <Text color={c.inkFaint}>…en cours — attend la fin de génération</Text>
         </Box>
       ) : showPlaceholder ? (
         <Box flexDirection="row">
-          <Text color="#e27649">›{"  "}</Text>
-          <Text color="#4a4239">{placeholder}</Text>
+          <Text color={c.accent}>›{"  "}</Text>
+          <Text color={c.inkFaint}>{placeholder}</Text>
         </Box>
       ) : (
         rendered.map((line, i) => (
           <Box key={i} flexDirection="row">
-            <Text color="#e27649">{i === 0 ? "›  " : "   "}</Text>
+            <Text color={c.accent}>{i === 0 ? "›  " : "   "}</Text>
             {line.caretCol < 0 ? (
               <Text>{line.text || " "}</Text>
             ) : (
