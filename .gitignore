@@ -7,3 +7,4 @@ node_modules/
 # dist/ est volontairement committé : permet 'npm i -g github:...' sans
 # devDependencies (typescript) ni build au install. Regénéré via 'npm run build'.
 
+aicli-*.tgz
