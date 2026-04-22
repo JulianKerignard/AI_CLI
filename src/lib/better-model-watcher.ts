@@ -84,24 +84,31 @@ export class BetterModelWatcher {
     const top = scored[0];
     if (!top) return;
 
-    // Si le top est le modèle courant, rien à suggérer.
+    // Push toujours les Q/V du modèle courant (pour l'UI permanente).
+    const currentUpdate = current
+      ? {
+          currentQuality: current.qualityOutOf10,
+          currentSpeed: current.speedOutOf10,
+        }
+      : {};
+
     if (top.model.id === creds.model) {
-      updateStatus({ suggestedBetter: null });
+      updateStatus({ ...currentUpdate, suggestedBetter: null });
       return;
     }
 
-    // Delta trop faible → ne dérange pas l'user pour rien.
     const currentScore = current?.score ?? 0;
     if (top.score - currentScore < MIN_SCORE_DELTA) {
-      updateStatus({ suggestedBetter: null });
+      updateStatus({ ...currentUpdate, suggestedBetter: null });
       return;
     }
 
     updateStatus({
+      ...currentUpdate,
       suggestedBetter: {
         id: top.model.id,
-        score: top.score,
-        currentScore,
+        qualityOutOf10: top.qualityOutOf10,
+        speedOutOf10: top.speedOutOf10,
       },
     });
   }

@@ -56,10 +56,18 @@ interface Segments {
   bucketCold?: boolean;
   cwd?: string;
   sessionTag?: string;
+  // Indices /10 du modèle actif — calculés et pushés par le watcher.
+  currentQuality?: number;
+  currentSpeed?: number;
   // Suggestion automatique quand le poller détecte un modèle avec un
   // meilleur score composite que le modèle courant. Affiché dans la
-  // status line sous forme '★ mieux: <id>'. Reset au switch de modèle.
-  suggestedBetter?: { id: string; score: number; currentScore: number } | null;
+  // status line avec les deux indices /10 (qualité + vitesse).
+  // Reset au switch de modèle.
+  suggestedBetter?: {
+    id: string;
+    qualityOutOf10: number;
+    speedOutOf10: number;
+  } | null;
 }
 
 const state: Segments = { phase: "idle" };
@@ -202,11 +210,25 @@ export function renderStatusLines(cols: number): string[] {
     const ctxWin = state.contextWindow ?? contextWindowFor(state.provider);
     const ctxStr =
       ctxWin >= 1_000_000 ? `${ctxWin / 1_000_000}M` : `${ctxWin / 1_000}k`;
-    parts1.push(
+    let head =
       ACCENT("◆ ") +
-        INK_BRIGHT.bold(cleanProvider(state.provider)) +
-        FAINT(` (${ctxStr} ctx)`),
-    );
+      INK_BRIGHT.bold(cleanProvider(state.provider)) +
+      FAINT(` (${ctxStr} ctx)`);
+    // Indices Q/V du modèle actif — pushés par le watcher à chaque check.
+    if (
+      state.currentQuality !== undefined &&
+      state.currentSpeed !== undefined
+    ) {
+      head +=
+        FAINT("  ") +
+        MUTED("Q") +
+        INK(String(state.currentQuality)) +
+        FAINT("/10 ") +
+        MUTED("V") +
+        INK(String(state.currentSpeed)) +
+        FAINT("/10");
+    }
+    parts1.push(head);
   }
   if (state.cwd) parts1.push(MUTED(shortCwd(state.cwd)));
   const git = state.cwd ? getGitInfo(state.cwd) : null;
@@ -292,18 +314,19 @@ export function renderStatusLines(cols: number): string[] {
   }
   // Suggestion "meilleur modèle dispo" détectée par le poller background.
   if (state.suggestedBetter) {
-    // Raccourci l'id pour tenir sur la ligne : garde juste la partie
-    // après le dernier '/' (ex: kimi-k2-thinking).
     const parts = state.suggestedBetter.id.split("/");
     const shortId = parts[parts.length - 1] || state.suggestedBetter.id;
-    const delta = (
-      state.suggestedBetter.score - state.suggestedBetter.currentScore
-    ).toFixed(1);
     phaseStr +=
       FAINT("  ·  ") +
-      SUCCESS("★ mieux: ") +
+      SUCCESS("★ ") +
       ACCENT_SOFT(shortId) +
-      FAINT(` (+${delta})`);
+      FAINT(" · ") +
+      MUTED("Q") +
+      INK(String(state.suggestedBetter.qualityOutOf10)) +
+      FAINT("/10 ") +
+      MUTED("V") +
+      INK(String(state.suggestedBetter.speedOutOf10)) +
+      FAINT("/10");
   }
   const versionPart = FAINT(`v${VERSION}`);
   const leftLen = visibleLen(phaseStr);

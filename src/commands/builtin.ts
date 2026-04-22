@@ -308,7 +308,7 @@ export function builtinCommands(allCommands: () => SlashCommand[]): SlashCommand
         const ranked = pickBest(models, mode);
         const top = ranked[0];
 
-        // Affiche le top 5 pour que l'user voie le classement.
+        // Affiche le top 5 avec indices qualité/vitesse sur 10.
         log.info(
           `Meilleurs modèles (mode ${chalk.hex("#e27649")(mode)}) :`,
         );
@@ -317,7 +317,7 @@ export function builtinCommands(allCommands: () => SlashCommand[]): SlashCommand
           const marker = i === 0 ? chalk.hex("#7fa670")("★") : " ";
           log.dim(
             `  ${marker} ${r.model.id.padEnd(55)}  ${chalk.hex("#8a8270")(
-              `score ${r.score.toFixed(1)} · q${r.breakdown.quality} s${r.breakdown.speed} c${r.breakdown.cost}${r.breakdown.bonus ? " +" + r.breakdown.bonus : ""}`,
+              `Q ${r.qualityOutOf10}/10 · V ${r.speedOutOf10}/10 · score ${r.score.toFixed(1)}`,
             )}`,
           );
         }
@@ -331,7 +331,7 @@ export function builtinCommands(allCommands: () => SlashCommand[]): SlashCommand
         const updated = { ...creds, model: top.model.id };
         auth.onLogin(updated);
         log.info(
-          `Switch → ${chalk.hex("#e27649")(top.model.id)} ${chalk.hex("#8a8270")(`(${top.model.provider}, score ${top.score.toFixed(1)})`)}`,
+          `Switch → ${chalk.hex("#e27649")(top.model.id)} ${chalk.hex("#8a8270")(`(${top.model.provider} · Q ${top.qualityOutOf10}/10 · V ${top.speedOutOf10}/10)`)}`,
         );
       },
     },
