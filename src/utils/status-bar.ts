@@ -1,5 +1,18 @@
+import { EventEmitter } from "node:events";
 import { chalk } from "./logger.js";
 import { getGitInfo } from "./git-info.js";
+
+// Émetteur pour que le composant React StatusLine (Ink) se re-rende
+// quand l'état change. Les callers continuent d'utiliser updateStatus,
+// setSessionTotals, etc. — ils émettent 'change' pour l'UI.
+const emitter = new EventEmitter();
+emitter.setMaxListeners(20);
+export function subscribeStatus(cb: () => void): () => void {
+  emitter.on("change", cb);
+  return () => {
+    emitter.off("change", cb);
+  };
+}
 
 // Status block "sticky" : toujours imprimé juste après le dernier contenu
 // stdout. Quand du nouveau contenu arrive, on efface le status précédent
@@ -152,7 +165,7 @@ function visibleLen(s: string): number {
   return s.replace(/\x1b\[[0-9;]*m/g, "").length;
 }
 
-function renderBlock(cols: number): string[] {
+export function renderStatusLines(cols: number): string[] {
   const tag = state.sessionTag ?? cleanProvider(state.provider ?? "");
   const tagBox = tag
     ? chalk.bgHex("#245454").hex("#f6f1e8")(` ${tag} `)
@@ -260,64 +273,26 @@ function renderBlock(cols: number): string[] {
   return [rule, line1, line2, line3];
 }
 
-// Efface le status block précédemment imprimé (si présent), laissant le
-// curseur à la position d'avant le status. À appeler avant tout output
-// pour que le output s'insère en amont du status.
+// ⚠ Compat layer. Ces fonctions étaient utilisées quand le status bar
+// était imprimé sur stdout. Avec Ink qui rend la status line en React,
+// elles deviennent no-op. L'API est gardée pour ne pas casser les
+// callers (http-provider, agent/loop, permissions/prompt).
 export function hideStatus(): void {
-  if (!enabled || !process.stdout.isTTY || visibleRows === 0) return;
-  // Cursor up N lines (N = nombre de lignes occupées)
-  process.stdout.write(`\r\x1b[${visibleRows}A\x1b[0J`);
-  visibleRows = 0;
+  /* no-op sous Ink */
 }
-
-// Imprime (ou re-imprime) le status block à la position courante du curseur.
-// Typiquement appelé juste après un output pour "rattacher" le status.
 export function showStatus(): void {
-  if (!enabled || !process.stdout.isTTY) return;
-  if (suspended) return;
-  const cols = Math.min(process.stdout.columns ?? 80, 140);
-  const lines = renderBlock(cols);
-  // 1 blank line + STATUS_LINES
-  process.stdout.write("\n");
-  for (const line of lines) {
-    process.stdout.write(line + "\n");
-  }
-  visibleRows = STATUS_LINES + 1;
-  lastRenderAt = Date.now();
+  /* no-op sous Ink */
 }
-
-// Re-render : hide + show en séquence. Throttlé pour éviter le flicker
-// pendant le streaming (on appelle updateStatus à chaque delta).
-function scheduleRender(): void {
-  if (!enabled || suspended) return;
-  const now = Date.now();
-  const sinceLast = now - lastRenderAt;
-  if (sinceLast >= RENDER_THROTTLE_MS) {
-    if (pendingRender) {
-      clearTimeout(pendingRender);
-      pendingRender = null;
-    }
-    hideStatus();
-    showStatus();
-  } else if (!pendingRender) {
-    pendingRender = setTimeout(() => {
-      pendingRender = null;
-      hideStatus();
-      showStatus();
-    }, RENDER_THROTTLE_MS - sinceLast);
-  }
-}
-
-// Suspend le rendu (pour qu'un output externe ne soit pas "refreshé" par
-// notre re-render). Pendant suspend, updateStatus n'appelle pas showStatus.
 export function suspendStatus(): void {
   suspended = true;
-  hideStatus();
 }
-
 export function resumeStatus(): void {
   suspended = false;
-  showStatus();
+}
+
+function scheduleRender(): void {
+  // Émet un 'change' — StatusLine component re-render.
+  emitter.emit("change");
 }
 
 export function initStatusBar(): void {

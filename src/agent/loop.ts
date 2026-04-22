@@ -144,12 +144,10 @@ export class AgentLoop {
       const startStream = () => {
         if (streamStarted) return;
         streamStarted = true;
-        // Efface le status en place avant d'écrire le premier delta.
-        hideStatus();
-        suspendStatus();
-        process.stdout.write(log.streamPrefix());
         updateStatus({ phase: "streaming" });
       };
+
+      const { historyStore } = await import("../ui/history-store.js");
 
       const response = await this.opts.provider.chat({
         system: this.opts.system,
@@ -157,16 +155,15 @@ export class AgentLoop {
         tools: this.opts.tools.list(),
         onTextDelta: (delta) => {
           startStream();
-          process.stdout.write(delta);
+          historyStore.appendAssistantDelta(delta);
           streamedChars += delta.length;
           updateStatus({ tokensOut: Math.ceil(streamedChars / 4) });
         },
       });
 
-      // Fin du stream : newline + reprend le status bar.
+      // Fin du stream : fige l'item assistant dans l'historique statique.
       if (streamStarted) {
-        process.stdout.write("\n");
-        resumeStatus();
+        historyStore.endAssistant();
       }
 
       if (response.usage) {

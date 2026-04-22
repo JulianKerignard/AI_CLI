@@ -1,4 +1,11 @@
 import chalk from "chalk";
+import { historyStore } from "../ui/history-store.js";
+
+// Pousse une ligne déjà colorisée dans l'UI. Remplace les console.log
+// de l'ancien logger — l'UI Ink affiche le texte via Static.
+function ui(text: string, level: "info" | "warn" | "error" | "raw" = "raw"): void {
+  historyStore.push({ type: level, text });
+}
 
 // Palette Athenaeum portée en terminal :
 // - accent orange cuivré   #e27649 → chalk.hex("#e27649") (utilisateur/prompt/hero)
@@ -184,39 +191,33 @@ export function formatQuotaStatus(
 }
 
 export const log = {
-  info: (msg: string) => console.log(ATH.accent(SYM.info + "  ") + ATH.ink(msg)),
+  info: (msg: string) => ui(ATH.accent(SYM.info + "  ") + ATH.ink(msg), "info"),
   warn: (msg: string) =>
-    console.log(ATH.accentSoft(SYM.warn + "  ") + ATH.ink(msg)),
+    ui(ATH.accentSoft(SYM.warn + "  ") + ATH.ink(msg), "warn"),
   error: (msg: string) =>
-    console.log(ATH.danger(SYM.error + "  ") + ATH.ink(msg)),
-  dim: (msg: string) => console.log(ATH.inkMuted(msg)),
-  faint: (msg: string) => console.log(ATH.inkFaint(msg)),
+    ui(ATH.danger(SYM.error + "  ") + ATH.ink(msg), "error"),
+  dim: (msg: string) => ui(ATH.inkMuted(msg)),
+  faint: (msg: string) => ui(ATH.inkFaint(msg)),
   success: (msg: string) =>
-    console.log(ATH.success(SYM.info + "  ") + ATH.ink(msg)),
-  user: (msg: string) => console.log(ATH.accent.bold(SYM.user + " ") + ATH.ink(msg)),
+    ui(ATH.success(SYM.info + "  ") + ATH.ink(msg), "info"),
+  user: (msg: string) => ui(ATH.accent.bold(SYM.user + " ") + ATH.ink(msg)),
   assistant: (msg: string) =>
-    console.log(
+    ui(
       ATH.accent(SYM.assistant + " ") +
         ATH.ink(msg.replace(/\n/g, "\n  ")),
     ),
-  // Prefix pour le streaming assistant : le texte vient en deltas juste après.
-  // Pas de \n à la fin — AgentLoop imprime les deltas directement, puis ajoute
-  // un \n final quand le stream se termine.
+  // Prefix pour le streaming assistant (unused sous Ink — le streaming
+  // passe par historyStore.appendAssistantDelta côté agent/loop).
   streamPrefix: () => ATH.accent(SYM.assistant + " "),
   tool: (name: string, detail: string) =>
-    console.log(
+    ui(
       ATH.accentSoft(SYM.tool + " ") +
         ATH.accentSoft.bold(name) +
         " " +
         ATH.inkFaint(detail),
     ),
-  // Affichage compact style Claude Code : nom + paramètre clé + résumé 1 ligne.
-  //   ◆ Ls(src/EasySave)
-  //     ⎿ 5 dirs, 9 files
-  // Remplace log.tool + log.toolResult quand le tool fournit formatInvocation /
-  // formatResult. Keep log.tool/toolResult pour les tools sans formatters.
   toolCompact: (name: string, label: string) => {
-    console.log(
+    ui(
       ATH.accentSoft(SYM.tool + " ") +
         ATH.accentSoft.bold(name) +
         (label ? ATH.accentSoft("(") + ATH.inkMuted(label) + ATH.accentSoft(")") : ""),
@@ -224,53 +225,37 @@ export const log = {
   },
   toolResultCompact: (summary: string, isError = false) => {
     const arrow = "  ⎿ ";
-    if (isError) {
-      console.log(ATH.danger(arrow) + ATH.danger(summary));
-    } else {
-      console.log(ATH.inkFaint(arrow) + ATH.inkMuted(summary));
-    }
+    if (isError) ui(ATH.danger(arrow) + ATH.danger(summary), "error");
+    else ui(ATH.inkFaint(arrow) + ATH.inkMuted(summary));
   },
   toolResult: (text: string) => {
     const trimmed = text.length > 400 ? text.slice(0, 400) + "…" : text;
     const lines = trimmed.split("\n");
     for (const line of lines) {
-      console.log(ATH.inkFaint(SYM.toolOut + " ") + ATH.inkMuted(line));
+      ui(ATH.inkFaint(SYM.toolOut + " ") + ATH.inkMuted(line));
     }
   },
   banner: (title: string) => {
-    console.log();
-    // Kicker Athenaeum style : uppercase, spacing, couleur discrète + règle.
-    console.log(
+    ui("");
+    ui(
       ATH.accent(SYM.kicker + " ") +
         ATH.inkMuted.bold(title.toUpperCase()) +
         "  " +
         ATH.inkFaint(SYM.kicker.repeat(Math.max(4, 40 - title.length))),
     );
   },
-  // Status bar style Claude Code : fine règle au-dessus, une ligne compacte
-  // avec segments, fine règle en-dessous. Skippé si la chaîne est vide.
   status: (line: string) => {
     if (!line) return;
     const width = Math.min(process.stdout.columns || 80, 100);
-    console.log();
-    console.log(ATH.inkFaint("─".repeat(width)));
-    console.log("  " + line);
-    console.log(ATH.inkFaint("─".repeat(width)));
+    ui("");
+    ui(ATH.inkFaint("─".repeat(width)));
+    ui("  " + line);
+    ui(ATH.inkFaint("─".repeat(width)));
   },
-  // Ligne one-shot de "waiting X for Mistral quota", effacée dès que la req
-  // part. Utilise \r pour rester sur la même ligne (updated au fil du tick).
-  // Quand `msg` est vide → efface la ligne (end of wait).
-  waitingStatus: (msg: string) => {
-    const out = process.stdout;
-    if (!out.isTTY) return;
-    if (msg === "") {
-      out.write("\r\x1b[2K");
-      return;
-    }
-    out.write(`\r\x1b[2K${msg}`);
-  },
-  // Mini séparateur entre blocs (ex: après /help, avant une nouvelle section).
-  rule: () => console.log(ATH.inkFaint("─".repeat(40))),
+  // Déprécié sous Ink (le status bar affiche le countdown via phase).
+  // No-op pour compat.
+  waitingStatus: (_msg: string) => {},
+  rule: () => ui(ATH.inkFaint("─".repeat(40))),
   // Kicker micro-typo en couleur (sans règle), pour une section inline.
   kicker: (label: string) => ATH.inkFaint.bold(label.toUpperCase()),
   // Helpers bruts pour cas spéciaux (URLs clickables, tokens partiels masqués).

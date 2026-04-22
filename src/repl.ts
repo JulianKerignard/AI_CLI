@@ -1,7 +1,10 @@
+import React from "react";
+import { render } from "ink";
 import { CWD } from "./utils/paths.js";
 import { log } from "./utils/logger.js";
-import { promptLine } from "./repl-prompt.js";
 import { InputHistory } from "./utils/history.js";
+import { App } from "./ui/App.js";
+import { inputController } from "./ui/input-controller.js";
 import { createBaseRegistry } from "./tools/registry.js";
 import { DemoProvider } from "./agent/demo-provider.js";
 import { HttpProvider } from "./agent/http-provider.js";
@@ -156,57 +159,40 @@ export async function startRepl(): Promise<void> {
   // le banner passe par-dessus et on voit le status deux fois.
   initStatusBar();
 
+  // Mount l'App Ink : layout output + input box + status line.
+  // Les log.* poussent maintenant dans le history store (via logger.ts
+  // refactorisé). L'input attend inputController.submit() depuis InputBox.
+  const inkInstance = render(React.createElement(App), {
+    exitOnCtrlC: false,
+    // patchConsole: on laisse Ink capter les console.log résiduels
+    // des dépendances tierces pour qu'ils ne cassent pas le layout.
+  });
+
+  // Banner poussé dans l'historique après mount.
   log.banner("AI_CLI v0.1.0");
-  console.log(
-    "  " +
-      log.kicker("provider") +
-      "  " +
-      log.ink(provider.name) +
-      "   " +
-      log.kicker("cwd") +
-      "  " +
-      log.inkMuted(CWD),
+  log.info(
+    `${log.kicker("provider")}  ${log.ink(provider.name)}   ${log.kicker("cwd")}  ${log.inkMuted(CWD)}`,
   );
-  console.log(
-    "  " +
-      log.kicker("loaded") +
-      "  " +
-      log.inkMuted(
-        `${tools.list().length} tools · ${skills.length} skills · ${subAgents.length} agents · ${mcpServers.length} MCP`,
-      ),
+  log.info(
+    `${log.kicker("loaded")}  ${log.inkMuted(
+      `${tools.list().length} tools · ${skills.length} skills · ${subAgents.length} agents · ${mcpServers.length} MCP`,
+    )}`,
   );
-  // Warning explicite si mode bypass (visible dès le démarrage).
   const modeDisplay =
     permConfig.mode === "bypass"
       ? log.danger("⚠ " + permConfig.mode)
       : permConfig.mode === "plan"
         ? log.accentSoft(permConfig.mode)
         : log.ink(permConfig.mode);
-  console.log("  " + log.kicker("mode") + "      " + modeDisplay);
-  console.log();
+  log.info(`${log.kicker("mode")}      ${modeDisplay}`);
   if (!currentCreds) {
-    console.log(
-      "  " +
-        log.accentSoft("→") +
-        "  tape " +
-        log.accent.bold("/login") +
-        log.inkMuted(" pour te connecter à chat.juliankerignard.fr"),
+    log.info(
+      `${log.accentSoft("→")} tape ${log.accent.bold("/login")} ${log.inkMuted(
+        "pour te connecter à chat.juliankerignard.fr",
+      )}`,
     );
   }
-  console.log(
-    "  " +
-      log.inkFaint("→") +
-      "  " +
-      log.inkMuted("tape ") +
-      log.accent.bold("/help") +
-      log.inkMuted(" pour les commandes, ") +
-      log.accent.bold("Ctrl-D") +
-      log.inkMuted(" pour quitter"),
-  );
-  console.log();
 
-  // Premier render du status APRÈS le banner pour qu'il s'affiche en bas
-  // (et pas en double : une fois avant, une fois après).
   updateStatus({
     provider: provider.name,
     phase: currentCreds ? "idle" : "offline",
@@ -279,23 +265,18 @@ export async function startRepl(): Promise<void> {
     },
   };
 
-  // Boucle REPL : un seul owner de stdin à tout moment (inquirer), donc
-  // pas de collision quand /model ouvre son propre picker inquirer.
+  // Boucle REPL : attend des lignes depuis l'InputBox Ink via
+  // inputController. Un seul owner stdin (Ink), donc pas de collision.
   let ctrlCCount = 0;
   let ctrlCResetTimer: NodeJS.Timeout | null = null;
 
   while (!shouldExit) {
     let input: string;
     try {
-      input = (await promptLine()).trim();
+      input = (await inputController.waitForLine()).trim();
     } catch (err) {
-      // ExitPromptError (Ctrl-C dans inquirer) ou Ctrl-D (stdin EOF) →
-      // soft cancel. Double occurrence dans 1.5s = exit propre.
       const msg = err instanceof Error ? err.message : String(err);
-      const isExitPrompt =
-        (err as { name?: string })?.name === "ExitPromptError" ||
-        /user force closed|canceled/i.test(msg);
-      if (!isExitPrompt) {
+      if (msg !== "INTERRUPT") {
         log.error(msg);
         continue;
       }
@@ -304,26 +285,25 @@ export async function startRepl(): Promise<void> {
         exit();
         return;
       }
-      console.log(log.inkMuted("  (Ctrl-C encore pour quitter, ou /exit)"));
+      log.dim("(Ctrl-C encore pour quitter, ou /exit)");
       if (ctrlCResetTimer) clearTimeout(ctrlCResetTimer);
       ctrlCResetTimer = setTimeout(() => {
         ctrlCCount = 0;
       }, 1500);
       continue;
     }
-    // Input reçu → reset le compteur Ctrl-C.
     ctrlCCount = 0;
     if (ctrlCResetTimer) {
       clearTimeout(ctrlCResetTimer);
       ctrlCResetTimer = null;
     }
 
-    hideStatus();
-    if (!input) {
-      showStatus();
-      continue;
-    }
+    if (!input) continue;
     history.add(input);
+    // Echo l'input dans l'historique (sous Ink, InputBox se vide déjà
+    // mais on veut garder une trace visible de ce que l'user a envoyé).
+    const { historyStore } = await import("./ui/history-store.js");
+    historyStore.push({ type: "user", text: input });
 
     try {
       if (input.startsWith("/")) {
@@ -345,6 +325,7 @@ export async function startRepl(): Promise<void> {
     }
 
     if (shouldExit) return;
-    showStatus();
   }
+  // Unmount Ink proprement.
+  inkInstance.unmount();
 }
