@@ -48,20 +48,40 @@ export class HttpProvider implements Provider {
       stream: true,
     };
 
-    const res = await fetch(`${this.opts.baseUrl}/v1/messages`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": this.opts.token,
-        Accept: "text/event-stream",
-      },
-      body: JSON.stringify(body),
-    });
+    // Retry avec backoff exponentiel sur 429 (rate limit Mistral : 4 req/min
+     // sur le free plan). Le parent AgentLoop enchaîne souvent plusieurs turns
+     // tool_use rapprochés qui saturent la limite.
+    const maxAttempts = 4;
+    let res: Response | undefined;
+    let lastErrText = "";
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      res = await fetch(`${this.opts.baseUrl}/v1/messages`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": this.opts.token,
+          Accept: "text/event-stream",
+        },
+        body: JSON.stringify(body),
+      });
 
-    if (!res.ok || !res.body) {
-      const text = await res.text().catch(() => "");
+      if (res.ok && res.body) break;
+
+      lastErrText = await res.text().catch(() => "");
+
+      if (res.status === 429 && attempt < maxAttempts - 1) {
+        // Backoff : 4s → 8s → 16s (laisse la fenêtre 1 min Mistral se réinitialiser).
+        const waitMs = 4000 * 2 ** attempt;
+        await new Promise((r) => setTimeout(r, waitMs));
+        continue;
+      }
       throw new Error(
-        `HTTP ${res.status} depuis ${this.opts.baseUrl}/v1/messages : ${text.slice(0, 200)}`,
+        `HTTP ${res.status} depuis ${this.opts.baseUrl}/v1/messages : ${lastErrText.slice(0, 200)}`,
+      );
+    }
+    if (!res || !res.ok || !res.body) {
+      throw new Error(
+        `HTTP ${res?.status ?? "?"} après ${maxAttempts} essais : ${lastErrText.slice(0, 200)}`,
       );
     }
 
