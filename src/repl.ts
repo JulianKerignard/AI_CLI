@@ -289,6 +289,12 @@ export async function startRepl(): Promise<void> {
     // complète le préfixe commun. Pas de config nécessaire.
   });
 
+  // Injecte le rl dans le module permissions pour qu'askPermission ne
+  // crée PAS un 2e readline (qui tuait le REPL quand l'user répondait
+  // à un prompt de permission pendant un flow agent).
+  const { setPermissionReadline } = await import("./permissions/prompt.js");
+  setPermissionReadline(rl);
+
   // NOTE : l'ancien picker auto sur `/` (qui ouvrait @inquirer/search dès
   // qu'on tapait `/` sur un prompt vide) a été retiré. Il confondait l'user
   // qui voulait juste taper `/model` normalement : le picker piquait le `/`,
