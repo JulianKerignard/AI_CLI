@@ -11,6 +11,7 @@ import {
   appendEvent,
 } from "./sessions/store.js";
 import { BetterModelWatcher } from "./lib/better-model-watcher.js";
+import { detectShell, shellSyntaxHint } from "./tools/shell-detect.js";
 import { createBaseRegistry } from "./tools/registry.js";
 import { DemoProvider } from "./agent/demo-provider.js";
 import { HttpProvider } from "./agent/http-provider.js";
@@ -44,10 +45,17 @@ import {
 } from "./utils/status-bar.js";
 
 function buildSystemPrompt(cwd: string): string {
+  // Détection cross-plateforme du shell dispo (sh/bash/pwsh/cmd).
+  // Sur Windows, si l'user a Git Bash ou WSL → syntaxe POSIX identique
+  // à Unix. Sinon (pwsh/cmd) on prévient l'agent dans le prompt.
+  const shell = detectShell();
+  const platformLine = `Plateforme : ${process.platform} (${process.arch}). ${shellSyntaxHint(shell)}`;
+
   return `Tu es AI_CLI, un agent de code qui tourne dans un terminal, inspiré de Claude Code.
 
 # Contexte d'exécution
 Tu tournes DANS le répertoire de l'utilisateur : ${cwd}
+${platformLine}
 C'est ton répertoire de travail courant. Tu n'as pas besoin de demander où est le projet — tu y es déjà.
 
 # Ton rôle
@@ -208,6 +216,12 @@ export async function startRepl(): Promise<void> {
         ? log.accentSoft(permConfig.mode)
         : log.ink(permConfig.mode);
   log.info(`${log.kicker("mode")}      ${modeDisplay}`);
+  // Affiche le shell détecté — utile pour que l'user sache si il est
+  // sur Git Bash, WSL, pwsh ou cmd sur Windows.
+  const detectedShell = detectShell();
+  log.info(
+    `${log.kicker("shell")}     ${log.inkMuted(detectedShell.label)}`,
+  );
   if (!currentCreds) {
     log.info(
       `${log.accentSoft("→")} tape ${log.accent.bold("/login")} ${log.inkMuted(

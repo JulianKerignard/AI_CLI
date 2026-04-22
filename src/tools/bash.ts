@@ -1,5 +1,6 @@
 import { spawn } from "node:child_process";
 import type { Tool } from "./types.js";
+import { detectShell } from "./shell-detect.js";
 
 // Cap output pour éviter qu'un `npm install` / `npm test` verbeux pollue
 // l'historique de l'agent (renvoyé à chaque turn suivant = coût exponentiel).
@@ -56,8 +57,13 @@ export const bashTool: Tool = {
     const timeout = Number(input.timeout_ms ?? 30000);
     if (!command) throw new Error("Bash: 'command' manquant");
 
+    // Détection cross-plateforme : sh sur Unix, Git Bash / WSL / pwsh /
+    // cmd.exe sur Windows selon ce qui est dispo. L'agent reçoit un
+    // hint dans le system prompt pour adapter la syntaxe si besoin.
+    const shell = detectShell();
+
     return await new Promise<string>((resolvePromise) => {
-      const child = spawn("sh", ["-c", command], {
+      const child = spawn(shell.cmd, shell.args(command), {
         cwd: ctx.cwd,
         env: process.env,
       });
