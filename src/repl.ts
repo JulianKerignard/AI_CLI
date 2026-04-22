@@ -147,6 +147,14 @@ export async function startRepl(): Promise<void> {
 
   const commands = new CommandRegistry();
 
+  // CRITICAL : init scroll region AVANT le banner pour que le banner tombe
+  // dans la région [1, rows-4] et n'écrase pas les 4 rows status réservées.
+  initStatusBar();
+  updateStatus({
+    provider: provider.name,
+    phase: currentCreds ? "idle" : "offline",
+  });
+
   log.banner("AI_CLI v0.1.0");
   console.log(
     "  " +
@@ -195,15 +203,6 @@ export async function startRepl(): Promise<void> {
       log.inkMuted(" pour quitter"),
   );
   console.log();
-
-  // Status bar persistant façon tmux : réserve la dernière ligne, scrolle
-  // le reste dans la région [1, rows-1]. Mis à jour sur chaque phase (thinking /
-  // streaming / waiting-quota / executing-tool), tokens, quota.
-  initStatusBar();
-  updateStatus({
-    provider: provider.name,
-    phase: currentCreds ? "idle" : "offline",
-  });
 
   // Tab completion pour les slash commands + sous-commandes connues.
   // - `/` + Tab → liste toutes les commandes
