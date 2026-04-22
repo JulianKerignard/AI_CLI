@@ -58,6 +58,19 @@ if (modeArg) {
   process.env.AICLI_MODE = value;
 }
 
+// Safety net : ne pas tuer le process sur une exception non catchée dans un
+// handler async (picker, abort, etc.). Log et continue.
+process.on("uncaughtException", (err) => {
+  log.error(`Uncaught: ${err.message}`);
+  if (process.env.AICLI_DEBUG) log.error(err.stack ?? "");
+});
+process.on("unhandledRejection", (err) => {
+  const msg = err instanceof Error ? err.message : String(err);
+  log.error(`Unhandled rejection: ${msg}`);
+  if (process.env.AICLI_DEBUG && err instanceof Error)
+    log.error(err.stack ?? "");
+});
+
 startRepl().catch((err) => {
   log.error((err as Error).stack ?? (err as Error).message);
   process.exit(1);

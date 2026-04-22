@@ -79,22 +79,33 @@ export function builtinCommands(allCommands: () => SlashCommand[]): SlashCommand
       name: "usage",
       description: "Affiche tokens session + quota restant.",
       async run({ agent }) {
-        const stats = agent.getStats();
-        log.banner("Usage");
-        const lines = formatQuotaStatus(stats, stats.lastQuota);
-        for (const l of lines) console.log(l);
-        console.log();
+        try {
+          const stats = agent.getStats();
+          log.banner("Usage");
+          if (stats.turns === 0 && !stats.lastQuota) {
+            log.faint(
+              "  Aucune requête cette session. Envoie un message pour",
+            );
+            log.faint("  récupérer ton quota depuis le serveur.");
+            console.log();
+            return;
+          }
+          const lines = formatQuotaStatus(stats, stats.lastQuota);
+          for (const l of lines) console.log(l);
+          console.log();
+        } catch (err) {
+          log.error(
+            `Impossible d'afficher l'usage : ${err instanceof Error ? err.message : err}`,
+          );
+        }
       },
     },
     {
       name: "tokens",
       description: "Alias de /usage.",
-      async run({ agent }) {
-        const stats = agent.getStats();
-        log.banner("Usage");
-        const lines = formatQuotaStatus(stats, stats.lastQuota);
-        for (const l of lines) console.log(l);
-        console.log();
+      async run(ctx) {
+        const usageCmd = allCommands().find((c) => c.name === "usage");
+        if (usageCmd) await usageCmd.run(ctx, "");
       },
     },
     {

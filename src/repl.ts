@@ -266,39 +266,56 @@ export async function startRepl(): Promise<void> {
   // choisie, la commande est injectée dans le readline.
   let pickerActive = false;
 
-  process.stdin.on("keypress", (_str: string | undefined, key: { sequence?: string; name?: string } | undefined) => {
-    if (pickerActive) return;
-    if (!key || key.sequence !== "/") return;
-    // Défère d'un tick pour que rl.line reflète l'insertion du "/".
-    setImmediate(() => {
-      // Déclenche seulement si la ligne n'est QUE "/" (première frappe,
-      // prompt vide). Si l'user tape "/" au milieu d'un texte, on laisse passer.
-      if (rl.line !== "/") return;
-      pickerActive = true;
-      void (async () => {
-        try {
-          // Efface le "/" tapé du readline pour que le picker prenne le relais
-          // proprement. rl.write(null, {ctrl:true, name:"u"}) = Ctrl-U (clear line).
-          rl.write(null, { ctrl: true, name: "u" });
-          // Pause readline — inquirer prend le raw stdin le temps du picker.
-          rl.pause();
-          process.stdout.write("\n");
+  process.stdin.on(
+    "keypress",
+    (
+      _str: string | undefined,
+      key: { sequence?: string; name?: string } | undefined,
+    ) => {
+      if (pickerActive) return;
+      if (!key || key.sequence !== "/") return;
+      // Défère d'un tick pour que rl.line reflète l'insertion du "/".
+      setImmediate(() => {
+        if (rl.line !== "/") return;
+        pickerActive = true;
+        void (async () => {
+          try {
+            // Efface le "/" du readline puis passe le contrôle à inquirer.
+            rl.write(null, { ctrl: true, name: "u" });
+            rl.pause();
+            process.stdout.write("\n");
 
-          const chosen = await pickSlashCommand(commands.list());
+            const chosen = await pickSlashCommand(commands.list());
 
-          rl.resume();
-          if (chosen) {
-            // Injecte "/nom " dans readline pour que l'user puisse
-            // taper des args ou appuyer sur Enter directement.
-            rl.write(`/${chosen} `);
+            // Inquirer a restauré stdin en mode cooked. readline a besoin du
+            // raw mode pour ses keypress. Force la restauration avant de
+            // redonner la main à readline.
+            if (process.stdin.isTTY) process.stdin.setRawMode(true);
+            rl.resume();
+            if (chosen) {
+              rl.write(`/${chosen} `);
+            }
+            rl.prompt(true);
+          } catch (err) {
+            // ExitPromptError est déjà géré dans pickSlashCommand. Toute autre
+            // erreur : log + restore rl pour que le REPL reste utilisable.
+            log.error(
+              `Picker error: ${err instanceof Error ? err.message : err}`,
+            );
+            try {
+              if (process.stdin.isTTY) process.stdin.setRawMode(true);
+              rl.resume();
+              rl.prompt(true);
+            } catch {
+              /* noop */
+            }
+          } finally {
+            pickerActive = false;
           }
-          rl.prompt(true);
-        } finally {
-          pickerActive = false;
-        }
-      })();
-    });
-  });
+        })();
+      });
+    },
+  );
 
   const cleanup = () => {
     for (const s of mcpServers) s.close();
