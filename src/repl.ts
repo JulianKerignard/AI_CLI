@@ -162,10 +162,13 @@ export async function startRepl(): Promise<void> {
   // Mount l'App Ink : layout output + input box + status line.
   // Les log.* poussent maintenant dans le history store (via logger.ts
   // refactorisé). L'input attend inputController.submit() depuis InputBox.
+  // Redirige aussi les console.log des commandes builtin (qui utilisent
+  // console.log direct) vers le store — sinon Ink capte mais masque.
+  const { installConsolePatch } = await import("./ui/history-store.js");
+  installConsolePatch();
   const inkInstance = render(React.createElement(App), {
     exitOnCtrlC: false,
-    // patchConsole: on laisse Ink capter les console.log résiduels
-    // des dépendances tierces pour qu'ils ne cassent pas le layout.
+    patchConsole: false, // on fait le patch nous-même, plus fin
   });
 
   // Banner poussé dans l'historique après mount.

@@ -75,3 +75,25 @@ class HistoryStore extends EventEmitter {
 }
 
 export const historyStore = new HistoryStore();
+
+// Intercepte console.log / console.error / console.warn pour rediriger
+// vers le store. Nécessaire parce que les commandes builtin (/help,
+// /permissions, etc.) font `console.log(...)` direct au lieu de log.* —
+// sans cette redirection, Ink masque leurs outputs.
+//
+// On garde les Function refs originales pour `_debug` si besoin.
+let installed = false;
+export function installConsolePatch(): void {
+  if (installed) return;
+  installed = true;
+  const pushLine = (args: unknown[], type: "raw" | "warn" | "error") => {
+    const text = args
+      .map((a) => (typeof a === "string" ? a : JSON.stringify(a)))
+      .join(" ");
+    historyStore.push({ type, text });
+  };
+  console.log = (...args: unknown[]) => pushLine(args, "raw");
+  console.info = (...args: unknown[]) => pushLine(args, "raw");
+  console.warn = (...args: unknown[]) => pushLine(args, "warn");
+  console.error = (...args: unknown[]) => pushLine(args, "error");
+}
