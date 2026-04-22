@@ -414,8 +414,9 @@ export async function startRepl(): Promise<void> {
     },
   };
 
-  // Affiche le status initial sous le banner (sticky).
-  showStatus();
+  // Note : pas de showStatus() ici — updateStatus() ligne 209 a déjà
+  // déclenché le premier render sous le banner. Un showStatus() de plus
+  // imprimerait un 2e status block (double au startup).
   rl.prompt();
 
   for await (const line of rl) {
