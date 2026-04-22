@@ -31,6 +31,8 @@ import {
   initStatusBar,
   teardownStatusBar,
   updateStatus,
+  hideStatus,
+  showStatus,
 } from "./utils/status-bar.js";
 
 function buildSystemPrompt(cwd: string): string {
@@ -407,10 +409,19 @@ export async function startRepl(): Promise<void> {
     },
   };
 
+  // Affiche le status initial sous le banner (sticky).
+  showStatus();
   rl.prompt();
+
   for await (const line of rl) {
     const input = line.trim();
+    // L'user vient de valider sa ligne. Le readline a déjà écrit la ligne
+    // saisie. Maintenant on efface le status d'avant (qui était imprimé
+    // après le précédent prompt) pour que les outputs agent commencent
+    // directement après l'input user, sans "saut" visuel.
+    hideStatus();
     if (!input) {
+      showStatus();
       rl.prompt();
       continue;
     }
@@ -435,6 +446,9 @@ export async function startRepl(): Promise<void> {
     }
 
     if (shouldExit) return;
+    // Réaffiche le status après les outputs agent, juste avant le nouveau
+    // prompt. Le status "colle" donc au dernier contenu.
+    showStatus();
     rl.prompt();
   }
 }

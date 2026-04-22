@@ -1,17 +1,19 @@
 import { chalk } from "./logger.js";
 import { getGitInfo } from "./git-info.js";
 
-// Status block persistent au bas du terminal (4 lignes réservées) via scroll
-// region ANSI. Toujours visible, refresh live à chaque update.
+// Status block "sticky" : toujours imprimé juste après le dernier contenu
+// stdout. Quand du nouveau contenu arrive, on efface le status précédent
+// (cursor up + clear to end of screen), on écrit le contenu, on réimprime
+// le status en dessous. Résultat : le status suit le curseur au lieu d'être
+// fixé en bas du terminal (plus de gap vide quand la session est jeune).
 //
-// Layout (bas de terminal) :
-//   ─────────────────────────────────────────   ┤ session-tag ├
+// Layout :
+//   ... contenu qui scrolle ...
+//   ─────────────────────────────────────────  ┤ session-tag ├
 //   ◆ model (ctx) · /cwd · branch  │  ↑in ↓out  │  +add -del
-//   562k/1.0M ██████░░░░ 56% ctx · 5h ████░░ 12/500 · bucket 2/3
-//   ● streaming · Ls(src)                                       v0.1.0
-//
-// Init doit être appelé AVANT tout autre output pour que le banner lui-même
-// tombe dans la scroll region et non sur les 4 rows réservées.
+//   562k/128k ██░░░░░░░░ 2% ctx · 5h ░░░░ 0/500 0% · bucket 2/3
+//   · idle                                                 v0.1.0
+//   » _
 
 export type Phase =
   | "idle"
@@ -44,12 +46,16 @@ interface Segments {
 
 const state: Segments = { phase: "idle" };
 let enabled = false;
+// Nombre de lignes actuellement occupées par le status à l'écran. 0 si caché.
+let visibleRows = 0;
 let lastRenderAt = 0;
 let pendingRender: NodeJS.Timeout | null = null;
+// Flag : pendant le streaming, on ne repush PAS le status à chaque delta
+// (sinon flicker). On le push après le dernier delta.
+let suspended = false;
 
-// Rule + 3 lignes d'info = 4 rows réservées au bas du terminal.
-const STATUS_ROWS = 4;
-const RENDER_THROTTLE_MS = 80;
+const STATUS_LINES = 4; // rule + 3 info lines
+const RENDER_THROTTLE_MS = 120;
 const VERSION = "0.1.0";
 
 const PHASE_LABEL: Record<Phase, string> = {
@@ -144,12 +150,6 @@ function formatResetShort(iso: string): string {
 
 function visibleLen(s: string): number {
   return s.replace(/\x1b\[[0-9;]*m/g, "").length;
-}
-
-function padToCols(line: string, cols: number): string {
-  const vis = visibleLen(line);
-  if (vis >= cols) return line;
-  return line + " ".repeat(cols - vis);
 }
 
 function renderBlock(cols: number): string[] {
@@ -260,35 +260,36 @@ function renderBlock(cols: number): string[] {
   return [rule, line1, line2, line3];
 }
 
-function writeStatus(): void {
+// Efface le status block précédemment imprimé (si présent), laissant le
+// curseur à la position d'avant le status. À appeler avant tout output
+// pour que le output s'insère en amont du status.
+export function hideStatus(): void {
+  if (!enabled || !process.stdout.isTTY || visibleRows === 0) return;
+  // Cursor up N lines (N = nombre de lignes occupées)
+  process.stdout.write(`\r\x1b[${visibleRows}A\x1b[0J`);
+  visibleRows = 0;
+}
+
+// Imprime (ou re-imprime) le status block à la position courante du curseur.
+// Typiquement appelé juste après un output pour "rattacher" le status.
+export function showStatus(): void {
   if (!enabled || !process.stdout.isTTY) return;
-  const rows = process.stdout.rows ?? 24;
-  const cols = process.stdout.columns ?? 80;
-  if (rows < STATUS_ROWS + 3) return;
-
+  if (suspended) return;
+  const cols = Math.min(process.stdout.columns ?? 80, 140);
   const lines = renderBlock(cols);
-  const baseRow = rows - STATUS_ROWS + 1;
-
-  // Séquence : re-apply scroll region (idempotent) → save cursor ANSI →
-  // écriture ligne par ligne avec positionnement absolu → restore cursor.
-  // Pas de \r\n : chaque ligne est positionnée explicitement, évite les
-  // scrolls intempestifs si le curseur est en fin de scroll region.
-  const parts: string[] = [
-    `\x1b[1;${rows - STATUS_ROWS}r`,
-    `\x1b[s`,
-  ];
-  for (let i = 0; i < lines.length; i++) {
-    parts.push(`\x1b[${baseRow + i};1H`);
-    parts.push(`\x1b[2K`);
-    parts.push(padToCols(lines[i], cols));
+  // 1 blank line + STATUS_LINES
+  process.stdout.write("\n");
+  for (const line of lines) {
+    process.stdout.write(line + "\n");
   }
-  parts.push(`\x1b[u`);
-  process.stdout.write(parts.join(""));
+  visibleRows = STATUS_LINES + 1;
   lastRenderAt = Date.now();
 }
 
+// Re-render : hide + show en séquence. Throttlé pour éviter le flicker
+// pendant le streaming (on appelle updateStatus à chaque delta).
 function scheduleRender(): void {
-  if (!enabled) return;
+  if (!enabled || suspended) return;
   const now = Date.now();
   const sinceLast = now - lastRenderAt;
   if (sinceLast >= RENDER_THROTTLE_MS) {
@@ -296,43 +297,33 @@ function scheduleRender(): void {
       clearTimeout(pendingRender);
       pendingRender = null;
     }
-    writeStatus();
+    hideStatus();
+    showStatus();
   } else if (!pendingRender) {
     pendingRender = setTimeout(() => {
       pendingRender = null;
-      writeStatus();
+      hideStatus();
+      showStatus();
     }, RENDER_THROTTLE_MS - sinceLast);
   }
 }
 
-// Init CRUCIAL : doit être appelé AVANT tout console.log du banner pour que
-// le banner tombe dans la scroll region [1, rows-4] et non sur les 4 rows
-// status. Sinon les lignes bas du banner écrasent le status / se font
-// écraser à leur tour.
+// Suspend le rendu (pour qu'un output externe ne soit pas "refreshé" par
+// notre re-render). Pendant suspend, updateStatus n'appelle pas showStatus.
+export function suspendStatus(): void {
+  suspended = true;
+  hideStatus();
+}
+
+export function resumeStatus(): void {
+  suspended = false;
+  showStatus();
+}
+
 export function initStatusBar(): void {
-  if (enabled || !process.stdout.isTTY) return;
+  if (enabled) return;
   enabled = true;
   state.cwd = process.cwd();
-  const rows = process.stdout.rows ?? 24;
-  // Set scroll region [1, rows-4] tout de suite. Toute output ultérieure
-  // reste dans cette région. Le curseur actuel (rows=1 au démarrage) est
-  // donc dans la région — le banner printé après tombera en rows 1..N
-  // puis scrollera dans la région quand N dépassera rows-4.
-  process.stdout.write(`\x1b[1;${Math.max(1, rows - STATUS_ROWS)}r`);
-  // Render le status initial (rows-3..rows), ce qui "pose" le cadre en bas.
-  scheduleRender();
-
-  // Handle resize : re-set scroll region.
-  process.stdout.on("resize", () => {
-    const rows2 = process.stdout.rows ?? 24;
-    process.stdout.write(`\x1b[1;${Math.max(1, rows2 - STATUS_ROWS)}r`);
-    scheduleRender();
-  });
-  // Re-render à chaque keystroke : readline peut écraser nos rows pendant
-  // son _refreshLine. Le throttle 80ms évite le spam.
-  process.stdin.on("keypress", () => {
-    scheduleRender();
-  });
   process.on("exit", teardownStatusBar);
   process.on("SIGINT", () => {
     teardownStatusBar();
@@ -346,18 +337,8 @@ export function initStatusBar(): void {
 
 export function teardownStatusBar(): void {
   if (!enabled) return;
+  hideStatus();
   enabled = false;
-  try {
-    // Reset scroll region à full screen, clear les 4 rows status, cursor bas.
-    process.stdout.write(`\x1b[r`);
-    const rows = process.stdout.rows ?? 24;
-    for (let i = 0; i < STATUS_ROWS; i++) {
-      process.stdout.write(`\x1b[${rows - i};1H\x1b[2K`);
-    }
-    process.stdout.write(`\x1b[${rows};1H`);
-  } catch {
-    /* noop */
-  }
 }
 
 export function updateStatus(partial: Partial<Segments>): void {
@@ -384,14 +365,14 @@ export function resetTurn(): void {
   scheduleRender();
 }
 
-// Transient status désactivé : remplacé par la phase "waiting-quota" dans le
-// status bar persistent. Gardé en no-op pour compat API côté http-provider.
+// Compat no-op (anciennement utilisé pour le countdown wait, remplacé par
+// la phase "waiting-quota" dans le status block).
 export function transientStatus(_msg: string): void {
-  /* no-op depuis que le status bar affiche waitingMsRemaining live */
+  /* no-op */
 }
 
-// Compat : appelé par AgentLoop après chaque turn. Le status bar est déjà
-// persistent, donc pas besoin d'imprimer inline. No-op.
+// Compat : appelé par AgentLoop en fin de turn, le status est déjà sticky.
+// Force un refresh explicite.
 export function printStatusBlock(): void {
-  /* no-op : status déjà affiché persistent en bas */
+  scheduleRender();
 }

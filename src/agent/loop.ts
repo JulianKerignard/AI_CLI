@@ -17,6 +17,10 @@ import {
   setSessionTotals,
   printStatusBlock,
   resetTurn as resetStatusTurn,
+  hideStatus,
+  showStatus,
+  suspendStatus,
+  resumeStatus,
 } from "../utils/status-bar.js";
 
 export interface AgentOptions {
@@ -133,14 +137,16 @@ export class AgentLoop {
       });
 
       // Streaming : on imprime le prefix assistant "●" + les text deltas en
-      // live. À la fin du stream, newline pour que le status bar / tool calls
-      // suivants commencent sur une ligne propre.
+      // live. Pendant le stream, le status est suspendu (évite le flicker
+      // du hide/show à chaque token). Il est réactivé à la fin.
       let streamStarted = false;
       let streamedChars = 0;
       const startStream = () => {
         if (streamStarted) return;
         streamStarted = true;
-        // Préfixe assistant sans newline à la fin : les deltas suivent direct.
+        // Efface le status en place avant d'écrire le premier delta.
+        hideStatus();
+        suspendStatus();
         process.stdout.write(log.streamPrefix());
         updateStatus({ phase: "streaming" });
       };
@@ -153,13 +159,15 @@ export class AgentLoop {
           startStream();
           process.stdout.write(delta);
           streamedChars += delta.length;
-          // Estimation tokens out live (~4 chars/token) pour le status bar.
           updateStatus({ tokensOut: Math.ceil(streamedChars / 4) });
         },
       });
 
-      // Fin du stream : newline pour clore la ligne "● texte…"
-      if (streamStarted) process.stdout.write("\n");
+      // Fin du stream : newline + reprend le status bar.
+      if (streamStarted) {
+        process.stdout.write("\n");
+        resumeStatus();
+      }
 
       if (response.usage) {
         turnInputTokens += response.usage.inputTokens;
@@ -255,6 +263,7 @@ export class AgentLoop {
         // formatters, fallback sur l'ancien affichage verbeux.
         const toolDef = this.opts.tools.get(block.name);
         const hasCompact = !!(toolDef?.formatInvocation || toolDef?.formatResult);
+        hideStatus();
         if (hasCompact) {
           const label = toolDef?.formatInvocation?.(block.input) ?? "";
           log.toolCompact(block.name, label);
@@ -274,6 +283,7 @@ export class AgentLoop {
             const lines = output.split("\n").length;
             log.toolResultCompact(`${lines} lines returned`);
           }
+          showStatus();
           toolResults.push({
             type: "tool_result",
             tool_use_id: block.id,
