@@ -11,7 +11,9 @@
 
 set -e
 
-REPO="github:JulianKerignard/AI_CLI"
+# Tarball npm pré-packé sur GitHub Releases : install direct sans
+# git clone, sans pack local, plus rapide.
+TARBALL_URL="https://github.com/JulianKerignard/AI_CLI/releases/latest/download/aicli-0.1.0.tgz"
 
 # Couleurs ANSI pour un output lisible.
 RED=$'\e[31m'
@@ -49,18 +51,22 @@ fi
 
 printf "${GREEN}✓${RESET} npm $(npm -v) détecté\n"
 
-# 3. Check git (nécessaire pour npm install github:...).
-if ! command -v git >/dev/null 2>&1; then
-  printf "${RED}git n'est pas installé (requis pour l'install depuis GitHub).${RESET}\n"
-  printf "Installe-le via ton gestionnaire : apt / brew / winget...\n"
+printf "\n"
+
+# 3. Download + install le tarball pré-packé.
+TMPDIR=$(mktemp -d -t aicli-install.XXXXXX)
+TARBALL="$TMPDIR/aicli.tgz"
+
+printf "${BOLD}Téléchargement du package...${RESET}\n"
+if ! curl -fsSL -o "$TARBALL" "$TARBALL_URL"; then
+  printf "${RED}Téléchargement échoué.${RESET}\n"
   exit 1
 fi
 
-printf "${GREEN}✓${RESET} git $(git --version | awk '{print $3}') détecté\n\n"
-
-# 4. Install global via npm + GitHub.
 printf "${BOLD}Installation de aicli...${RESET}\n"
-npm install -g "$REPO"
+npm install -g "$TARBALL"
+
+rm -rf "$TMPDIR"
 
 printf "\n"
 

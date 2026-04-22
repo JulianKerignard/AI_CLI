@@ -9,7 +9,9 @@
 # Prérequis : Node.js 18+, npm, git.
 
 $ErrorActionPreference = "Stop"
-$Repo = "github:JulianKerignard/AI_CLI"
+# Tarball npm pré-packé : install direct sans git clone, sans pack local,
+# sans problème Windows Defender qui interfère pendant l'extraction.
+$TarballUrl = "https://github.com/JulianKerignard/AI_CLI/releases/latest/download/aicli-0.1.0.tgz"
 
 Write-Host "AI_CLI installer" -ForegroundColor Blue -NoNewline
 Write-Host ""
@@ -47,18 +49,26 @@ if (-not (Test-Command "npm")) {
 }
 Write-Host "✓ npm $(npm -v) détecté" -ForegroundColor Green
 
-# 3. Check git.
-if (-not (Test-Command "git")) {
-  Write-Host "git n'est pas installé (requis pour l'install depuis GitHub)." -ForegroundColor Red
-  Write-Host "Installe via winget install Git.Git" -ForegroundColor Yellow
-  exit 1
-}
-Write-Host "✓ git détecté" -ForegroundColor Green
 Write-Host ""
 
-# 4. Install global via npm + GitHub.
+# 3. Télécharge le tarball + install.
+$tmpDir = Join-Path $env:TEMP "aicli-install-$(Get-Random)"
+New-Item -ItemType Directory -Force -Path $tmpDir | Out-Null
+$tarballPath = Join-Path $tmpDir "aicli.tgz"
+
+Write-Host "Téléchargement du package..." -ForegroundColor White
+try {
+  Invoke-WebRequest -Uri $TarballUrl -OutFile $tarballPath -UseBasicParsing
+} catch {
+  Write-Host "✗ Téléchargement échoué : $_" -ForegroundColor Red
+  exit 1
+}
+
 Write-Host "Installation de aicli..." -ForegroundColor White
-npm install -g $Repo
+npm install -g $tarballPath
+
+# Nettoie le tarball temporaire.
+Remove-Item -Recurse -Force $tmpDir -ErrorAction SilentlyContinue
 
 Write-Host ""
 
