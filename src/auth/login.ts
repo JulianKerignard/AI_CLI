@@ -57,21 +57,21 @@ export async function runLoginFlow(opts: LoginOptions = {}): Promise<Credentials
       const token = url.searchParams.get("token");
       const receivedState = url.searchParams.get("state");
       if (!token || receivedState !== state) {
-        // State mismatch : vient souvent d'un /login relancé pendant que
-        // l'user clique encore sur l'ancien lien. On rejette ce callback
-        // HTTP mais on NE settle PAS — le prompt manuel reste ouvert et
-        // un autre callback (bon state) peut encore arriver.
         res.writeHead(400, { "Content-Type": "text/html; charset=utf-8" }).end(
-          "<h1>État invalide</h1><p>Lien périmé (un autre /login a été lancé). Relance /login et utilise le lien le plus récent, ou paste le token manuellement dans le terminal.</p>",
+          "<h1>État invalide</h1><p>Connexion refusée par sécurité. Relance /login.</p>",
         );
-        log.warn(
-          "Callback reçu avec state invalide (probable /login relancé). Paste le token manuellement ou relance /login.",
-        );
+        settle(() => {
+          server.close();
+          reject(new Error("state mismatch ou token absent"));
+        });
         return;
       }
       if (!token.startsWith("csm_")) {
         res.writeHead(400).end("<h1>Token invalide</h1>");
-        log.warn("Callback avec token invalide (ne commence pas par csm_).");
+        settle(() => {
+          server.close();
+          reject(new Error("token ne commence pas par csm_"));
+        });
         return;
       }
       res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" }).end(`
