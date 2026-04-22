@@ -1,6 +1,7 @@
-import readline from "node:readline";
 import { CWD } from "./utils/paths.js";
-import { log, chalk } from "./utils/logger.js";
+import { log } from "./utils/logger.js";
+import { promptLine } from "./repl-prompt.js";
+import { InputHistory } from "./utils/history.js";
 import { createBaseRegistry } from "./tools/registry.js";
 import { DemoProvider } from "./agent/demo-provider.js";
 import { HttpProvider } from "./agent/http-provider.js";
@@ -210,106 +211,14 @@ export async function startRepl(): Promise<void> {
     phase: currentCreds ? "idle" : "offline",
   });
 
-  // Tab completion pour les slash commands + sous-commandes connues.
-  // - `/` + Tab → liste toutes les commandes
-  // - `/pe` + Tab → complete à `/permissions ` (unique match)
-  // - `/permissions ` + Tab → complete sur les sous-commandes (mode, allow, etc.)
-  // - `/permissions mode ` + Tab → complete sur les noms de modes
-  const SUBCOMMANDS: Record<string, string[]> = {
-    permissions: [
-      "status",
-      "mode",
-      "allow",
-      "revoke",
-      "reset",
-    ],
-  };
-  const MODE_VALUES = ["default", "accept-edits", "bypass", "plan"];
-
-  const completer = (line: string): [string[], string] => {
-    if (!line.startsWith("/")) return [[], line];
-    const body = line.slice(1);
-    const parts = body.split(" ");
-
-    // 1er segment : nom de commande
-    if (parts.length === 1) {
-      const prefix = parts[0].toLowerCase();
-      const names = commands.list().map((c) => "/" + c.name);
-      const hits = names.filter((n) => n.toLowerCase().startsWith("/" + prefix));
-      // Ajoute un espace aux matchs uniques → enchaîne avec les args
-      const expanded = hits.length === 1 ? [hits[0] + " "] : hits;
-      return [expanded.length ? expanded : names, line];
-    }
-
-    // 2e segment : sous-commandes (ex: /permissions <sub>)
-    if (parts.length === 2) {
-      const cmdName = parts[0];
-      const subs = SUBCOMMANDS[cmdName];
-      if (!subs) return [[], line];
-      const prefix = parts[1].toLowerCase();
-      const hits = subs
-        .filter((s) => s.toLowerCase().startsWith(prefix))
-        .map((s) => `/${cmdName} ${s} `);
-      return [hits.length ? hits : subs.map((s) => `/${cmdName} ${s} `), line];
-    }
-
-    // 3e segment : valeurs (ex: /permissions mode <value> ou /permissions allow <tool>)
-    if (parts.length === 3 && parts[0] === "permissions") {
-      if (parts[1] === "mode") {
-        const prefix = parts[2].toLowerCase();
-        const hits = MODE_VALUES.filter((v) =>
-          v.toLowerCase().startsWith(prefix),
-        ).map((v) => `/permissions mode ${v}`);
-        return [hits.length ? hits : MODE_VALUES.map((v) => `/permissions mode ${v}`), line];
-      }
-      if (parts[1] === "allow" || parts[1] === "revoke") {
-        const toolNames = tools.list().map((t) => t.name);
-        const prefix = parts[2];
-        const hits = toolNames
-          .filter((t) => t.startsWith(prefix))
-          .map((t) => `/permissions ${parts[1]} ${t}`);
-        return [
-          hits.length
-            ? hits
-            : toolNames.map((t) => `/permissions ${parts[1]} ${t}`),
-          line,
-        ];
-      }
-    }
-
-    return [[], line];
-  };
-
-  const rl = readline.createInterface({
-    input: process.stdin,
-    output: process.stdout,
-    prompt: chalk.hex("#e27649").bold("» "),
-    completer,
-    // Node readline : deux Tab consécutifs affichent les matches ; un seul
-    // complète le préfixe commun. Pas de config nécessaire.
-  });
-
-  // Injecte le rl dans le module permissions pour qu'askPermission ne
-  // crée PAS un 2e readline (qui tuait le REPL quand l'user répondait
-  // à un prompt de permission pendant un flow agent).
-  const { setPermissionReadline } = await import("./permissions/prompt.js");
-  setPermissionReadline(rl);
-
-  // NOTE : l'ancien picker auto sur `/` (qui ouvrait @inquirer/search dès
-  // qu'on tapait `/` sur un prompt vide) a été retiré. Il confondait l'user
-  // qui voulait juste taper `/model` normalement : le picker piquait le `/`,
-  // interceptait les frappes, et selon le mode de fermeture (Esc, erreur)
-  // l'user pouvait se retrouver avec "model" sans `/` qui partait au modèle.
-  //
-  // Comportement actuel : on tape `/model` directement, Tab pour la
-  // complétion. La commande /model (builtin) ouvre déjà son propre picker
-  // interactif via @inquirer/search quand elle est appelée sans arg, ce
-  // qui couvre le cas "je veux browse les commandes".
+  // Boucle principale entièrement via @inquirer/input — plus de readline
+  // parallèle, plus de collision stdin. L'historique ↑↓ est géré en mode
+  // append-only (pas de navigation pour l'instant ; V2).
+  const history = new InputHistory();
 
   const cleanup = () => {
     teardownStatusBar();
     for (const s of mcpServers) s.close();
-    rl.close();
   };
 
   let shouldExit = false;
@@ -319,44 +228,6 @@ export async function startRepl(): Promise<void> {
     log.info("Au revoir.");
     process.exit(0);
   };
-
-  rl.on("close", () => {
-    if (!shouldExit) {
-      cleanup();
-      console.log();
-      log.info("Au revoir.");
-    }
-  });
-
-  // Intercepte Ctrl-C : SANS ce handler, readline close le rl par défaut
-  // quand la ligne est vide → déclenche rl.on("close") → "Au revoir" →
-  // process exit. Typiquement ça arrivait quand inquirer (/model picker)
-  // propageait son Ctrl-C vers le rl principal.
-  //
-  // Comportement voulu : Ctrl-C efface juste la ligne courante. Pour
-  // quitter l'user peut taper /exit ou Ctrl-D (EOF → close naturel).
-  let sigintCount = 0;
-  rl.on("SIGINT", () => {
-    if (rl.line.length > 0) {
-      // Ligne en cours : clear + reset le compteur double-Ctrl-C.
-      sigintCount = 0;
-      process.stdout.write("\r\x1b[K");
-      rl.write(null, { ctrl: true, name: "u" });
-      rl.prompt();
-      return;
-    }
-    sigintCount += 1;
-    if (sigintCount >= 2) {
-      exit();
-      return;
-    }
-    console.log(log.inkMuted("  (Ctrl-C encore pour quitter, ou /exit)"));
-    rl.prompt();
-    // Reset le compteur si pas de 2e Ctrl-C dans 1.5s.
-    setTimeout(() => {
-      sigintCount = 0;
-    }, 1500);
-  });
 
   const auth = {
     getCredentials: () => currentCreds,
@@ -403,23 +274,51 @@ export async function startRepl(): Promise<void> {
     },
   };
 
-  // Note : pas de showStatus() ici — updateStatus() ligne 209 a déjà
-  // déclenché le premier render sous le banner. Un showStatus() de plus
-  // imprimerait un 2e status block (double au startup).
-  rl.prompt();
+  // Boucle REPL : un seul owner de stdin à tout moment (inquirer), donc
+  // pas de collision quand /model ouvre son propre picker inquirer.
+  let ctrlCCount = 0;
+  let ctrlCResetTimer: NodeJS.Timeout | null = null;
 
-  for await (const line of rl) {
-    const input = line.trim();
-    // L'user vient de valider sa ligne. Le readline a déjà écrit la ligne
-    // saisie. Maintenant on efface le status d'avant (qui était imprimé
-    // après le précédent prompt) pour que les outputs agent commencent
-    // directement après l'input user, sans "saut" visuel.
+  while (!shouldExit) {
+    let input: string;
+    try {
+      input = (await promptLine()).trim();
+    } catch (err) {
+      // ExitPromptError (Ctrl-C dans inquirer) ou Ctrl-D (stdin EOF) →
+      // soft cancel. Double occurrence dans 1.5s = exit propre.
+      const msg = err instanceof Error ? err.message : String(err);
+      const isExitPrompt =
+        (err as { name?: string })?.name === "ExitPromptError" ||
+        /user force closed|canceled/i.test(msg);
+      if (!isExitPrompt) {
+        log.error(msg);
+        continue;
+      }
+      ctrlCCount += 1;
+      if (ctrlCCount >= 2) {
+        exit();
+        return;
+      }
+      console.log(log.inkMuted("  (Ctrl-C encore pour quitter, ou /exit)"));
+      if (ctrlCResetTimer) clearTimeout(ctrlCResetTimer);
+      ctrlCResetTimer = setTimeout(() => {
+        ctrlCCount = 0;
+      }, 1500);
+      continue;
+    }
+    // Input reçu → reset le compteur Ctrl-C.
+    ctrlCCount = 0;
+    if (ctrlCResetTimer) {
+      clearTimeout(ctrlCResetTimer);
+      ctrlCResetTimer = null;
+    }
+
     hideStatus();
     if (!input) {
       showStatus();
-      rl.prompt();
       continue;
     }
+    history.add(input);
 
     try {
       if (input.startsWith("/")) {
@@ -441,9 +340,6 @@ export async function startRepl(): Promise<void> {
     }
 
     if (shouldExit) return;
-    // Réaffiche le status après les outputs agent, juste avant le nouveau
-    // prompt. Le status "colle" donc au dernier contenu.
     showStatus();
-    rl.prompt();
   }
 }

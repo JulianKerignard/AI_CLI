@@ -1,7 +1,5 @@
 import { createServer } from "node:http";
 import { randomBytes } from "node:crypto";
-import { createInterface } from "node:readline/promises";
-import { stdin, stdout } from "node:process";
 import { openBrowser } from "./open-browser.js";
 import {
   saveCredentials,
@@ -124,17 +122,27 @@ export async function runLoginFlow(opts: LoginOptions = {}): Promise<Credentials
       server.on("close", () => clearTimeout(timer));
     });
 
-    // Fallback manuel — prompt en parallèle. Si l'user colle un token avant
-    // le callback HTTP, on l'accepte aussi. Les deux voies race ; settle()
-    // garantit qu'une seule résolution a lieu.
-    const rl = createInterface({ input: stdin, output: stdout });
+    // Fallback manuel — prompt en parallèle via @inquirer/input. Si l'user
+    // colle un token avant le callback HTTP, on l'accepte aussi. Les deux
+    // voies race ; settle() garantit qu'une seule résolution a lieu.
+    //
+    // On utilise @inquirer/input (pas readline) pour éviter toute collision
+    // avec le rl du REPL principal — cohérent avec le reste du CLI.
     void (async () => {
       try {
-        const pasted = (await rl.question(chalk.hex("#8a8270")("paste token ou Entrée pour attendre le browser › "))).trim();
-        rl.close();
+        const { default: input } = await import("@inquirer/input");
+        const pasted = (
+          await input({
+            message: chalk.hex("#8a8270")(
+              "paste token ou Entrée pour attendre le browser",
+            ),
+          })
+        ).trim();
         if (!pasted) return; // attendre le callback
         if (!pasted.startsWith("csm_") || pasted.length < 20) {
-          log.warn("Token invalide (doit commencer par csm_). J'attends toujours le navigateur.");
+          log.warn(
+            "Token invalide (doit commencer par csm_). J'attends toujours le navigateur.",
+          );
           return;
         }
         const creds: Credentials = {
@@ -148,7 +156,7 @@ export async function runLoginFlow(opts: LoginOptions = {}): Promise<Credentials
           resolve(creds);
         });
       } catch {
-        // stdin fermé — on laisse le flow browser continuer
+        // Ctrl-C dans le prompt token → on laisse le flow browser continuer
       }
     })();
   });
