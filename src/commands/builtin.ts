@@ -260,6 +260,82 @@ export function builtinCommands(allCommands: () => SlashCommand[]): SlashCommand
       },
     },
     {
+      name: "best",
+      description:
+        "Choisit le meilleur modèle selon un critère : /best [balanced|fast|quality|code|cheap]",
+      async run({ auth }, args) {
+        const creds = auth.getCredentials();
+        if (!creds) {
+          log.error("Non connecté. Tape /login pour te connecter.");
+          return;
+        }
+        const raw = args.trim().toLowerCase();
+        const mode = (
+          ["balanced", "fast", "quality", "code", "cheap"].includes(raw)
+            ? raw
+            : "balanced"
+        ) as import("../lib/model-selector.js").SelectionMode;
+
+        // Fetch le catalogue dynamique (contient les tags rapide/moyen/lent
+        // à jour grâce au cron VPS).
+        let models: Array<{
+          id: string;
+          provider: string;
+          category: string;
+          weight: number;
+          description?: string;
+        }> = [];
+        try {
+          const res = await fetch(`${creds.baseUrl}/v1/models`, {
+            headers: { "x-api-key": creds.token },
+          });
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          const data = (await res.json()) as { models: typeof models };
+          models = data.models;
+        } catch (err) {
+          log.error(
+            `Impossible de récupérer les modèles : ${err instanceof Error ? err.message : err}`,
+          );
+          return;
+        }
+
+        if (models.length === 0) {
+          log.error("Aucun modèle disponible.");
+          return;
+        }
+
+        const { pickBest } = await import("../lib/model-selector.js");
+        const ranked = pickBest(models, mode);
+        const top = ranked[0];
+
+        // Affiche le top 5 pour que l'user voie le classement.
+        log.info(
+          `Meilleurs modèles (mode ${chalk.hex("#e27649")(mode)}) :`,
+        );
+        for (let i = 0; i < Math.min(5, ranked.length); i++) {
+          const r = ranked[i];
+          const marker = i === 0 ? chalk.hex("#7fa670")("★") : " ";
+          log.dim(
+            `  ${marker} ${r.model.id.padEnd(55)}  ${chalk.hex("#8a8270")(
+              `score ${r.score.toFixed(1)} · q${r.breakdown.quality} s${r.breakdown.speed} c${r.breakdown.cost}${r.breakdown.bonus ? " +" + r.breakdown.bonus : ""}`,
+            )}`,
+          );
+        }
+
+        if (top.model.id === creds.model) {
+          log.info(`${chalk.hex("#7fa670")("✓")} Tu es déjà sur le meilleur.`);
+          return;
+        }
+
+        // Switch vers le top.
+        const updated = { ...creds, model: top.model.id };
+        auth.onLogin(updated);
+        log.info(
+          `Switch → ${chalk.hex("#e27649")(top.model.id)} ${chalk.hex("#8a8270")(`(${top.model.provider}, score ${top.score.toFixed(1)})`)}`,
+        );
+      },
+    },
+    {
       name: "resume",
       description:
         "Reprend une conversation passée lancée depuis ce dossier.",
