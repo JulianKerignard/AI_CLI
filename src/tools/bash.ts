@@ -22,6 +22,27 @@ function tailCap(text: string, label: string): string {
 export const bashTool: Tool = {
   name: "Bash",
   description: "Exécute une commande shell (timeout 30s). Stdout/stderr capés à 32k chars chacun (tail) pour préserver l'historique agent.",
+  formatInvocation: (input) => {
+    const cmd = String(input.command ?? "");
+    return cmd.length > 60 ? cmd.slice(0, 60) + "…" : cmd;
+  },
+  formatResult: (_input, output) => {
+    // output = "exit N\nstdout:\n…\nstderr:\n…"
+    const exitMatch = /^exit (\S+)/m.exec(output);
+    const code = exitMatch ? exitMatch[1] : "?";
+    const stdoutLines = (output.match(/^stdout:$/m) ? 1 : 0)
+      ? output.split("stdout:\n")[1]?.split("stderr:")[0]?.split("\n").length ?? 0
+      : 0;
+    const hasStderr = /stderr:/m.test(output);
+    const truncated = /\[(stdout|stderr) tronqué/.test(output);
+    const timeout = /^\[timeout/.test(output);
+    if (timeout) return "timeout";
+    const parts: string[] = [`exit ${code}`];
+    if (stdoutLines > 0) parts.push(`${stdoutLines} stdout lines`);
+    if (hasStderr) parts.push("stderr");
+    if (truncated) parts.push("(tail)");
+    return parts.join(" · ");
+  },
   schema: {
     type: "object",
     properties: {

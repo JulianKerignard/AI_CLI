@@ -9,6 +9,13 @@ export const editTool: Tool = {
   name: "Edit",
   description:
     "Remplace une chaîne exacte par une autre dans un fichier existant. old_string doit être unique dans le fichier (sinon entourer de plus de contexte). replace_all=true remplace toutes les occurrences.",
+  formatInvocation: (input) => String(input.path ?? ""),
+  formatResult: (_input, output) => {
+    // output = "Édité <path> (N remplacement[s])"
+    const m = /\((\d+) remplacement/.exec(output);
+    const count = m ? Number(m[1]) : 1;
+    return `${count} replacement${count > 1 ? "s" : ""}`;
+  },
   schema: {
     type: "object",
     properties: {

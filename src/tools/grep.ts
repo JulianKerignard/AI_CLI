@@ -13,6 +13,21 @@ export const grepTool: Tool = {
   name: "Grep",
   description:
     "Recherche un pattern regex dans les fichiers. Utilise ripgrep si disponible (ignore .gitignore par défaut). Modes : files_with_matches | content | count.",
+  formatInvocation: (input) => {
+    const pattern = String(input.pattern ?? "");
+    const glob = input.glob ? ` in ${String(input.glob)}` : "";
+    return pattern.length > 40 ? pattern.slice(0, 40) + "…" : pattern + glob;
+  },
+  formatResult: (input, output) => {
+    if (output.startsWith("(aucun")) return "0 matches";
+    const mode = String(input.output_mode ?? "files_with_matches");
+    const lines = output.split("\n").filter(Boolean);
+    const more = /… \((\d+) lignes tronquées\)/.exec(output);
+    const n = lines.length - (more ? 1 : 0);
+    if (mode === "content") return `${n}${more ? "+" : ""} matching lines`;
+    if (mode === "count") return `${n} files with matches`;
+    return `${n} file${n > 1 ? "s" : ""}`;
+  },
   schema: {
     type: "object",
     properties: {

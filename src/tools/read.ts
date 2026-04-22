@@ -5,6 +5,14 @@ import type { Tool } from "./types.js";
 export const readTool: Tool = {
   name: "Read",
   description: "Lit un fichier du système de fichiers local.",
+  formatInvocation: (input) => String(input.path ?? ""),
+  formatResult: (_input, output) => {
+    // Sortie : N lignes numérotées + potentiel "… (N tronquées)". Compte les \n.
+    const lines = output.split("\n").length;
+    const chars = output.length;
+    const kb = chars >= 1024 ? `, ${(chars / 1024).toFixed(1)}K` : "";
+    return `${lines} lines${kb}`;
+  },
   schema: {
     type: "object",
     properties: {

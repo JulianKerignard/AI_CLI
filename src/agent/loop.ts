@@ -248,12 +248,32 @@ export class AgentLoop {
         }
 
         this.opts.onToolUse?.(block.name, block.input);
-        log.tool(block.name, JSON.stringify(block.input).slice(0, 120));
         updateStatus({ phase: "executing-tool", toolName: block.name });
+
+        // Affichage compact Claude-Code-style : ◆ Name(label). Le résumé du
+        // résultat est ajouté après l'exécution. Si le tool ne fournit pas de
+        // formatters, fallback sur l'ancien affichage verbeux.
+        const toolDef = this.opts.tools.get(block.name);
+        const hasCompact = !!(toolDef?.formatInvocation || toolDef?.formatResult);
+        if (hasCompact) {
+          const label = toolDef?.formatInvocation?.(block.input) ?? "";
+          log.toolCompact(block.name, label);
+        } else {
+          log.tool(block.name, JSON.stringify(block.input).slice(0, 120));
+        }
+
         try {
           const output = await this.opts.tools.run(block.name, block.input, ctx);
           this.opts.onToolResult?.(block.name, output);
-          log.toolResult(output);
+          if (hasCompact && toolDef?.formatResult) {
+            log.toolResultCompact(toolDef.formatResult(block.input, output));
+          } else if (!hasCompact) {
+            log.toolResult(output);
+          } else {
+            // Tool a formatInvocation mais pas formatResult : 1 ligne générique.
+            const lines = output.split("\n").length;
+            log.toolResultCompact(`${lines} lines returned`);
+          }
           toolResults.push({
             type: "tool_result",
             tool_use_id: block.id,
@@ -261,7 +281,11 @@ export class AgentLoop {
           });
         } catch (err) {
           const msg = err instanceof Error ? err.message : String(err);
-          log.error(`[${block.name}] ${msg}`);
+          if (hasCompact) {
+            log.toolResultCompact(msg, true);
+          } else {
+            log.error(`[${block.name}] ${msg}`);
+          }
           toolResults.push({
             type: "tool_result",
             tool_use_id: block.id,

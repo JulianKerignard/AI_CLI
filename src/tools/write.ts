@@ -5,6 +5,16 @@ import type { Tool } from "./types.js";
 export const writeTool: Tool = {
   name: "Write",
   description: "Écrit (ou écrase) un fichier avec le contenu fourni.",
+  formatInvocation: (input) => String(input.path ?? ""),
+  formatResult: (input, _output) => {
+    const content = String(input.content ?? "");
+    const lines = content.split("\n").length;
+    const kb =
+      content.length >= 1024
+        ? `${(content.length / 1024).toFixed(1)}K`
+        : `${content.length} chars`;
+    return `wrote ${lines} lines, ${kb}`;
+  },
   schema: {
     type: "object",
     properties: {

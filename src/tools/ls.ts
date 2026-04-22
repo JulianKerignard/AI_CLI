@@ -17,6 +17,24 @@ export const lsTool: Tool = {
   name: "Ls",
   description:
     "Liste le contenu d'un répertoire avec taille et type (d=dir, f=fichier). Ignore node_modules/.git par défaut.",
+  formatInvocation: (input) => String(input.path ?? "."),
+  formatResult: (_input, output) => {
+    // 1 ligne header + "  d/f  size  name" lignes. On compte les types.
+    const lines = output.split("\n").slice(1).filter(Boolean);
+    let dirs = 0;
+    let files = 0;
+    for (const l of lines) {
+      const m = /^\s{2}([dlf])/.exec(l);
+      if (m?.[1] === "d") dirs++;
+      else if (m?.[1] === "f" || m?.[1] === "l") files++;
+    }
+    const total = dirs + files;
+    if (total === 0) return "(vide)";
+    const parts: string[] = [];
+    if (dirs > 0) parts.push(`${dirs} dir${dirs > 1 ? "s" : ""}`);
+    if (files > 0) parts.push(`${files} file${files > 1 ? "s" : ""}`);
+    return parts.join(", ");
+  },
   schema: {
     type: "object",
     properties: {

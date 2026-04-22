@@ -210,6 +210,26 @@ export const log = {
         " " +
         ATH.inkFaint(detail),
     ),
+  // Affichage compact style Claude Code : nom + paramètre clé + résumé 1 ligne.
+  //   ◆ Ls(src/EasySave)
+  //     ⎿ 5 dirs, 9 files
+  // Remplace log.tool + log.toolResult quand le tool fournit formatInvocation /
+  // formatResult. Keep log.tool/toolResult pour les tools sans formatters.
+  toolCompact: (name: string, label: string) => {
+    console.log(
+      ATH.accentSoft(SYM.tool + " ") +
+        ATH.accentSoft.bold(name) +
+        (label ? ATH.accentSoft("(") + ATH.inkMuted(label) + ATH.accentSoft(")") : ""),
+    );
+  },
+  toolResultCompact: (summary: string, isError = false) => {
+    const arrow = "  ⎿ ";
+    if (isError) {
+      console.log(ATH.danger(arrow) + ATH.danger(summary));
+    } else {
+      console.log(ATH.inkFaint(arrow) + ATH.inkMuted(summary));
+    }
+  },
   toolResult: (text: string) => {
     const trimmed = text.length > 400 ? text.slice(0, 400) + "…" : text;
     const lines = trimmed.split("\n");
