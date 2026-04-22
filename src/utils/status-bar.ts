@@ -56,6 +56,10 @@ interface Segments {
   bucketCold?: boolean;
   cwd?: string;
   sessionTag?: string;
+  // Suggestion automatique quand le poller détecte un modèle avec un
+  // meilleur score composite que le modèle courant. Affiché dans la
+  // status line sous forme '★ mieux: <id>'. Reset au switch de modèle.
+  suggestedBetter?: { id: string; score: number; currentScore: number } | null;
 }
 
 const state: Segments = { phase: "idle" };
@@ -285,6 +289,21 @@ export function renderStatusLines(cols: number): string[] {
   if (state.phase === "waiting-quota" && state.waitingMsRemaining !== undefined) {
     const s = Math.max(1, Math.ceil(state.waitingMsRemaining / 1000));
     phaseStr += MUTED(` ${s}s`);
+  }
+  // Suggestion "meilleur modèle dispo" détectée par le poller background.
+  if (state.suggestedBetter) {
+    // Raccourci l'id pour tenir sur la ligne : garde juste la partie
+    // après le dernier '/' (ex: kimi-k2-thinking).
+    const parts = state.suggestedBetter.id.split("/");
+    const shortId = parts[parts.length - 1] || state.suggestedBetter.id;
+    const delta = (
+      state.suggestedBetter.score - state.suggestedBetter.currentScore
+    ).toFixed(1);
+    phaseStr +=
+      FAINT("  ·  ") +
+      SUCCESS("★ mieux: ") +
+      ACCENT_SOFT(shortId) +
+      FAINT(` (+${delta})`);
   }
   const versionPart = FAINT(`v${VERSION}`);
   const leftLen = visibleLen(phaseStr);

@@ -10,6 +10,7 @@ import {
   openSession,
   appendEvent,
 } from "./sessions/store.js";
+import { BetterModelWatcher } from "./lib/better-model-watcher.js";
 import { createBaseRegistry } from "./tools/registry.js";
 import { DemoProvider } from "./agent/demo-provider.js";
 import { HttpProvider } from "./agent/http-provider.js";
@@ -220,9 +221,17 @@ export async function startRepl(): Promise<void> {
   // append-only (pas de navigation pour l'instant ; V2).
   const history = new InputHistory();
 
+  // Watcher background : déclaré tôt pour que cleanup() puisse le stop
+  // sans TDZ. Start ci-dessous une fois auth setup.
+  const watcher = new BetterModelWatcher(
+    () => currentCreds,
+    "balanced",
+  );
+
   const cleanup = () => {
     teardownStatusBar();
     for (const s of mcpServers) s.close();
+    watcher.stop();
   };
 
   let shouldExit = false;
@@ -241,13 +250,14 @@ export async function startRepl(): Promise<void> {
       provider = makeProvider(creds);
       agent.setProvider(provider);
       registerAgentTool();
-      // Refresh le status bar : nouveau provider.name + reset contextWindow
-      // pour que contextWindowFor(newModel) recalcule au prochain render.
       updateStatus({
         provider: provider.name,
         contextWindow: undefined,
         phase: "idle",
       });
+      // Reset la suggestion : l'user vient de switcher, on redémarre
+      // l'évaluation à partir du nouveau modèle.
+      watcher.clearSuggestion();
     },
     onLogout: () => {
       currentCreds = null;
@@ -259,8 +269,12 @@ export async function startRepl(): Promise<void> {
         contextWindow: undefined,
         phase: "offline",
       });
+      watcher.clearSuggestion();
     },
   };
+
+  // Démarre le watcher après setup de auth (il a besoin de getCredentials).
+  watcher.start();
 
   const permissions = {
     getMode: () => permConfig.mode,
