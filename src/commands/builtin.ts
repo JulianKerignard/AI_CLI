@@ -195,6 +195,110 @@ export function builtinCommands(allCommands: () => SlashCommand[]): SlashCommand
       },
     },
     {
+      name: "model",
+      description:
+        "Change le modèle actif. /model → picker, /model <id> → switch direct.",
+      async run({ auth }, args) {
+        const creds = auth.getCredentials();
+        if (!creds) {
+          log.error("Non connecté. Tape /login pour te connecter.");
+          return;
+        }
+        const targetId = args.trim();
+
+        // Fetch la liste des modèles disponibles depuis le serveur.
+        let models: Array<{
+          id: string;
+          provider: string;
+          category: string;
+          weight: number;
+          description?: string;
+        }> = [];
+        try {
+          const res = await fetch(`${creds.baseUrl}/v1/models`, {
+            headers: { "x-api-key": creds.token },
+          });
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          const data = (await res.json()) as { models: typeof models };
+          models = data.models;
+        } catch (err) {
+          log.error(
+            `Impossible de récupérer les modèles : ${err instanceof Error ? err.message : err}`,
+          );
+          return;
+        }
+
+        // Switch direct si ID fourni.
+        if (targetId) {
+          const match = models.find((m) => m.id === targetId);
+          if (!match) {
+            log.error(
+              `Modèle inconnu : ${targetId}. Tape /model sans argument pour voir la liste.`,
+            );
+            return;
+          }
+          const updated = { ...creds, model: match.id };
+          auth.onLogin(updated);
+          log.info(
+            `Modèle → ${chalk.hex("#e27649")(match.id)} ${chalk.hex("#8a8270")(`(${match.provider})`)}`,
+          );
+          return;
+        }
+
+        // Picker interactif via @inquirer/search.
+        const { default: search } = await import("@inquirer/search");
+        try {
+          const chosen = await search({
+            message: "model",
+            pageSize: 12,
+            source: async (input) => {
+              const q = (input ?? "").toLowerCase();
+              const filtered = models.filter(
+                (m) =>
+                  !q ||
+                  m.id.toLowerCase().includes(q) ||
+                  m.category.toLowerCase().includes(q) ||
+                  m.provider.toLowerCase().includes(q),
+              );
+              return filtered.map((m) => {
+                const marker =
+                  m.provider === "nvidia"
+                    ? chalk.hex("#7fa670")("nvidia")
+                    : m.provider === "persona"
+                      ? chalk.hex("#ec9470")("persona")
+                      : chalk.hex("#e27649")("mistral");
+                const current =
+                  m.id === creds.model ? chalk.hex("#7fa670")(" (current)") : "";
+                return {
+                  name: `${m.id}${current}`,
+                  value: m.id,
+                  description: `  ${marker} · ${m.category} · weight ${m.weight}${m.description ? " · " + m.description : ""}`,
+                };
+              });
+            },
+            default: creds.model,
+          });
+          if (typeof chosen === "string" && chosen !== creds.model) {
+            const updated = { ...creds, model: chosen };
+            auth.onLogin(updated);
+            const picked = models.find((m) => m.id === chosen);
+            log.info(
+              `Modèle → ${chalk.hex("#e27649")(chosen)} ${chalk.hex("#8a8270")(`(${picked?.provider ?? "?"})`)}`,
+            );
+          }
+        } catch (err) {
+          if (
+            !(err instanceof Error) ||
+            (!/user force closed/i.test(err.message) && err.name !== "ExitPromptError")
+          ) {
+            log.error(
+              `Picker error : ${err instanceof Error ? err.message : err}`,
+            );
+          }
+        }
+      },
+    },
+    {
       name: "compact",
       description:
         "Force un résumé auto de l'historique agent (utile si session longue).",
