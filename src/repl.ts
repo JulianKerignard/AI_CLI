@@ -6,6 +6,7 @@ import { DemoProvider } from "./agent/demo-provider.js";
 import { HttpProvider } from "./agent/http-provider.js";
 import { AgentLoop } from "./agent/loop.js";
 import { CommandRegistry } from "./commands/registry.js";
+import { pickSlashCommand } from "./commands/picker.js";
 import { loadSkills } from "./skills/loader.js";
 import { makeSkillTool } from "./skills/tool.js";
 import { loadSubAgents } from "./agents/loader.js";
@@ -259,48 +260,43 @@ export async function startRepl(): Promise<void> {
     // complète le préfixe commun. Pas de config nécessaire.
   });
 
-  // Slash menu : quand l'user tape juste `/` (single char), on affiche les
-  // commandes au-dessus du prompt. Affiché UNE fois (pas de redraw à chaque
-  // keypress pour éviter les artefacts de curseur). Pour ré-afficher, backspace
-  // jusqu'au vide puis retaper `/`.
-  let menuShownForCurrentSlash = false;
+  // Picker interactif : quand l'user tape `/` depuis un prompt vide, on
+  // intercepte et on ouvre un picker @inquirer/search (flèches ↑↓, filtrage
+  // à la frappe, Tab/Enter pour sélectionner, Esc pour annuler). Une fois
+  // choisie, la commande est injectée dans le readline.
+  let pickerActive = false;
 
-  const showSlashMenu = () => {
-    const all = commands.list();
-    const out = process.stdout;
-    out.write("\n");
-    out.write(
-      "  " +
-        chalk.hex("#8a8270").bold("COMMANDES") +
-        "  " +
-        chalk.hex("#8a8270")("(Tab pour compléter)") +
-        "\n",
-    );
-    for (const c of all) {
-      out.write(
-        "  " +
-          chalk.hex("#e27649").bold("/" + c.name.padEnd(14)) +
-          chalk.hex("#bdb3a1")(c.description) +
-          "\n",
-      );
-    }
-    out.write("\n");
-    // Redessine le prompt (readline ne le refait pas après un write direct).
-    // Utilise la méthode publique `_refreshLine` via cast pour garder la ligne.
-    const rlAny = rl as unknown as { _refreshLine?: () => void };
-    if (typeof rlAny._refreshLine === "function") rlAny._refreshLine();
-    else rl.prompt(true);
-  };
-
-  process.stdin.on("keypress", () => {
+  process.stdin.on("keypress", (_str: string | undefined, key: { sequence?: string; name?: string } | undefined) => {
+    if (pickerActive) return;
+    if (!key || key.sequence !== "/") return;
+    // Défère d'un tick pour que rl.line reflète l'insertion du "/".
     setImmediate(() => {
-      const current = rl.line ?? "";
-      if (current === "/" && !menuShownForCurrentSlash) {
-        menuShownForCurrentSlash = true;
-        showSlashMenu();
-      } else if (current === "" || !current.startsWith("/")) {
-        menuShownForCurrentSlash = false;
-      }
+      // Déclenche seulement si la ligne n'est QUE "/" (première frappe,
+      // prompt vide). Si l'user tape "/" au milieu d'un texte, on laisse passer.
+      if (rl.line !== "/") return;
+      pickerActive = true;
+      void (async () => {
+        try {
+          // Efface le "/" tapé du readline pour que le picker prenne le relais
+          // proprement. rl.write(null, {ctrl:true, name:"u"}) = Ctrl-U (clear line).
+          rl.write(null, { ctrl: true, name: "u" });
+          // Pause readline — inquirer prend le raw stdin le temps du picker.
+          rl.pause();
+          process.stdout.write("\n");
+
+          const chosen = await pickSlashCommand(commands.list());
+
+          rl.resume();
+          if (chosen) {
+            // Injecte "/nom " dans readline pour que l'user puisse
+            // taper des args ou appuyer sur Enter directement.
+            rl.write(`/${chosen} `);
+          }
+          rl.prompt(true);
+        } finally {
+          pickerActive = false;
+        }
+      })();
     });
   });
 
@@ -372,7 +368,6 @@ export async function startRepl(): Promise<void> {
 
   rl.prompt();
   for await (const line of rl) {
-    menuShownForCurrentSlash = false;
     const input = line.trim();
     if (!input) {
       rl.prompt();
