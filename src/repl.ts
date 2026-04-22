@@ -328,6 +328,36 @@ export async function startRepl(): Promise<void> {
     }
   });
 
+  // Intercepte Ctrl-C : SANS ce handler, readline close le rl par défaut
+  // quand la ligne est vide → déclenche rl.on("close") → "Au revoir" →
+  // process exit. Typiquement ça arrivait quand inquirer (/model picker)
+  // propageait son Ctrl-C vers le rl principal.
+  //
+  // Comportement voulu : Ctrl-C efface juste la ligne courante. Pour
+  // quitter l'user peut taper /exit ou Ctrl-D (EOF → close naturel).
+  let sigintCount = 0;
+  rl.on("SIGINT", () => {
+    if (rl.line.length > 0) {
+      // Ligne en cours : clear + reset le compteur double-Ctrl-C.
+      sigintCount = 0;
+      process.stdout.write("\r\x1b[K");
+      rl.write(null, { ctrl: true, name: "u" });
+      rl.prompt();
+      return;
+    }
+    sigintCount += 1;
+    if (sigintCount >= 2) {
+      exit();
+      return;
+    }
+    console.log(log.inkMuted("  (Ctrl-C encore pour quitter, ou /exit)"));
+    rl.prompt();
+    // Reset le compteur si pas de 2e Ctrl-C dans 1.5s.
+    setTimeout(() => {
+      sigintCount = 0;
+    }, 1500);
+  });
+
   const auth = {
     getCredentials: () => currentCreds,
     onLogin: (creds: Credentials) => {
