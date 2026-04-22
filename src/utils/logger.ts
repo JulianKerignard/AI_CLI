@@ -240,6 +240,7 @@ export const log = {
   // Helpers bruts pour cas spéciaux (URLs clickables, tokens partiels masqués).
   accent: ATH.accent,
   accentSoft: ATH.accentSoft,
+  danger: ATH.danger,
   ink: ATH.ink,
   inkMuted: ATH.inkMuted,
   inkFaint: ATH.inkFaint,

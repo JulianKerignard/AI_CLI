@@ -2,6 +2,12 @@ import type { SlashCommand } from "./types.js";
 import { log, chalk, formatQuotaStatus } from "../utils/logger.js";
 import { runLoginFlow } from "../auth/login.js";
 import { clearCredentials } from "../auth/store.js";
+import {
+  isValidMode,
+  modeLabel,
+  categorize,
+  type PermissionMode,
+} from "../permissions/policy.js";
 
 export function builtinCommands(allCommands: () => SlashCommand[]): SlashCommand[] {
   return [
@@ -89,6 +95,108 @@ export function builtinCommands(allCommands: () => SlashCommand[]): SlashCommand
         const lines = formatQuotaStatus(stats, stats.lastQuota);
         for (const l of lines) console.log(l);
         console.log();
+      },
+    },
+    {
+      name: "permissions",
+      description:
+        "Gère les permissions. /permissions [mode <name>|allow <tool>|revoke <tool>|reset]",
+      async run({ permissions }, args) {
+        const parts = args.trim().split(/\s+/).filter(Boolean);
+        const sub = parts[0];
+
+        if (!sub || sub === "status") {
+          log.banner("Permissions");
+          const mode = permissions.getMode();
+          console.log(
+            "  " +
+              log.inkMuted.bold("MODE     ") +
+              "  " +
+              (mode === "bypass"
+                ? log.danger(modeLabel(mode))
+                : mode === "plan"
+                  ? log.accentSoft(modeLabel(mode))
+                  : log.ink(modeLabel(mode))),
+          );
+          const persistent = permissions.getAlwaysAllow();
+          console.log(
+            "  " +
+              log.inkMuted.bold("ALWAYS   ") +
+              "  " +
+              (persistent.length === 0
+                ? log.inkMuted("(aucun)")
+                : persistent
+                    .map((t) => log.accent(t))
+                    .join(log.inkMuted(", "))),
+          );
+          const session = permissions.getSessionAllowed();
+          console.log(
+            "  " +
+              log.inkMuted.bold("SESSION  ") +
+              "  " +
+              (session.length === 0
+                ? log.inkMuted("(aucun)")
+                : session
+                    .map((t) => log.accentSoft(t))
+                    .join(log.inkMuted(", "))),
+          );
+          console.log();
+          log.faint("Modes : default · accept-edits · bypass · plan");
+          log.faint(
+            "Ex: /permissions mode accept-edits, /permissions allow Bash, /permissions reset",
+          );
+          return;
+        }
+
+        if (sub === "mode") {
+          const target = parts[1];
+          if (!target || !isValidMode(target)) {
+            log.error(
+              "Mode invalide. Valeurs possibles : default, accept-edits, bypass, plan.",
+            );
+            return;
+          }
+          permissions.setMode(target as PermissionMode, true);
+          log.info(`Mode → ${modeLabel(target as PermissionMode)} (persisté)`);
+          if (target === "bypass") {
+            log.warn(
+              "⚠ mode bypass — tous les tools sont auto-acceptés. Utilise /permissions mode default pour revenir.",
+            );
+          }
+          return;
+        }
+
+        if (sub === "allow") {
+          const tool = parts[1];
+          if (!tool) {
+            log.error("Usage : /permissions allow <ToolName>");
+            return;
+          }
+          permissions.addAlwaysAllow(tool);
+          log.info(`${tool} auto-autorisé (persisté · catégorie ${categorize(tool)})`);
+          return;
+        }
+
+        if (sub === "revoke" || sub === "deny") {
+          const tool = parts[1];
+          if (!tool) {
+            log.error("Usage : /permissions revoke <ToolName>");
+            return;
+          }
+          permissions.removeAlwaysAllow(tool);
+          log.info(`${tool} retiré de la liste d'auto-allow.`);
+          return;
+        }
+
+        if (sub === "reset") {
+          permissions.clearSessionAllowed();
+          log.info("Allowlist de session vidée.");
+          return;
+        }
+
+        log.error(
+          "Sous-commande inconnue. Usage : /permissions [status|mode <name>|allow <tool>|revoke <tool>|reset]",
+        );
       },
     },
     {

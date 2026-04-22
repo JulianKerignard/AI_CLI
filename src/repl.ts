@@ -17,6 +17,15 @@ import {
   type Credentials,
 } from "./auth/store.js";
 import type { Provider } from "./agent/provider.js";
+import {
+  loadPermissions,
+  savePermissions,
+  type PermissionsConfig,
+} from "./permissions/store.js";
+import type {
+  PermissionMode,
+  PolicyState,
+} from "./permissions/policy.js";
 
 function buildSystemPrompt(cwd: string): string {
   return `Tu es AI_CLI, un agent de code qui tourne dans un terminal, inspiré de Claude Code.
@@ -77,11 +86,34 @@ export async function startRepl(): Promise<void> {
 
   let provider = makeProvider(currentCreds);
 
+  // Permissions : config persistante + état session mutable.
+  let permConfig: PermissionsConfig = loadPermissions();
+  const sessionAllowed = new Set<string>();
+
+  const getPolicyState = (): PolicyState => ({
+    mode: permConfig.mode,
+    sessionAllowed,
+    alwaysAllow: new Set(permConfig.alwaysAllow),
+  });
+
   const agent = new AgentLoop({
     system: buildSystemPrompt(CWD),
     provider,
     tools,
     cwd: CWD,
+    getPolicyState,
+    onAllowSession: (toolName) => {
+      sessionAllowed.add(toolName);
+    },
+    onAllowPersist: (toolName) => {
+      if (!permConfig.alwaysAllow.includes(toolName)) {
+        permConfig = {
+          ...permConfig,
+          alwaysAllow: [...permConfig.alwaysAllow, toolName],
+        };
+        savePermissions(permConfig);
+      }
+    },
   });
 
   const skills = loadSkills();
@@ -118,6 +150,14 @@ export async function startRepl(): Promise<void> {
         `${tools.list().length} tools · ${skills.length} skills · ${subAgents.length} agents · ${mcpServers.length} MCP`,
       ),
   );
+  // Warning explicite si mode bypass (visible dès le démarrage).
+  const modeDisplay =
+    permConfig.mode === "bypass"
+      ? log.danger("⚠ " + permConfig.mode)
+      : permConfig.mode === "plan"
+        ? log.accentSoft(permConfig.mode)
+        : log.ink(permConfig.mode);
+  console.log("  " + log.kicker("mode") + "      " + modeDisplay);
   console.log();
   if (!currentCreds) {
     console.log(
@@ -183,6 +223,35 @@ export async function startRepl(): Promise<void> {
     },
   };
 
+  const permissions = {
+    getMode: () => permConfig.mode,
+    setMode: (mode: PermissionMode, persist = true) => {
+      permConfig = { ...permConfig, mode };
+      if (persist) savePermissions(permConfig);
+    },
+    getAlwaysAllow: () => [...permConfig.alwaysAllow],
+    addAlwaysAllow: (toolName: string) => {
+      if (!permConfig.alwaysAllow.includes(toolName)) {
+        permConfig = {
+          ...permConfig,
+          alwaysAllow: [...permConfig.alwaysAllow, toolName],
+        };
+        savePermissions(permConfig);
+      }
+    },
+    removeAlwaysAllow: (toolName: string) => {
+      permConfig = {
+        ...permConfig,
+        alwaysAllow: permConfig.alwaysAllow.filter((t) => t !== toolName),
+      };
+      savePermissions(permConfig);
+    },
+    getSessionAllowed: () => [...sessionAllowed],
+    clearSessionAllowed: () => {
+      sessionAllowed.clear();
+    },
+  };
+
   rl.prompt();
   for await (const line of rl) {
     const input = line.trim();
@@ -200,6 +269,7 @@ export async function startRepl(): Promise<void> {
           subAgents,
           mcpServers,
           auth,
+          permissions,
           exit,
         });
       } else {

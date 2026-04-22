@@ -8,6 +8,9 @@ import { extractText } from "./provider.js";
 import type { ToolRegistry } from "../tools/registry.js";
 import type { ToolContext } from "../tools/types.js";
 import { log, formatQuotaStatus, formatTurnStatus } from "../utils/logger.js";
+import type { PolicyState } from "../permissions/policy.js";
+import { decide } from "../permissions/policy.js";
+import { askPermission, logDenied } from "../permissions/prompt.js";
 
 export interface AgentOptions {
   system: string;
@@ -15,6 +18,12 @@ export interface AgentOptions {
   tools: ToolRegistry;
   cwd: string;
   maxIterations?: number;
+  // Accesseur live vers l'état des permissions — recalculé à chaque tool call
+  // pour que /permissions mode ... prenne effet immédiatement.
+  getPolicyState?: () => PolicyState;
+  // Callbacks pour que le REPL persiste les décisions "always session/persist".
+  onAllowSession?: (toolName: string) => void;
+  onAllowPersist?: (toolName: string) => void;
   onToolUse?: (name: string, input: Record<string, unknown>) => void;
   onToolResult?: (name: string, output: string) => void;
 }
@@ -135,6 +144,47 @@ export class AgentLoop {
       for (const block of response.content) {
         if (block.type !== "tool_use") continue;
         this.stats.toolCalls += 1;
+
+        // Gate permissions AVANT d'appeler tools.run.
+        const policy = this.opts.getPolicyState?.();
+        if (policy) {
+          const d = decide(policy, block.name);
+          if (d === "deny") {
+            logDenied(
+              block.name,
+              policy.mode === "plan"
+                ? "mode plan (read-only)"
+                : "refusé par règle",
+            );
+            toolResults.push({
+              type: "tool_result",
+              tool_use_id: block.id,
+              content: `Tool ${block.name} refusé par la politique de permissions (mode ${policy.mode}).`,
+              is_error: true,
+            });
+            continue;
+          }
+          if (d === "ask") {
+            const decision = await askPermission(block.name, block.input);
+            if (decision === "deny") {
+              logDenied(block.name, "refusé par l'utilisateur");
+              toolResults.push({
+                type: "tool_result",
+                tool_use_id: block.id,
+                content: `L'utilisateur a refusé l'exécution de ${block.name}. Propose une alternative ou demande comment procéder.`,
+                is_error: true,
+              });
+              continue;
+            }
+            if (decision === "allow-session") {
+              this.opts.onAllowSession?.(block.name);
+            }
+            if (decision === "allow-persist") {
+              this.opts.onAllowPersist?.(block.name);
+            }
+          }
+        }
+
         this.opts.onToolUse?.(block.name, block.input);
         log.tool(block.name, JSON.stringify(block.input).slice(0, 120));
         try {
