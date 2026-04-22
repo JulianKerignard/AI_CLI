@@ -237,6 +237,18 @@ export const log = {
     console.log("  " + line);
     console.log(ATH.inkFaint("─".repeat(width)));
   },
+  // Ligne one-shot de "waiting X for Mistral quota", effacée dès que la req
+  // part. Utilise \r pour rester sur la même ligne (updated au fil du tick).
+  // Quand `msg` est vide → efface la ligne (end of wait).
+  waitingStatus: (msg: string) => {
+    const out = process.stdout;
+    if (!out.isTTY) return;
+    if (msg === "") {
+      out.write("\r\x1b[2K");
+      return;
+    }
+    out.write(`\r\x1b[2K${msg}`);
+  },
   // Mini séparateur entre blocs (ex: après /help, avant une nouvelle section).
   rule: () => console.log(ATH.inkFaint("─".repeat(40))),
   // Kicker micro-typo en couleur (sans règle), pour une section inline.

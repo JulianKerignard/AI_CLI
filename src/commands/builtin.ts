@@ -77,9 +77,94 @@ export function builtinCommands(allCommands: () => SlashCommand[]): SlashCommand
     },
     {
       name: "usage",
-      description: "Affiche tokens session + quota restant.",
-      async run({ agent }) {
+      description:
+        "Affiche tokens session + quota. /usage detail → 20 derniers appels détaillés depuis le serveur.",
+      async run({ agent, auth }, args) {
         try {
+          // Sous-commande `/usage detail` → GET /api/profile/api-keys/usage
+          if (args.trim() === "detail") {
+            const creds = auth.getCredentials();
+            if (!creds) {
+              log.error("Non connecté. Tape /login pour te connecter.");
+              return;
+            }
+            log.banner("Derniers appels API");
+            const res = await fetch(
+              `${creds.baseUrl}/profile/api-keys/usage?recent=20`,
+              {
+                headers: { "x-api-key": creds.token },
+              },
+            );
+            if (!res.ok) {
+              log.error(
+                `Impossible de récupérer l'historique (HTTP ${res.status}).`,
+              );
+              return;
+            }
+            const data = (await res.json()) as {
+              usage: Array<{
+                id: string;
+                model: string;
+                weight: number;
+                inputTokens: number | null;
+                outputTokens: number | null;
+                latencyMs: number | null;
+                cacheHit: boolean;
+                createdAt: string;
+              }>;
+            };
+            if (data.usage.length === 0) {
+              log.faint("  (aucun appel encore enregistré)");
+              console.log();
+              return;
+            }
+            // Header
+            console.log(
+              "  " +
+                log.inkMuted.bold("TIME".padEnd(8)) +
+                "  " +
+                log.inkMuted.bold("MODEL".padEnd(22)) +
+                "  " +
+                log.inkMuted.bold("IN".padStart(6)) +
+                "  " +
+                log.inkMuted.bold("OUT".padStart(6)) +
+                "  " +
+                log.inkMuted.bold("MS".padStart(6)) +
+                "  " +
+                log.inkMuted.bold("W"),
+            );
+            for (const r of data.usage) {
+              const t = new Date(r.createdAt);
+              const hh = String(t.getHours()).padStart(2, "0");
+              const mm = String(t.getMinutes()).padStart(2, "0");
+              const ss = String(t.getSeconds()).padStart(2, "0");
+              const time = `${hh}:${mm}:${ss}`;
+              const inT = r.inputTokens?.toString() ?? "—";
+              const outT = r.outputTokens?.toString() ?? "—";
+              const lat = r.latencyMs?.toString() ?? "—";
+              const cacheMark = r.cacheHit ? log.accentSoft("⚡") : " ";
+              console.log(
+                "  " +
+                  log.inkMuted(time.padEnd(8)) +
+                  "  " +
+                  log.accent(r.model.padEnd(22)) +
+                  "  " +
+                  log.ink(inT.padStart(6)) +
+                  "  " +
+                  log.ink(outT.padStart(6)) +
+                  "  " +
+                  log.inkMuted(lat.padStart(6)) +
+                  "  " +
+                  log.accentSoft(String(r.weight)) +
+                  " " +
+                  cacheMark,
+              );
+            }
+            console.log();
+            return;
+          }
+
+          // Sinon, affichage session + quota standard.
           const stats = agent.getStats();
           log.banner("Usage");
           if (stats.turns === 0 && !stats.lastQuota) {
@@ -87,6 +172,7 @@ export function builtinCommands(allCommands: () => SlashCommand[]): SlashCommand
               "  Aucune requête cette session. Envoie un message pour",
             );
             log.faint("  récupérer ton quota depuis le serveur.");
+            log.faint("  /usage detail → historique persistant serveur.");
             console.log();
             return;
           }
@@ -106,6 +192,35 @@ export function builtinCommands(allCommands: () => SlashCommand[]): SlashCommand
       async run(ctx) {
         const usageCmd = allCommands().find((c) => c.name === "usage");
         if (usageCmd) await usageCmd.run(ctx, "");
+      },
+    },
+    {
+      name: "compact",
+      description:
+        "Force un résumé auto de l'historique agent (utile si session longue).",
+      async run({ agent }) {
+        const { compactMessages } = await import("../agent/compactor.js");
+        try {
+          const before = agent.messages.length;
+          const done = await compactMessages(
+            agent.messages,
+            agent.provider,
+            // Accès indirect au system — on ne l'exposed pas, compact suffit
+            // à s'en passer si forcé (prompt de compaction est self-contained).
+            "",
+          );
+          if (done) {
+            log.info(
+              `Historique compacté : ${before} → ${agent.messages.length} messages.`,
+            );
+          } else {
+            log.info("Rien à compacter (historique trop court ou disabled).");
+          }
+        } catch (err) {
+          log.error(
+            `Compaction échouée : ${err instanceof Error ? err.message : err}`,
+          );
+        }
       },
     },
     {

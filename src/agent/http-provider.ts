@@ -8,11 +8,51 @@ import type {
   TextBlock,
   ToolUseBlock,
 } from "./provider.js";
+import { RateLimiter } from "../lib/rate-limiter.js";
+import { log, chalk } from "../utils/logger.js";
 
 interface Opts {
   token: string;
   baseUrl: string; // ex: https://chat.juliankerignard.fr/api (sans /v1)
   model: string;
+}
+
+// Rate limiter singleton côté CLI : 3 req/min (marge 25% sous le plafond
+// Mistral free 4/min). Partagé entre tous les HttpProviders (même si on
+// hot-swap sur /login, le bucket reste).
+const SHARED_LIMITER = new RateLimiter({
+  capacity: 3,
+  windowMs: 60_000,
+});
+
+export function getSharedLimiter(): RateLimiter {
+  return SHARED_LIMITER;
+}
+
+// Attend la prochaine slot libre en affichant un countdown "⏳ waiting Xs" en
+// place. Ne fait rien si la slot est immédiatement dispo.
+async function waitWithStatus(): Promise<void> {
+  const initial = SHARED_LIMITER.waitFor();
+  if (initial === 0) {
+    SHARED_LIMITER.record();
+    return;
+  }
+  const start = Date.now();
+  const end = start + initial;
+  // Tick 500ms jusqu'à expiration.
+  while (Date.now() < end) {
+    const remainingMs = Math.max(0, end - Date.now());
+    const sec = Math.ceil(remainingMs / 1000);
+    log.waitingStatus(
+      chalk.hex("#ec9470")("⏳ ") +
+        chalk.hex("#bdb3a1")(
+          `waiting ${sec}s for Mistral quota (bucket ${SHARED_LIMITER.snapshot().used}/${SHARED_LIMITER.snapshot().capacity})…`,
+        ),
+    );
+    await new Promise((r) => setTimeout(r, 500));
+  }
+  log.waitingStatus("");
+  SHARED_LIMITER.record();
 }
 
 // Provider HTTP qui parle Anthropic Messages API. Cible : endpoint Chat-Mistral
@@ -48,13 +88,17 @@ export class HttpProvider implements Provider {
       stream: true,
     };
 
-    // Retry avec backoff exponentiel sur 429 (rate limit Mistral : 4 req/min
-     // sur le free plan). Le parent AgentLoop enchaîne souvent plusieurs turns
-     // tool_use rapprochés qui saturent la limite.
-    const maxAttempts = 4;
+    // Rate limiter + retry combinés. Le limiter empêche proactivement les
+    // 429 (attente avant d'émettre). Si un 429 arrive quand même (d'autres
+    // clients sur la même key, rate limit serveur côté scope), on honore
+    // Retry-After + on passe le bucket en mode cold.
+    const maxAttempts = 3;
     let res: Response | undefined;
     let lastErrText = "";
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      // Attente bucket avec affichage live countdown dans le status bar.
+      await waitWithStatus();
+
       res = await fetch(`${this.opts.baseUrl}/v1/messages`, {
         method: "POST",
         headers: {
@@ -70,9 +114,20 @@ export class HttpProvider implements Provider {
       lastErrText = await res.text().catch(() => "");
 
       if (res.status === 429 && attempt < maxAttempts - 1) {
-        // Backoff : 4s → 8s → 16s (laisse la fenêtre 1 min Mistral se réinitialiser).
-        const waitMs = 4000 * 2 ** attempt;
-        await new Promise((r) => setTimeout(r, waitMs));
+        // Honor Retry-After (seconds) si header présent, sinon backoff fixe.
+        const retryAfterHeader = res.headers.get("retry-after");
+        const retryAfterMs = retryAfterHeader
+          ? Math.min(Number(retryAfterHeader) * 1000, 60_000)
+          : 8_000 * 2 ** attempt;
+        SHARED_LIMITER.markCold(retryAfterMs);
+        log.waitingStatus(
+          chalk.hex("#ec9470")("⚠ ") +
+            chalk.hex("#bdb3a1")(
+              `429 reçu — attente ${Math.ceil(retryAfterMs / 1000)}s avant retry (${attempt + 1}/${maxAttempts})…`,
+            ),
+        );
+        await new Promise((r) => setTimeout(r, retryAfterMs));
+        log.waitingStatus("");
         continue;
       }
       throw new Error(

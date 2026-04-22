@@ -5,7 +5,9 @@ import type { Tool } from "./types.js";
 // Grep : wrapper ripgrep si dispo (très rapide), fallback implémentation maison.
 // Modes output : files_with_matches (défaut) | content | count.
 
-const MAX_OUTPUT_BYTES = 100_000;
+// 25k bytes ≈ 6k tokens — un grep qui dépasse demande à l'agent d'affiner.
+// Avant : 100k = 25% d'une fenêtre 128k consommée en 1 tool call.
+const MAX_OUTPUT_BYTES = 25_000;
 
 export const grepTool: Tool = {
   name: "Grep",
@@ -54,7 +56,7 @@ export const grepTool: Tool = {
     const outputMode = String(input.output_mode ?? "files_with_matches");
     const caseInsensitive = Boolean(input.case_insensitive ?? false);
     const contextLines = toNumber(input.context);
-    const headLimit = toNumber(input.head_limit) ?? 100;
+    const headLimit = toNumber(input.head_limit) ?? 50;
 
     // Essaie ripgrep d'abord (rapide, respecte .gitignore).
     const rgArgs: string[] = [];

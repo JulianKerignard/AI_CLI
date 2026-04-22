@@ -11,6 +11,7 @@ import { log, formatQuotaStatus, formatTurnStatus } from "../utils/logger.js";
 import type { PolicyState } from "../permissions/policy.js";
 import { decide } from "../permissions/policy.js";
 import { askPermission, logDenied } from "../permissions/prompt.js";
+import { compactMessages } from "./compactor.js";
 
 export interface AgentOptions {
   system: string;
@@ -105,6 +106,17 @@ export class AgentLoop {
     let lastQuota: ProviderQuota | undefined;
 
     for (let i = 0; i < this.opts.maxIterations; i++) {
+      // Compaction auto avant chaque tour : si l'historique dépasse les
+      // seuils (30 msgs ou 60k tokens estimés), résumé les N premiers messages
+      // via 1 appel LLM. Préserve les tool_use_id ↔ tool_result pending.
+      try {
+        await compactMessages(this.messages, this.opts.provider, this.opts.system);
+      } catch (err) {
+        log.warn(
+          `[compact] erreur ignorée : ${err instanceof Error ? err.message : err}`,
+        );
+      }
+
       // Streaming : on imprime le prefix assistant "●" + les text deltas en
       // live. À la fin du stream, newline pour que le status bar / tool calls
       // suivants commencent sur une ligne propre.

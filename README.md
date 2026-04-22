@@ -124,6 +124,36 @@ Copie `.aicli/mcp.json.example` → `.aicli/mcp.json` et adapte. Les outils sero
 
 Le `HttpProvider` (`src/agent/http-provider.ts`) parle le format Anthropic Messages API (`POST /v1/messages`). Pour cibler un autre endpoint (Claude officiel, proxy maison, etc.), set `AICLI_BASE_URL` et `AICLI_AUTH_TOKEN` — le CLI s'en sert directement sans repasser par le flow `/login`.
 
+## Rate limit Mistral et optimisations
+
+Le plan gratuit Mistral = **4 requêtes/minute**. Un agent qui enchaîne plusieurs tool_use sature vite. AI_CLI inclut plusieurs protections :
+
+| Mécanisme | Effet |
+|---|---|
+| **Rate limiter client** | Token bucket sliding 60s, cap 3 req/min (marge 25%). Affiche `⏳ waiting Xs` au lieu de 429. |
+| **Compaction auto** | À >30 messages ou >60k tokens estimés, résumé les plus anciens via 1 appel LLM. `/compact` force manuellement. |
+| **Honor Retry-After** | Sur 429, backoff basé sur le header serveur et bucket en mode "cold" 5 min. |
+| **Cache serveur** | Réponses identiques (même system+messages+tools) mises en cache 5 min côté `/api/v1/messages`. |
+| **parallel_tool_calls** | Mistral émet plusieurs tool_use dans une seule réponse quand possible. |
+| **Caps outputs tools** | Bash stdout/stderr capés à 32k chars (tail), Grep à 25k bytes — évite de gonfler l'historique. |
+
+Si le rate limit reste bloquant même avec tout ça : **upgrade Mistral vers un plan payant** (~$25/mois passe à ~60 RPM). Voir https://mistral.ai/pricing.
+
+### Commandes utiles
+
+```
+/usage           tokens + quota session
+/usage detail    20 derniers appels API (historique serveur)
+/compact         force un résumé de l'historique
+```
+
+### Variables d'environnement (extra)
+
+| Variable | Rôle |
+|---|---|
+| `AICLI_COMPACT_THRESHOLD` | Mettre à `0` pour désactiver la compaction auto |
+| `AICLI_DEBUG` | `1` → affiche les stacks sur erreurs non-fatales |
+
 ## Licence
 
 MIT
