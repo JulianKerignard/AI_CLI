@@ -149,13 +149,11 @@ export async function startRepl(): Promise<void> {
 
   const commands = new CommandRegistry();
 
-  // CRITICAL : init scroll region AVANT le banner pour que le banner tombe
-  // dans la région [1, rows-4] et n'écrase pas les 4 rows status réservées.
+  // initStatusBar enregistre les handlers SIGINT/SIGTERM — OK d'appeler
+  // avant le banner. Mais on DIFFÈRE updateStatus (qui déclenche le premier
+  // render) jusqu'APRÈS le banner, sinon le status s'imprime en haut puis
+  // le banner passe par-dessus et on voit le status deux fois.
   initStatusBar();
-  updateStatus({
-    provider: provider.name,
-    phase: currentCreds ? "idle" : "offline",
-  });
 
   log.banner("AI_CLI v0.1.0");
   console.log(
@@ -205,6 +203,13 @@ export async function startRepl(): Promise<void> {
       log.inkMuted(" pour quitter"),
   );
   console.log();
+
+  // Premier render du status APRÈS le banner pour qu'il s'affiche en bas
+  // (et pas en double : une fois avant, une fois après).
+  updateStatus({
+    provider: provider.name,
+    phase: currentCreds ? "idle" : "offline",
+  });
 
   // Tab completion pour les slash commands + sous-commandes connues.
   // - `/` + Tab → liste toutes les commandes
