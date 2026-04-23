@@ -60,7 +60,11 @@ export class AgentLoop {
   };
 
   constructor(opts: AgentOptions) {
-    this.opts = { ...opts, maxIterations: opts.maxIterations ?? 8 };
+    // Default 25 (aligné Claude Code) pour laisser les tâches multi-étapes aboutir.
+    // Overridable via AICLI_MAX_ITERATIONS pour les power users.
+    const envLimit = Number(process.env.AICLI_MAX_ITERATIONS);
+    const defaultLimit = Number.isFinite(envLimit) && envLimit > 0 ? envLimit : 25;
+    this.opts = { ...opts, maxIterations: opts.maxIterations ?? defaultLimit };
   }
 
   getStats(): SessionStats {
@@ -324,7 +328,10 @@ export class AgentLoop {
       this.opts.onRecord?.("tool_result", toolResults);
     }
 
-    log.warn(`Boucle agent: limite d'itérations (${this.opts.maxIterations}) atteinte.`);
+    log.warn(
+      `Boucle agent: limite d'itérations (${this.opts.maxIterations}) atteinte. ` +
+        `Tape \`continue\` pour reprendre ou set AICLI_MAX_ITERATIONS=50 pour augmenter la limite.`,
+    );
     this.stats.inputTokens += turnInputTokens;
     this.stats.outputTokens += turnOutputTokens;
     this.stats.turns += 1;

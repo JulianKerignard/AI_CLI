@@ -33,7 +33,7 @@ export async function runSubAgent(opts: RunSubAgentOpts): Promise<string> {
     provider: opts.provider,
     tools: childRegistry,
     cwd: opts.cwd,
-    maxIterations: 6,
+    maxIterations: 15,
   });
 
   const result = await loop.send(opts.prompt);
