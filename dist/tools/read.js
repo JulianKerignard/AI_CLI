@@ -24,7 +24,7 @@ export const readTool = {
             throw new Error("Read: 'path' manquant");
         const abs = isAbsolute(raw) ? raw : resolve(ctx.cwd, raw);
         const content = await readFile(abs, "utf8");
-        const lines = content.split("\n");
+        const lines = content.split(/\r?\n/);
         const numbered = lines
             .slice(0, 2000)
             .map((l, i) => `${String(i + 1).padStart(5)}\t${l}`)

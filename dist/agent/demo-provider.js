@@ -48,7 +48,7 @@ export class DemoProvider {
         }
         if (toolNames.has("Bash") && has("exécute", "execute", "run ", "lance ", "ls", "pwd")) {
             const match = userText.match(/`([^`]+)`/);
-            const command = match?.[1] ?? "ls";
+            const command = match?.[1] ?? (process.platform === "win32" ? "dir" : "ls");
             return {
                 content: [
                     { type: "text", text: `J'exécute \`${command}\`.` },

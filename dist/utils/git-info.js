@@ -54,7 +54,11 @@ export function getGitInfo(cwd) {
             cwd: info.repoRoot,
             timeout: 500,
             encoding: "utf8",
+            stdio: ["ignore", "pipe", "pipe"],
         });
+        if (proc.error) {
+            return info;
+        }
         if (proc.status === 0 && proc.stdout) {
             const lines = proc.stdout.trim().split("\n").filter(Boolean);
             for (const l of lines) {

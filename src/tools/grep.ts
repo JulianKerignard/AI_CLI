@@ -210,7 +210,7 @@ async function fallbackGrep(opts: FallbackOpts): Promise<string> {
     } catch {
       continue;
     }
-    const lines = content.split("\n");
+    const lines = content.split(/\r?\n/);
     let fileMatches = 0;
     for (let i = 0; i < lines.length; i++) {
       if (regex.test(lines[i])) {

@@ -277,13 +277,16 @@ export function builtinCommands(allCommands) {
                     log.info(`Tape ${chalk.hex("#e27649").bold("/update apply")} pour installer.`);
                     return;
                 }
-                // /update apply → lance npm install -g github:...
+                // /update apply → lance npm install -g depuis registry npm
                 log.info("Installation de la dernière version…");
                 const { spawn } = await import("node:child_process");
+                // Sur Windows, npm est un .cmd → shell:true requis pour que spawn le trouve
+                const npmCmd = process.platform === "win32" ? "npm.cmd" : "npm";
                 await new Promise((resolve) => {
-                    const child = spawn("npm", ["install", "-g", "github:JulianKerignard/AI_CLI"], {
+                    const child = spawn(npmCmd, ["install", "-g", "@juliank./aicli@latest"], {
                         stdio: "inherit",
                         env: process.env,
+                        shell: process.platform === "win32",
                     });
                     child.on("close", (code) => {
                         if (code === 0) {

@@ -1,4 +1,5 @@
 import { EventEmitter } from "node:events";
+import { sep } from "node:path";
 import { chalk } from "./logger.js";
 import { getGitInfo } from "./git-info.js";
 import {
@@ -147,9 +148,9 @@ function renderBar(
 function shortCwd(cwd: string): string {
   const max = 35;
   if (cwd.length <= max) return cwd;
-  const parts = cwd.split("/").filter(Boolean);
-  if (parts.length <= 2) return ".../" + parts.slice(-2).join("/");
-  return ".../" + parts.slice(-2).join("/");
+  const parts = cwd.split(sep).filter(Boolean);
+  if (parts.length <= 2) return "..." + sep + parts.slice(-2).join(sep);
+  return "..." + sep + parts.slice(-2).join(sep);
 }
 
 function formatResetShort(iso: string): string {

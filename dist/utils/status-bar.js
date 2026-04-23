@@ -1,4 +1,5 @@
 import { EventEmitter } from "node:events";
+import { sep } from "node:path";
 import { chalk } from "./logger.js";
 import { getGitInfo } from "./git-info.js";
 import { cleanProvider as sharedCleanProvider, contextWindowFor as sharedContextWindowFor, } from "../lib/context-window.js";
@@ -77,10 +78,10 @@ function shortCwd(cwd) {
     const max = 35;
     if (cwd.length <= max)
         return cwd;
-    const parts = cwd.split("/").filter(Boolean);
+    const parts = cwd.split(sep).filter(Boolean);
     if (parts.length <= 2)
-        return ".../" + parts.slice(-2).join("/");
-    return ".../" + parts.slice(-2).join("/");
+        return "..." + sep + parts.slice(-2).join(sep);
+    return "..." + sep + parts.slice(-2).join(sep);
 }
 function formatResetShort(iso) {
     const ts = Date.parse(iso);
