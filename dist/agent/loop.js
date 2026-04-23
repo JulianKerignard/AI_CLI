@@ -111,17 +111,54 @@ export class AgentLoop {
                 streamStarted = true;
                 updateStatus({ phase: "streaming" });
             };
-            const response = await this.opts.provider.chat({
-                system: this.opts.system,
-                messages: this.messages,
-                tools: this.opts.tools.list(),
-                onTextDelta: (delta) => {
-                    startStream();
-                    historyStore.appendAssistantDelta(delta);
-                    streamedChars += delta.length;
-                    updateStatus({ tokensOut: Math.ceil(streamedChars / 4) });
-                },
-            });
+            // Wrapper retry-on-upstream-error : si le provider throw un 429
+            // déguisé (stream coupé mid-way, "terminated"), on pause avec
+            // "waiting quota" + retry automatique au lieu de montrer l'erreur.
+            const callProviderWithRetry = async () => {
+                const MAX_RETRIES = 3;
+                for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+                    try {
+                        return await this.opts.provider.chat({
+                            system: this.opts.system,
+                            messages: this.messages,
+                            tools: this.opts.tools.list(),
+                            onTextDelta: (delta) => {
+                                startStream();
+                                historyStore.appendAssistantDelta(delta);
+                                streamedChars += delta.length;
+                                updateStatus({ tokensOut: Math.ceil(streamedChars / 4) });
+                            },
+                        });
+                    }
+                    catch (err) {
+                        const msg = err instanceof Error ? err.message : String(err);
+                        const isRetryable = /rate limit|quota|interrompu|terminated|upstream|500|502|503|504/i.test(msg) && attempt < MAX_RETRIES - 1;
+                        if (!isRetryable)
+                            throw err;
+                        // Pause progressive 15s → 30s → 60s avec countdown.
+                        const waitMs = 15_000 * (attempt + 1);
+                        updateStatus({
+                            phase: "waiting-quota",
+                            waitingMsRemaining: waitMs,
+                            toolName: `retry ${attempt + 1}/${MAX_RETRIES}`,
+                        });
+                        const end = Date.now() + waitMs;
+                        while (Date.now() < end) {
+                            updateStatus({
+                                waitingMsRemaining: Math.max(0, end - Date.now()),
+                            });
+                            await new Promise((r) => setTimeout(r, 500));
+                        }
+                        updateStatus({
+                            phase: "loading",
+                            waitingMsRemaining: undefined,
+                            toolName: undefined,
+                        });
+                    }
+                }
+                throw new Error("Max retries atteint");
+            };
+            const response = await callProviderWithRetry();
             // Fin du stream : fige l'item assistant dans l'historique statique.
             if (streamStarted) {
                 historyStore.endAssistant();

@@ -213,8 +213,19 @@ export class HttpProvider implements Provider {
     let buf = "";
     const reader = res.body.getReader();
 
+    // Capture les erreurs mid-stream (undici "terminated" quand upstream coupe
+    // la connexion, ex: Mistral 429 pendant le reasoning magistral). Si on a
+    // déjà accumulé du text → return partial. Sinon throw retryable.
+    let streamError: Error | null = null;
     while (true) {
-      const { value, done } = await reader.read();
+      let readResult;
+      try {
+        readResult = await reader.read();
+      } catch (err) {
+        streamError = err instanceof Error ? err : new Error(String(err));
+        break;
+      }
+      const { value, done } = readResult;
       if (done) break;
       buf += decoder.decode(value, { stream: true });
 
@@ -352,6 +363,19 @@ export class HttpProvider implements Provider {
         // force dès qu'on a un tool_use dans le content.
         stopReason = "tool_use";
       }
+    }
+
+    // Stream coupé mid-way (upstream 429 déguisé, timeout réseau, etc.).
+    // Si on a du contenu utile, on le return et laisse l'agent loop gérer.
+    // Sinon throw une erreur "retryable" que loop.ts catche pour retry.
+    if (streamError && content.length === 0) {
+      const msg = streamError.message || "upstream connection interrupted";
+      const err = new Error(
+        `Stream upstream interrompu (${msg}). Probablement un rate limit provider — réessaie dans 30s.`,
+      );
+      // Marque le bucket en cold pour que le prochain retry attende.
+      limiter.markCold(30_000);
+      throw err;
     }
 
     const quota = parseQuotaHeaders(res.headers);
