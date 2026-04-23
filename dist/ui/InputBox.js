@@ -1,7 +1,10 @@
-import { jsxs as _jsxs, jsx as _jsx } from "react/jsx-runtime";
+import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
 import { useState, useCallback, useMemo } from "react";
 import { Box, Text, useInput } from "ink";
 import { colors as c } from "./theme.js";
+import { getSlashCommands } from "./slash-store.js";
+// Max lignes visibles dans le popup autocomplete /slash
+const MAX_SLASH_ROWS = 8;
 // Saisie avec bordure (style Claude Code). Features :
 // - Multi-ligne : `\`+Enter insère un \n, Enter seul submit
 // - Paste multi-ligne : les \n dans l'input sont insérés tels quels
@@ -68,6 +71,30 @@ export function InputBox({ disabled, onSubmit, onInterrupt, placeholder, history
     // history.snapshot(). draft = snapshot du value au 1er ↑.
     const [historyIdx, setHistoryIdx] = useState(null);
     const [draft, setDraft] = useState("");
+    // Slash autocomplete : index de la commande sélectionnée dans le popup.
+    const [slashIdx, setSlashIdx] = useState(0);
+    // Popup slash actif : value commence par "/" sans espace ni newline
+    // (= on tape le nom de commande). Filtre les commandes par préfixe.
+    const slashMatches = useMemo(() => {
+        if (!value.startsWith("/"))
+            return [];
+        const rest = value.slice(1);
+        if (rest.includes(" ") || rest.includes("\n"))
+            return [];
+        const q = rest.toLowerCase();
+        const all = getSlashCommands();
+        const matches = all.filter((cmd) => cmd.name.toLowerCase().startsWith(q));
+        // Fallback : si aucun match exact, essaie "contains" (tolère les typos).
+        if (matches.length === 0 && q.length > 0) {
+            return all.filter((cmd) => cmd.name.toLowerCase().includes(q));
+        }
+        return matches;
+    }, [value]);
+    const slashActive = slashMatches.length > 0;
+    // Clamp slashIdx si la liste raccourcit.
+    const currentSlashIdx = slashActive
+        ? Math.min(slashIdx, slashMatches.length - 1)
+        : 0;
     const exitHistory = useCallback(() => {
         if (historyIdx !== null) {
             setHistoryIdx(null);
@@ -90,6 +117,26 @@ export function InputBox({ disabled, onSubmit, onInterrupt, placeholder, history
         if (key.ctrl && input === "c") {
             onInterrupt();
             return;
+        }
+        // Slash autocomplete : Tab complète le nom, Enter si match exact = submit,
+        // sinon complète aussi. Esc ferme le popup.
+        if (slashActive) {
+            const picked = slashMatches[currentSlashIdx];
+            if (key.tab || (key.return && picked && `/${picked.name}` !== value)) {
+                // Autocomplete : remplace value par "/<name> " (espace final pour args).
+                const completed = `/${picked.name} `;
+                setValue(completed);
+                setCursor(completed.length);
+                setSlashIdx(0);
+                return;
+            }
+            if (key.escape) {
+                // Ferme le popup sans vider value (user peut continuer à taper).
+                // On ajoute juste un espace pour sortir de la condition slashActive.
+                setValue(value + " ");
+                setCursor(cursor + 1);
+                return;
+            }
         }
         // Enter : soit newline (si trailing `\`), soit submit.
         if (key.return) {
@@ -129,8 +176,12 @@ export function InputBox({ disabled, onSubmit, onInterrupt, placeholder, history
             setCursor(Math.min(value.length, cursor + 1));
             return;
         }
-        // ↑ : en multi-ligne, delegate vertical move si possible ; sinon history.prev
+        // ↑ : si popup slash actif, navigue dedans. Sinon multi-ligne ou history.
         if (key.upArrow) {
+            if (slashActive) {
+                setSlashIdx((i) => (i - 1 + slashMatches.length) % slashMatches.length);
+                return;
+            }
             const { row } = cursorRowCol(value, cursor);
             if (row > 0) {
                 const next = moveCursorVertical(value, cursor, -1);
@@ -152,8 +203,12 @@ export function InputBox({ disabled, onSubmit, onInterrupt, placeholder, history
             }
             return;
         }
-        // ↓ : en multi-ligne, delegate vertical down ; sinon history.next
+        // ↓ : si popup slash actif, navigue dedans. Sinon multi-ligne ou history.
         if (key.downArrow) {
+            if (slashActive) {
+                setSlashIdx((i) => (i + 1) % slashMatches.length);
+                return;
+            }
             const { row } = cursorRowCol(value, cursor);
             const total = lineCount(value);
             if (row < total - 1) {
@@ -224,5 +279,23 @@ export function InputBox({ disabled, onSubmit, onInterrupt, placeholder, history
         });
     }, [value, cursor]);
     const showPlaceholder = value.length === 0 && placeholder;
-    return (_jsx(Box, { borderStyle: "round", borderColor: disabled ? c.borderDim : c.border, paddingX: 1, flexDirection: "column", children: disabled ? (_jsxs(Box, { flexDirection: "row", children: [_jsxs(Text, { color: c.inkFaint, children: ["\u203A", "  "] }), _jsx(Text, { color: c.inkFaint, children: "\u2026en cours \u2014 attend la fin de g\u00E9n\u00E9ration" })] })) : showPlaceholder ? (_jsxs(Box, { flexDirection: "row", children: [_jsxs(Text, { color: c.accent, children: ["\u203A", "  "] }), _jsx(Text, { color: c.inkFaint, children: placeholder })] })) : (rendered.map((line, i) => (_jsxs(Box, { flexDirection: "row", children: [_jsx(Text, { color: c.accent, children: i === 0 ? "›  " : "   " }), line.caretCol < 0 ? (_jsx(Text, { children: line.text || " " })) : (_jsxs(Text, { children: [line.text.slice(0, line.caretCol), _jsx(Text, { inverse: true, children: line.text.slice(line.caretCol, line.caretCol + 1) || " " }), line.text.slice(line.caretCol + 1)] }))] }, i)))) }));
+    // Popup slash : affiche les commandes matchées au-dessus de l'input.
+    // Fenêtre scrollable centrée sur currentSlashIdx si plus de MAX_SLASH_ROWS.
+    const slashWindow = useMemo(() => {
+        if (!slashActive)
+            return [];
+        if (slashMatches.length <= MAX_SLASH_ROWS)
+            return slashMatches;
+        const half = Math.floor(MAX_SLASH_ROWS / 2);
+        const first = Math.max(0, Math.min(currentSlashIdx - half, slashMatches.length - MAX_SLASH_ROWS));
+        return slashMatches.slice(first, first + MAX_SLASH_ROWS);
+    }, [slashMatches, currentSlashIdx, slashActive]);
+    const slashWindowStart = slashActive
+        ? Math.max(0, Math.min(currentSlashIdx - Math.floor(MAX_SLASH_ROWS / 2), Math.max(0, slashMatches.length - MAX_SLASH_ROWS)))
+        : 0;
+    return (_jsxs(Box, { flexDirection: "column", children: [slashActive && (_jsxs(Box, { borderStyle: "round", borderColor: c.borderDim, paddingX: 1, flexDirection: "column", marginBottom: 0, children: [slashWindow.map((cmd, i) => {
+                        const absIdx = slashWindowStart + i;
+                        const active = absIdx === currentSlashIdx;
+                        return (_jsxs(Box, { flexDirection: "row", children: [_jsx(Text, { color: active ? c.accent : c.inkFaint, children: active ? "›" : " " }), _jsxs(Text, { color: active ? c.ink : c.inkMuted, children: [" ", "/", cmd.name.padEnd(16)] }), _jsx(Text, { color: c.inkFaint, children: cmd.description })] }, cmd.name));
+                    }), _jsx(Box, { children: _jsx(Text, { color: c.inkFaint, children: "\u2191\u2193 naviguer \u00B7 Tab/Enter compl\u00E9ter \u00B7 Esc fermer" }) })] })), _jsx(Box, { borderStyle: "round", borderColor: disabled ? c.borderDim : c.border, paddingX: 1, flexDirection: "column", children: disabled ? (_jsxs(Box, { flexDirection: "row", children: [_jsxs(Text, { color: c.inkFaint, children: ["\u203A", "  "] }), _jsx(Text, { color: c.inkFaint, children: "\u2026en cours \u2014 attend la fin de g\u00E9n\u00E9ration" })] })) : showPlaceholder ? (_jsxs(Box, { flexDirection: "row", children: [_jsxs(Text, { color: c.accent, children: ["\u203A", "  "] }), _jsx(Text, { color: c.inkFaint, children: placeholder })] })) : (rendered.map((line, i) => (_jsxs(Box, { flexDirection: "row", children: [_jsx(Text, { color: c.accent, children: i === 0 ? "›  " : "   " }), line.caretCol < 0 ? (_jsx(Text, { children: line.text || " " })) : (_jsxs(Text, { children: [line.text.slice(0, line.caretCol), _jsx(Text, { inverse: true, children: line.text.slice(line.caretCol, line.caretCol + 1) || " " }), line.text.slice(line.caretCol + 1)] }))] }, i)))) })] }));
 }

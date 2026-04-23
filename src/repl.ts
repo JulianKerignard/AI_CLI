@@ -219,6 +219,11 @@ export async function startRepl(): Promise<void> {
   const mcpServers = await loadMcpServers(tools);
 
   const commands = new CommandRegistry();
+  // Expose à l'InputBox pour l'autocomplete slash.
+  const { setSlashCommands } = await import("./ui/slash-store.js");
+  setSlashCommands(
+    commands.list().map((c) => ({ name: c.name, description: c.description })),
+  );
 
   // initStatusBar enregistre les handlers SIGINT/SIGTERM — OK d'appeler
   // avant le banner. Mais on DIFFÈRE updateStatus (qui déclenche le premier

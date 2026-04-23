@@ -2,6 +2,10 @@ import React, { useState, useCallback, useMemo } from "react";
 import { Box, Text, useInput } from "ink";
 import type { InputHistory } from "../utils/history.js";
 import { colors as c } from "./theme.js";
+import { getSlashCommands } from "./slash-store.js";
+
+// Max lignes visibles dans le popup autocomplete /slash
+const MAX_SLASH_ROWS = 8;
 
 // Saisie avec bordure (style Claude Code). Features :
 // - Multi-ligne : `\`+Enter insère un \n, Enter seul submit
@@ -89,6 +93,29 @@ export function InputBox({
   // history.snapshot(). draft = snapshot du value au 1er ↑.
   const [historyIdx, setHistoryIdx] = useState<number | null>(null);
   const [draft, setDraft] = useState("");
+  // Slash autocomplete : index de la commande sélectionnée dans le popup.
+  const [slashIdx, setSlashIdx] = useState(0);
+
+  // Popup slash actif : value commence par "/" sans espace ni newline
+  // (= on tape le nom de commande). Filtre les commandes par préfixe.
+  const slashMatches = useMemo(() => {
+    if (!value.startsWith("/")) return [];
+    const rest = value.slice(1);
+    if (rest.includes(" ") || rest.includes("\n")) return [];
+    const q = rest.toLowerCase();
+    const all = getSlashCommands();
+    const matches = all.filter((cmd) => cmd.name.toLowerCase().startsWith(q));
+    // Fallback : si aucun match exact, essaie "contains" (tolère les typos).
+    if (matches.length === 0 && q.length > 0) {
+      return all.filter((cmd) => cmd.name.toLowerCase().includes(q));
+    }
+    return matches;
+  }, [value]);
+  const slashActive = slashMatches.length > 0;
+  // Clamp slashIdx si la liste raccourcit.
+  const currentSlashIdx = slashActive
+    ? Math.min(slashIdx, slashMatches.length - 1)
+    : 0;
 
   const exitHistory = useCallback(() => {
     if (historyIdx !== null) {
@@ -115,6 +142,27 @@ export function InputBox({
       if (key.ctrl && input === "c") {
         onInterrupt();
         return;
+      }
+
+      // Slash autocomplete : Tab complète le nom, Enter si match exact = submit,
+      // sinon complète aussi. Esc ferme le popup.
+      if (slashActive) {
+        const picked = slashMatches[currentSlashIdx];
+        if (key.tab || (key.return && picked && `/${picked.name}` !== value)) {
+          // Autocomplete : remplace value par "/<name> " (espace final pour args).
+          const completed = `/${picked.name} `;
+          setValue(completed);
+          setCursor(completed.length);
+          setSlashIdx(0);
+          return;
+        }
+        if (key.escape) {
+          // Ferme le popup sans vider value (user peut continuer à taper).
+          // On ajoute juste un espace pour sortir de la condition slashActive.
+          setValue(value + " ");
+          setCursor(cursor + 1);
+          return;
+        }
       }
 
       // Enter : soit newline (si trailing `\`), soit submit.
@@ -159,8 +207,12 @@ export function InputBox({
         return;
       }
 
-      // ↑ : en multi-ligne, delegate vertical move si possible ; sinon history.prev
+      // ↑ : si popup slash actif, navigue dedans. Sinon multi-ligne ou history.
       if (key.upArrow) {
+        if (slashActive) {
+          setSlashIdx((i) => (i - 1 + slashMatches.length) % slashMatches.length);
+          return;
+        }
         const { row } = cursorRowCol(value, cursor);
         if (row > 0) {
           const next = moveCursorVertical(value, cursor, -1);
@@ -181,8 +233,12 @@ export function InputBox({
         return;
       }
 
-      // ↓ : en multi-ligne, delegate vertical down ; sinon history.next
+      // ↓ : si popup slash actif, navigue dedans. Sinon multi-ligne ou history.
       if (key.downArrow) {
+        if (slashActive) {
+          setSlashIdx((i) => (i + 1) % slashMatches.length);
+          return;
+        }
         const { row } = cursorRowCol(value, cursor);
         const total = lineCount(value);
         if (row < total - 1) {
@@ -259,7 +315,60 @@ export function InputBox({
 
   const showPlaceholder = value.length === 0 && placeholder;
 
+  // Popup slash : affiche les commandes matchées au-dessus de l'input.
+  // Fenêtre scrollable centrée sur currentSlashIdx si plus de MAX_SLASH_ROWS.
+  const slashWindow = useMemo(() => {
+    if (!slashActive) return [] as typeof slashMatches;
+    if (slashMatches.length <= MAX_SLASH_ROWS) return slashMatches;
+    const half = Math.floor(MAX_SLASH_ROWS / 2);
+    const first = Math.max(
+      0,
+      Math.min(currentSlashIdx - half, slashMatches.length - MAX_SLASH_ROWS),
+    );
+    return slashMatches.slice(first, first + MAX_SLASH_ROWS);
+  }, [slashMatches, currentSlashIdx, slashActive]);
+  const slashWindowStart = slashActive
+    ? Math.max(
+        0,
+        Math.min(
+          currentSlashIdx - Math.floor(MAX_SLASH_ROWS / 2),
+          Math.max(0, slashMatches.length - MAX_SLASH_ROWS),
+        ),
+      )
+    : 0;
+
   return (
+    <Box flexDirection="column">
+    {slashActive && (
+      <Box
+        borderStyle="round"
+        borderColor={c.borderDim}
+        paddingX={1}
+        flexDirection="column"
+        marginBottom={0}
+      >
+        {slashWindow.map((cmd, i) => {
+          const absIdx = slashWindowStart + i;
+          const active = absIdx === currentSlashIdx;
+          return (
+            <Box key={cmd.name} flexDirection="row">
+              <Text color={active ? c.accent : c.inkFaint}>
+                {active ? "›" : " "}
+              </Text>
+              <Text color={active ? c.ink : c.inkMuted}>
+                {" "}/{cmd.name.padEnd(16)}
+              </Text>
+              <Text color={c.inkFaint}>{cmd.description}</Text>
+            </Box>
+          );
+        })}
+        <Box>
+          <Text color={c.inkFaint}>
+            ↑↓ naviguer · Tab/Enter compléter · Esc fermer
+          </Text>
+        </Box>
+      </Box>
+    )}
     <Box
       borderStyle="round"
       borderColor={disabled ? c.borderDim : c.border}
@@ -292,6 +401,7 @@ export function InputBox({
           </Box>
         ))
       )}
+    </Box>
     </Box>
   );
 }
