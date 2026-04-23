@@ -82,7 +82,6 @@ const MODEL_QUALITY: Record<string, number> = {
   "nvidia/llama-3.1-nemotron-ultra-253b-v1": 8.5,
   "nvidia/llama-3.3-nemotron-super-49b-v1.5": 7.5,
   "openai/gpt-oss-120b": 8,
-  "google/gemma-3-27b-it": 7,
   "moonshotai/kimi-k2.5": 9,
   "moonshotai/kimi-k2-thinking": 9.5,
   "z-ai/glm4.7": 8,
@@ -90,12 +89,9 @@ const MODEL_QUALITY: Record<string, number> = {
   "qwen/qwen3-coder-480b-a35b-instruct": 9, // top open code
   "qwen/qwen2.5-coder-32b-instruct": 8,
   "qwen/qwen3-next-80b-a3b-thinking": 8.5,
-  "microsoft/phi-4-mini-instruct": 6,
 
   // ===== NVIDIA candidats =====
   "meta/llama-3.1-405b-instruct": 8,
-  "deepseek-ai/deepseek-v3.2": 9.5, // frontier
-  "deepseek-ai/deepseek-v3.1-terminus": 9,
   "mistralai/mistral-large-3-675b-instruct-2512": 9,
   "mistralai/mistral-medium-3-instruct": 7.5,
   "mistralai/mistral-nemotron": 7,
