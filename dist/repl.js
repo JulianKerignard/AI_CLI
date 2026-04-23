@@ -22,13 +22,50 @@ import { loadMcpServers } from "./mcp/config.js";
 import { loadCredentials, saveCredentials, checkCredentialsPerms, } from "./auth/store.js";
 import { loadPermissions, savePermissions, } from "./permissions/store.js";
 import { initStatusBar, teardownStatusBar, updateStatus, } from "./utils/status-bar.js";
-function buildSystemPrompt(cwd) {
+function buildSystemPrompt(cwd, mode = "default") {
     // Détection cross-plateforme du shell dispo (sh/bash/pwsh/cmd).
     // Sur Windows, si l'user a Git Bash ou WSL → syntaxe POSIX identique
     // à Unix. Sinon (pwsh/cmd) on prévient l'agent dans le prompt.
     const shell = detectShell();
     const platformLine = `Plateforme : ${process.platform} (${process.arch}). ${shellSyntaxHint(shell)}`;
+    // Bloc mode permission : injecté dynamiquement selon le mode courant.
+    // L'user peut cycler via Shift+Tab ou /mode. Chaque mode change le
+    // comportement de l'agent (surtout `plan` qui interdit les edits).
+    const MODE_BLOCK = {
+        default: `# Mode permission : DEFAULT
+L'utilisateur confirme chaque tool qui modifie le système (Edit, Write, Bash).
+Travaille normalement — la confirmation est gérée par l'UI, pas par toi.`,
+        "accept-edits": `# Mode permission : ACCEPT-EDITS
+Les tools Edit/Write/Bash sont auto-acceptés sans confirmation user. L'user
+a explicitement demandé ce mode pour travailler vite — n'hésite pas à
+modifier, créer, exécuter. Tu restes responsable de ne pas casser le projet.`,
+        bypass: `# Mode permission : BYPASS ⚠
+TOUS les tools auto-acceptés, y compris les commandes destructives. L'user
+sait ce qu'il fait (probablement CI ou session contrôlée). Aucune restriction
+— fais ce qu'il demande sans hésiter.`,
+        plan: `# Mode permission : PLAN MODE ACTIF 🎯
+**INTERDICTION ABSOLUE** de modifier quoi que ce soit. Tu es en lecture seule :
+- ❌ PAS d'Edit, PAS de Write, PAS de Bash qui modifie (install, git push, rm, chmod, etc.)
+- ❌ PAS de création de fichiers, de branches, de commits
+- ✅ AUTORISÉ : Read, Glob, Grep, Ls, Bash **lecture seule** (git status, ls, cat, pwd)
+
+**Ton job** :
+1. Explore le code demandé (Read, Glob, Grep en parallèle — maximum 3-5 tools par turn)
+2. Comprends le contexte, les contraintes, les patterns existants
+3. **Propose un PLAN structuré** au format markdown :
+   - Objectif clair
+   - Étapes numérotées avec fichiers concernés (chemins précis)
+   - Risques / edge cases
+   - Questions à l'user si ambiguïté
+4. **Attends que l'user sorte du plan mode** (Shift+Tab ou /mode) pour exécuter.
+
+Si l'user te demande d'écrire/modifier en plan mode, réponds : "Je suis en plan mode, je ne peux pas modifier. Voici le plan → [plan]. Sors du plan mode pour exécuter."
+
+Ne propose JAMAIS de créer quelque chose que tu pourrais exécuter. Le plan mode = réflexion, pas action.`,
+    };
     return `Tu es AI_CLI, un agent de code en ligne de commande, inspiré de Claude Code. Tu aides les développeurs à lire, écrire, modifier, debugger et exécuter du code directement depuis leur terminal.
+
+${MODE_BLOCK[mode]}
 
 # Contexte d'exécution
 - Répertoire de travail : \`${cwd}\`
@@ -151,29 +188,8 @@ export async function startRepl() {
     // retrouver les conversations lancées depuis ce même dossier.
     const sessionId = newSessionId();
     const sessionPath = openSession(sessionId, CWD, provider.name);
-    // Shift+Tab cycle les permission modes. Ordre : default → accept-edits
-    // → plan → bypass → default. Persisté dans ~/.aicli/permissions.json.
-    const MODE_CYCLE = [
-        "default",
-        "accept-edits",
-        "plan",
-        "bypass",
-    ];
-    inputController.on("cycle-permission-mode", () => {
-        const currentIdx = MODE_CYCLE.indexOf(permConfig.mode);
-        const nextMode = MODE_CYCLE[(currentIdx + 1) % MODE_CYCLE.length];
-        permConfig = { ...permConfig, mode: nextMode };
-        savePermissions(permConfig);
-        updateStatus({ permissionMode: nextMode });
-        const label = nextMode === "bypass"
-            ? log.danger("⚠ bypass")
-            : nextMode === "plan"
-                ? log.accentSoft("plan")
-                : log.ink(nextMode);
-        log.info(`${log.kicker("mode")} → ${label}`);
-    });
     const agent = new AgentLoop({
-        system: buildSystemPrompt(CWD),
+        system: buildSystemPrompt(CWD, permConfig.mode),
         provider,
         tools,
         cwd: CWD,
@@ -193,6 +209,32 @@ export async function startRepl() {
                 savePermissions(permConfig);
             }
         },
+    });
+    // Shift+Tab cycle les permission modes. Ordre : default → accept-edits
+    // → plan → bypass → default. Persisté dans ~/.aicli/permissions.json.
+    // Rebuild aussi le system prompt pour que l'agent sache dans quel mode
+    // il est (ex: plan mode = pas de write/edit).
+    const MODE_CYCLE = [
+        "default",
+        "accept-edits",
+        "plan",
+        "bypass",
+    ];
+    inputController.on("cycle-permission-mode", () => {
+        const currentIdx = MODE_CYCLE.indexOf(permConfig.mode);
+        const nextMode = MODE_CYCLE[(currentIdx + 1) % MODE_CYCLE.length];
+        permConfig = { ...permConfig, mode: nextMode };
+        savePermissions(permConfig);
+        updateStatus({ permissionMode: nextMode });
+        // Reinjecte le system prompt avec le nouveau mode. L'agent saura
+        // qu'il est en plan mode (ou autre) dès le prochain turn.
+        agent.setSystem(buildSystemPrompt(CWD, nextMode));
+        const label = nextMode === "bypass"
+            ? log.danger("⚠ bypass")
+            : nextMode === "plan"
+                ? log.accentSoft("plan")
+                : log.ink(nextMode);
+        log.info(`${log.kicker("mode")} → ${label}`);
     });
     const skills = loadSkills();
     const subAgents = loadSubAgents();
