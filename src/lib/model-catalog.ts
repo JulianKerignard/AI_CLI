@@ -11,6 +11,11 @@ export interface CatalogModel {
   vision?: boolean;
   web_search?: boolean;
   description?: string;
+  // Mesures live depuis le cron VPS (NVIDIA uniquement pour l'instant).
+  // Permet au watcher + /best de scorer les modèles avec le TTFT réel.
+  ttftMs?: number | null;
+  measuredAt?: number;
+  speed?: string;
 }
 
 const TTL_MS = 60_000;

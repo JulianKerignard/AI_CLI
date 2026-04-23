@@ -7,6 +7,12 @@ export interface ScorableModel {
   category: string; // "chat" | "code" | "thinking" | "flagship" | "strong" | "small"
   weight: number; // Crédits par call
   description?: string; // Contient "rapide"/"moyen"/"lent" côté NVIDIA
+  // Mesures live depuis /api/v1/models. Si présentes, override le
+  // mapping statique "rapide/moyen/lent" par un score précis basé
+  // sur le TTFT mesuré par le cron VPS.
+  ttftMs?: number | null;
+  measuredAt?: number;
+  speed?: string; // "rapide" | "moyen" | "lent" (redondant avec description)
 }
 
 export type SelectionMode = "balanced" | "fast" | "quality" | "code" | "cheap";
@@ -36,6 +42,25 @@ function detectSpeed(description: string | undefined): number {
   if (/\bmoyen\b/i.test(description)) return SPEED_BY_TAG.moyen;
   if (/\blent\b/i.test(description)) return SPEED_BY_TAG.lent;
   return 3;
+}
+
+// Score speed /3 depuis le TTFT mesuré par le cron. Plus précis que
+// detectSpeed() qui ne distingue que 3 buckets. On garde la même
+// échelle 0-3 pour compatibilité avec la formule de scoring.
+//   <  500ms : 3.0 (top instant)
+//   < 1000ms : 2.5
+//   < 2000ms : 2.0
+//   < 5000ms : 1.5
+//   < 10000ms: 1.0
+//   >=       : 0.5 (très lent mais mesurable)
+function speedFromTtft(ttftMs: number | null | undefined): number | null {
+  if (ttftMs == null) return null;
+  if (ttftMs < 500) return 3.0;
+  if (ttftMs < 1000) return 2.5;
+  if (ttftMs < 2000) return 2.0;
+  if (ttftMs < 5000) return 1.5;
+  if (ttftMs < 10000) return 1.0;
+  return 0.5;
 }
 
 // Note qualité /10 basée sur les benchmarks publics (LMArena, MMLU,
@@ -139,6 +164,23 @@ export function speedOutOf10(description: string | undefined): number {
   return 8;
 }
 
+// Version live-aware : si la mesure TTFT est dispo, l'utilise pour un
+// score /10 granulaire. Sinon fallback sur speedOutOf10.
+export function speedOutOf10Live(
+  ttftMs: number | null | undefined,
+  description: string | undefined,
+): number {
+  if (ttftMs == null) return speedOutOf10(description);
+  if (ttftMs < 500) return 10;
+  if (ttftMs < 1000) return 9;
+  if (ttftMs < 2000) return 8;
+  if (ttftMs < 3000) return 7;
+  if (ttftMs < 5000) return 6;
+  if (ttftMs < 10000) return 4;
+  if (ttftMs < 30000) return 2;
+  return 1;
+}
+
 interface Weights {
   quality: number;
   speed: number;
@@ -209,7 +251,10 @@ export function scoreModel(
   // Ranking cohérent avec ce qu'on affiche à l'user.
   const qRaw = qualityOutOf10(m.category, m.id);
   const quality = Math.max(1, Math.min(4, qRaw / 2.5));
-  const speed = detectSpeed(m.description);
+  // Priorise la mesure live (ttftMs) sur la catégorie rapide/moyen/lent.
+  // Fallback sur detectSpeed si pas de mesure (modèle nouveau ou hors cron).
+  const liveSpeed = speedFromTtft(m.ttftMs);
+  const speed = liveSpeed !== null ? liveSpeed : detectSpeed(m.description);
   const cost = Math.max(0, 5 - m.weight);
   const bonus = w.categoryBonus(m.category);
 
@@ -220,7 +265,7 @@ export function scoreModel(
     model: m,
     score,
     qualityOutOf10: qualityOutOf10(m.category, m.id),
-    speedOutOf10: speedOutOf10(m.description),
+    speedOutOf10: speedOutOf10Live(m.ttftMs, m.description),
     breakdown: { quality, speed, cost, bonus },
   };
 }
