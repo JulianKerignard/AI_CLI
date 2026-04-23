@@ -265,6 +265,7 @@ export async function startRepl() {
     updateStatus({
         provider: provider.name,
         phase: currentCreds ? "idle" : "offline",
+        permissionMode: permConfig.mode,
     });
     // Watcher background : déclaré tôt pour que cleanup() puisse le stop
     // sans TDZ. Start ci-dessous une fois auth setup.

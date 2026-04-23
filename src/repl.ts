@@ -326,6 +326,7 @@ export async function startRepl(): Promise<void> {
   updateStatus({
     provider: provider.name,
     phase: currentCreds ? "idle" : "offline",
+    permissionMode: permConfig.mode,
   });
 
   // Watcher background : déclaré tôt pour que cleanup() puisse le stop

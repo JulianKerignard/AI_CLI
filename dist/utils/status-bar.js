@@ -213,11 +213,30 @@ export function renderStatusLines(cols) {
                 INK(String(state.suggestedBetter.speedOutOf10)) +
                 FAINT("/10");
     }
+    // Permission mode — affiché seulement si !== default (baseline muette).
+    // Couleur : bypass = danger (rouge), plan = accent-soft (orange), accept-edits
+    // = success (vert). Placé juste avant la version à droite.
+    let modePart = "";
+    if (state.permissionMode && state.permissionMode !== "default") {
+        if (state.permissionMode === "bypass") {
+            modePart = chalk.hex("#e26849").bold("⚠ bypass") + "  ";
+        }
+        else if (state.permissionMode === "plan") {
+            modePart = ACCENT_SOFT("⎔ plan") + "  ";
+        }
+        else if (state.permissionMode === "accept-edits") {
+            modePart = SUCCESS("✓ accept-edits") + "  ";
+        }
+        else {
+            modePart = MUTED(state.permissionMode) + "  ";
+        }
+    }
     const versionPart = FAINT(`v${VERSION}`);
     const leftLen = visibleLen(phaseStr);
-    const rightLen = visibleLen(versionPart);
+    const rightPart = modePart + versionPart;
+    const rightLen = visibleLen(rightPart);
     const padding = Math.max(2, cols - leftLen - rightLen);
-    const line3 = phaseStr + " ".repeat(padding) + versionPart;
+    const line3 = phaseStr + " ".repeat(padding) + rightPart;
     return [rule, line1, line2, line3];
 }
 function scheduleRender() {
