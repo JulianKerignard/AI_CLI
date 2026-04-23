@@ -151,6 +151,27 @@ export async function startRepl() {
     // retrouver les conversations lancées depuis ce même dossier.
     const sessionId = newSessionId();
     const sessionPath = openSession(sessionId, CWD, provider.name);
+    // Shift+Tab cycle les permission modes. Ordre : default → accept-edits
+    // → plan → bypass → default. Persisté dans ~/.aicli/permissions.json.
+    const MODE_CYCLE = [
+        "default",
+        "accept-edits",
+        "plan",
+        "bypass",
+    ];
+    inputController.on("cycle-permission-mode", () => {
+        const currentIdx = MODE_CYCLE.indexOf(permConfig.mode);
+        const nextMode = MODE_CYCLE[(currentIdx + 1) % MODE_CYCLE.length];
+        permConfig = { ...permConfig, mode: nextMode };
+        savePermissions(permConfig);
+        updateStatus({ permissionMode: nextMode });
+        const label = nextMode === "bypass"
+            ? log.danger("⚠ bypass")
+            : nextMode === "plan"
+                ? log.accentSoft("plan")
+                : log.ink(nextMode);
+        log.info(`${log.kicker("mode")} → ${label}`);
+    });
     const agent = new AgentLoop({
         system: buildSystemPrompt(CWD),
         provider,

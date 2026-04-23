@@ -61,6 +61,7 @@ interface Segments {
   bucketCold?: boolean;
   cwd?: string;
   sessionTag?: string;
+  permissionMode?: string;
   // Indices /10 du modèle actif — calculés et pushés par le watcher.
   currentQuality?: number;
   currentSpeed?: number;
