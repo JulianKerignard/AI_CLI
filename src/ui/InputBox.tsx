@@ -154,6 +154,31 @@ export function InputBox({
         return;
       }
 
+      // Ctrl+V : paste image du clipboard (macOS: Cmd+V consommé par terminal,
+      // Ctrl+V passe). Insère [Image #N] dans le texte et attache le binaire.
+      if (key.ctrl && input === "v") {
+        void (async () => {
+          const { pasteFromClipboard, listPending } = await import(
+            "./pending-images.js"
+          );
+          const { CWD } = await import("../utils/paths.js");
+          try {
+            await pasteFromClipboard(CWD);
+            const n = listPending().length;
+            const placeholder = `[Image #${n}]`;
+            // Insère au curseur.
+            const newValue =
+              value.slice(0, cursor) + placeholder + value.slice(cursor);
+            setValue(newValue);
+            setCursor(cursor + placeholder.length);
+          } catch {
+            // Silencieux : pas d'image dans clipboard ou plateforme non
+            // supportée. L'user peut toujours taper /paste pour avoir le log.
+          }
+        })();
+        return;
+      }
+
       // Slash autocomplete : Tab complète le nom, Enter si match exact = submit,
       // sinon complète aussi. Esc ferme le popup.
       if (slashActive) {
