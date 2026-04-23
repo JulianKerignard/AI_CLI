@@ -77,9 +77,9 @@ export const bashTool: Tool = {
     // PAS les usages légitimes comme `echo $VAR`, `echo x > file`, `echo | cat`.
     const trimmed = command.trim();
     const speakPatterns = [
-      /^echo\s+['"]?[^|><$`&;]*['"]?\s*$/i,
-      /^printf\s+['"]?[^|><$`&;]*['"]?\s*$/i,
-      /^Write-Host\s+['"]?[^|><$`&;]*['"]?\s*$/i,
+      /^echo(\s+['"]?[^|><$`&;]*['"]?)?\s*$/i,
+      /^printf(\s+['"]?[^|><$`&;]*['"]?)?\s*$/i,
+      /^Write-Host(\s+['"]?[^|><$`&;]*['"]?)?\s*$/i,
     ];
     if (speakPatterns.some((re) => re.test(trimmed))) {
       return (
