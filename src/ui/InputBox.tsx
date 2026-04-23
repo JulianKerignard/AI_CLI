@@ -28,6 +28,7 @@ interface Props {
   disabled?: boolean;
   onSubmit: (input: string) => void;
   onInterrupt: () => void;
+  onCyclePermissionMode?: () => void;
   placeholder?: string;
   history?: InputHistory;
 }
@@ -84,6 +85,7 @@ export function InputBox({
   disabled,
   onSubmit,
   onInterrupt,
+  onCyclePermissionMode,
   placeholder,
   history,
 }: Props) {
@@ -141,6 +143,14 @@ export function InputBox({
       // Ctrl-C en priorité.
       if (key.ctrl && input === "c") {
         onInterrupt();
+        return;
+      }
+
+      // Shift+Tab → cycle permission mode (default → accept-edits → plan →
+      // bypass → default). Le terminal envoie "\x1b[Z" pour Shift+Tab.
+      // Test via la séquence brute car Ink n'expose pas key.shift fiablement.
+      if (onCyclePermissionMode && (input === "\x1b[Z" || (key.tab && key.shift))) {
+        onCyclePermissionMode();
         return;
       }
 

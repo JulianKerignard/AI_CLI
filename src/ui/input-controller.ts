@@ -51,6 +51,12 @@ class InputController extends EventEmitter {
     this.pending = null;
     if (p) p.reject(new Error("INTERRUPT"));
   }
+
+  // Appelé par InputBox quand Shift+Tab. Le REPL écoute cet event et
+  // cycle entre default → accept-edits → plan → bypass → default.
+  cyclePermissionMode(): void {
+    this.emit("cycle-permission-mode");
+  }
 }
 
 export const inputController = new InputController();

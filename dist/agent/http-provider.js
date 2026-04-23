@@ -2,14 +2,15 @@ import { RateLimiter } from "../lib/rate-limiter.js";
 import { updateStatus } from "../utils/status-bar.js";
 // Deux limiters côté CLI selon le provider du modèle actif :
 // - Mistral free : 4 req/min → on cible 3/min (marge 25%)
-// - NVIDIA NIM : ~300 req/min par modèle → 50/min largement suffisant
-//   pour un agent CLI qui fait ~5-20 tool calls par minute
+// - NVIDIA NIM : 40 req/min par modèle sur free tier Developer → 30/min
+//   (marge 25% anti-burst, les 10 restants absorbent les cron latency +
+//   burst de tool calls parallèles)
 //
 // Les modèles NVIDIA sont préfixés "nvidia/" (convention Chat-Mistral).
 // Les personas (maxime-latest, etc.) routent vers Mistral côté serveur,
 // donc bucket Mistral côté client.
 const MISTRAL_LIMITER = new RateLimiter({ capacity: 3, windowMs: 60_000 });
-const NVIDIA_LIMITER = new RateLimiter({ capacity: 50, windowMs: 60_000 });
+const NVIDIA_LIMITER = new RateLimiter({ capacity: 30, windowMs: 60_000 });
 function isNvidiaModel(model) {
     return model.startsWith("nvidia/");
 }

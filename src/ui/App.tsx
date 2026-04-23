@@ -108,10 +108,11 @@ export function App({ history }: AppProps = {}) {
       ) : (
         <InputBox
           disabled={inputDisabled}
-          placeholder="écris un prompt ou /help · \\+Enter = nouvelle ligne"
+          placeholder="écris un prompt ou /help · \\+Enter = nouvelle ligne · Shift+Tab = mode"
           history={history}
           onSubmit={(line) => inputController.submit(line)}
           onInterrupt={() => inputController.interrupt()}
+          onCyclePermissionMode={() => inputController.cyclePermissionMode()}
         />
       )}
       <StatusLine columns={columns} />

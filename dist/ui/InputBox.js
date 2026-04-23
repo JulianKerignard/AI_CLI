@@ -64,7 +64,7 @@ function moveCursorVertical(value, cursor, delta) {
     const targetLen = lines[targetRow].length;
     return startOfTarget + Math.min(col, targetLen);
 }
-export function InputBox({ disabled, onSubmit, onInterrupt, placeholder, history, }) {
+export function InputBox({ disabled, onSubmit, onInterrupt, onCyclePermissionMode, placeholder, history, }) {
     const [value, setValue] = useState("");
     const [cursor, setCursor] = useState(0);
     // Navigation historique : idx=null hors navigation, sinon index dans
@@ -116,6 +116,13 @@ export function InputBox({ disabled, onSubmit, onInterrupt, placeholder, history
         // Ctrl-C en priorité.
         if (key.ctrl && input === "c") {
             onInterrupt();
+            return;
+        }
+        // Shift+Tab → cycle permission mode (default → accept-edits → plan →
+        // bypass → default). Le terminal envoie "\x1b[Z" pour Shift+Tab.
+        // Test via la séquence brute car Ink n'expose pas key.shift fiablement.
+        if (onCyclePermissionMode && (input === "\x1b[Z" || (key.tab && key.shift))) {
+            onCyclePermissionMode();
             return;
         }
         // Slash autocomplete : Tab complète le nom, Enter si match exact = submit,
