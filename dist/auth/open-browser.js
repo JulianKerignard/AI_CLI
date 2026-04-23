@@ -1,21 +1,31 @@
-import { exec } from "node:child_process";
-// Ouvre une URL dans le navigateur par défaut de l'OS. Non-bloquant
-// (détaché du process CLI via unref). Les erreurs sont avalées car on
-// affiche l'URL en texte dans tous les cas — l'user peut toujours
-// copier-coller manuellement si le navigateur ne s'ouvre pas.
+import { spawn } from "node:child_process";
+// Ouvre une URL dans le navigateur par défaut. Utilise spawn() avec args
+// array (PAS exec + template string) pour éviter toute injection shell si
+// un attaquant contrôle webUrl dans le futur.
 export function openBrowser(url) {
-    // Sur Windows, `start` est un builtin cmd qui prend le 1er arg comme
-    // titre de fenêtre. Sans "" initial, l'URL devient le titre et on ouvre
-    // un cmd vide au lieu du navigateur.
-    const full = process.platform === "darwin"
-        ? `open ${JSON.stringify(url)}`
-        : process.platform === "win32"
-            ? `cmd /c start "" ${JSON.stringify(url)}`
-            : `xdg-open ${JSON.stringify(url)}`;
-    const child = exec(full, (err) => {
-        if (err) {
-            // noop — URL affichée en texte par l'appelant
-        }
-    });
-    child.unref();
+    let cmd;
+    let args;
+    if (process.platform === "darwin") {
+        cmd = "open";
+        args = [url];
+    }
+    else if (process.platform === "win32") {
+        // Windows `start` via cmd : 1er argument vide = titre de fenêtre.
+        cmd = "cmd";
+        args = ["/c", "start", "", url];
+    }
+    else {
+        cmd = "xdg-open";
+        args = [url];
+    }
+    try {
+        const child = spawn(cmd, args, { detached: true, stdio: "ignore" });
+        child.unref();
+        child.on("error", () => {
+            // noop — l'URL est affichée en texte par l'appelant de toute façon
+        });
+    }
+    catch {
+        // noop
+    }
 }

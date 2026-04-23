@@ -90,6 +90,33 @@ export const bashTool: Tool = {
       );
     }
 
+    // Denylist de patterns destructifs/secret-exfil : s'applique AUSSI en
+    // mode bypass. Un prompt injection via fichier Read peut faire
+    // rm -rf ~ ou exfil le token. Ces patterns sont toujours interdits
+    // sauf override explicite via AICLI_ALLOW_DANGEROUS=1.
+    if (process.env.AICLI_ALLOW_DANGEROUS !== "1") {
+      const dangerPatterns: Array<{ re: RegExp; why: string }> = [
+        { re: /\brm\s+(-[rRf]+\s+)*(\/|~|\$HOME)/, why: "rm -rf / ou ~" },
+        { re: /\brm\s+(-[rRf]+\s+)*\.\./, why: "rm -rf parent dir" },
+        { re: /(?:curl|wget)\s[^|]*\|\s*(?:sh|bash|zsh)/i, why: "curl|wget | sh" },
+        { re: /\bdd\s+.*of=\/dev\//, why: "dd vers /dev/" },
+        { re: /\bmkfs\./, why: "mkfs (format disk)" },
+        { re: /\b:\(\)\{.*:\|:&.*\};:/, why: "fork bomb" },
+        { re: /\bchmod\s+(-R\s+)?777\b/, why: "chmod 777" },
+        { re: /(\bsudo\s)|(\bsu\s-)/, why: "sudo/su escalation" },
+        { re: /~\/\.ssh|~\/\.aicli\/credentials|~\/\.aws|~\/\.gnupg/, why: "accès fichiers sensibles" },
+        { re: /\/etc\/(passwd|shadow|sudoers)/, why: "accès /etc système" },
+      ];
+      for (const { re, why } of dangerPatterns) {
+        if (re.test(trimmed)) {
+          return (
+            `exit 1\nstderr:\n[bloqué] Commande dangereuse détectée (${why}). ` +
+            `Si tu veux vraiment la lancer, set AICLI_ALLOW_DANGEROUS=1 dans ton env.`
+          );
+        }
+      }
+    }
+
     // Détection cross-plateforme : sh sur Unix, Git Bash / WSL / pwsh /
     // cmd.exe sur Windows selon ce qui est dispo. L'agent reçoit un
     // hint dans le system prompt pour adapter la syntaxe si besoin.

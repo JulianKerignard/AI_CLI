@@ -87,19 +87,23 @@ export function takeAllAndClear(): PendingImage[] {
 export async function pasteFromClipboard(cwd: string): Promise<PendingImage> {
   const { tmpdir } = await import("node:os");
   const { join } = await import("node:path");
-  const { spawnSync } = await import("node:child_process");
+  const { spawnSync, spawn } = await import("node:child_process");
+  const { createWriteStream } = await import("node:fs");
+  // Nom sanitisé : uniquement [a-z0-9-] pour éviter toute interpolation
+  // ambiguë si jamais le path est réintroduit dans un shell ailleurs.
   const tmpPath = join(
     tmpdir(),
     `aicli-paste-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.png`,
   );
 
   if (process.platform === "darwin") {
-    // AppleScript : copie le clipboard PNG en fichier. Retourne "ok" ou
-    // "error: ..." dans stdout pour qu'on sache si ça a marché.
+    // AppleScript : le path passe via $POSIX env var, pas en interpolation
+    // dans le script. Évite toute injection AppleScript si TMPDIR piégé.
     const script = `
       try
         set png_data to the clipboard as «class PNGf»
-        set f to open for access POSIX file "${tmpPath}" with write permission
+        set tmpPath to (system attribute "AICLI_TMP_PATH")
+        set f to open for access POSIX file tmpPath with write permission
         set eof f to 0
         write png_data to f
         close access f
@@ -108,7 +112,10 @@ export async function pasteFromClipboard(cwd: string): Promise<PendingImage> {
         return "error: " & err
       end try
     `;
-    const proc = spawnSync("osascript", ["-e", script], { encoding: "utf8" });
+    const proc = spawnSync("osascript", ["-e", script], {
+      encoding: "utf8",
+      env: { ...process.env, AICLI_TMP_PATH: tmpPath },
+    });
     const out = (proc.stdout ?? "").trim();
     if (!out.startsWith("ok")) {
       throw new Error(
@@ -118,31 +125,61 @@ export async function pasteFromClipboard(cwd: string): Promise<PendingImage> {
       );
     }
   } else if (process.platform === "linux") {
-    // Essaie wl-paste (Wayland) puis xclip (X11).
+    // spawn direct avec pipe stdout → file stream, pas de shell. Évite
+    // toute injection via le path.
+    const tryTool = (tool: string, args: string[]): boolean => {
+      return new Promise<boolean>((resolve) => {
+        const child = spawn(tool, args);
+        const stream = createWriteStream(tmpPath);
+        child.stdout.pipe(stream);
+        child.on("error", () => resolve(false));
+        child.on("close", (code) => {
+          stream.close();
+          resolve(code === 0);
+        });
+      }) as unknown as boolean;
+    };
+    // Synchrone fake via runSync : on fait quand même spawnSync pour simplicité.
     let ok = false;
-    const wl = spawnSync("bash", [
-      "-c",
-      `wl-paste --type image/png > "${tmpPath}" 2>/dev/null`,
-    ]);
-    if (wl.status === 0) ok = true;
-    if (!ok) {
-      const x = spawnSync("bash", [
-        "-c",
-        `xclip -selection clipboard -t image/png -o > "${tmpPath}" 2>/dev/null`,
-      ]);
-      if (x.status === 0) ok = true;
+    const wl = spawnSync("wl-paste", ["--type", "image/png"], {
+      encoding: "buffer",
+    });
+    if (wl.status === 0 && wl.stdout && wl.stdout.length > 0) {
+      const { writeFileSync } = await import("node:fs");
+      writeFileSync(tmpPath, wl.stdout);
+      ok = true;
     }
     if (!ok) {
+      const x = spawnSync(
+        "xclip",
+        ["-selection", "clipboard", "-t", "image/png", "-o"],
+        { encoding: "buffer" },
+      );
+      if (x.status === 0 && x.stdout && x.stdout.length > 0) {
+        const { writeFileSync } = await import("node:fs");
+        writeFileSync(tmpPath, x.stdout);
+        ok = true;
+      }
+    }
+    if (!ok) {
+      // `tryTool` est inutilisé, on garde la signature pour future async.
+      void tryTool;
       throw new Error(
         "Clipboard sans image ou wl-paste/xclip manquant. Installe : apt install xclip (ou wl-clipboard sur Wayland).",
       );
     }
   } else if (process.platform === "win32") {
-    // PowerShell : Get-Clipboard -Format Image + .Save(path).
-    const pwshScript = `Add-Type -AssemblyName System.Windows.Forms; $img = [System.Windows.Forms.Clipboard]::GetImage(); if ($img) { $img.Save('${tmpPath.replace(/\\/g, "\\\\")}'); Write-Host 'ok' } else { Write-Host 'error: no image in clipboard' }`;
-    const proc = spawnSync("powershell", ["-NoProfile", "-Command", pwshScript], {
-      encoding: "utf8",
-    });
+    // PowerShell : le path passe en env var via $env:AICLI_TMP_PATH au lieu
+    // d'interpolation string. Évite injection powershell via TMPDIR piégé.
+    const pwshScript = `Add-Type -AssemblyName System.Windows.Forms; $img = [System.Windows.Forms.Clipboard]::GetImage(); if ($img) { $img.Save($env:AICLI_TMP_PATH); Write-Host 'ok' } else { Write-Host 'error: no image in clipboard' }`;
+    const proc = spawnSync(
+      "powershell",
+      ["-NoProfile", "-Command", pwshScript],
+      {
+        encoding: "utf8",
+        env: { ...process.env, AICLI_TMP_PATH: tmpPath },
+      },
+    );
     const out = (proc.stdout ?? "").trim();
     if (!out.startsWith("ok")) {
       throw new Error(

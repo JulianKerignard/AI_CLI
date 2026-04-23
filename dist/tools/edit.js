@@ -1,5 +1,5 @@
 import { readFile, writeFile } from "node:fs/promises";
-import { isAbsolute, resolve } from "node:path";
+import { resolvePath, guardPath } from "../utils/path-guard.js";
 // Edit : remplacement exact de chaîne dans un fichier existant. Pattern
 // Claude Code — plus sûr que Write sur un fichier existant car la chaîne
 // à remplacer doit être unique (sinon erreur, demande plus de contexte).
@@ -43,7 +43,8 @@ export const editTool = {
             throw new Error("Edit: 'old_string' vide");
         if (oldStr === newStr)
             throw new Error("Edit: old_string et new_string identiques");
-        const abs = isAbsolute(raw) ? raw : resolve(ctx.cwd, raw);
+        const abs = resolvePath(raw, ctx.cwd);
+        guardPath(abs, { mode: "write", cwd: ctx.cwd });
         const content = await readFile(abs, "utf8");
         const occurrences = countOccurrences(content, oldStr);
         if (occurrences === 0) {

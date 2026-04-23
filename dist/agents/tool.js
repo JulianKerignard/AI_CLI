@@ -28,6 +28,9 @@ export function makeAgentTool(opts) {
                 provider: opts.provider,
                 parentTools: parentToolsWithoutAgent,
                 cwd: ctx.cwd,
+                getPolicyState: opts.getPolicyState,
+                onAllowSession: opts.onAllowSession,
+                onAllowPersist: opts.onAllowPersist,
             });
         },
     };

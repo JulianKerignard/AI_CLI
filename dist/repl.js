@@ -241,8 +241,25 @@ export async function startRepl() {
     tools.register(makeSkillTool(skills, agent));
     // makeAgentTool reçoit la référence du provider courant ; on le recrée
     // lors du switch /login /logout pour qu'il voie le bon provider.
+    // On propage aussi getPolicyState + allow handlers pour que les sub-agents
+    // respectent le mode parent (sinon bypass trivial du plan mode).
     const registerAgentTool = () => {
-        tools.register(makeAgentTool({ subAgents, provider, parentTools: tools }));
+        tools.register(makeAgentTool({
+            subAgents,
+            provider,
+            parentTools: tools,
+            getPolicyState,
+            onAllowSession: (toolName) => sessionAllowed.add(toolName),
+            onAllowPersist: (toolName) => {
+                if (!permConfig.alwaysAllow.includes(toolName)) {
+                    permConfig = {
+                        ...permConfig,
+                        alwaysAllow: [...permConfig.alwaysAllow, toolName],
+                    };
+                    savePermissions(permConfig);
+                }
+            },
+        }));
     };
     registerAgentTool();
     const mcpServers = await loadMcpServers(tools);

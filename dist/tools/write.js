@@ -1,5 +1,6 @@
 import { mkdir, writeFile } from "node:fs/promises";
-import { dirname, isAbsolute, resolve } from "node:path";
+import { dirname } from "node:path";
+import { resolvePath, guardPath } from "../utils/path-guard.js";
 export const writeTool = {
     name: "Write",
     description: "Écrit (ou écrase) un fichier avec le contenu fourni.",
@@ -25,7 +26,8 @@ export const writeTool = {
         const content = String(input.content ?? "");
         if (!raw)
             throw new Error("Write: 'path' manquant");
-        const abs = isAbsolute(raw) ? raw : resolve(ctx.cwd, raw);
+        const abs = resolvePath(raw, ctx.cwd);
+        guardPath(abs, { mode: "write", cwd: ctx.cwd });
         await mkdir(dirname(abs), { recursive: true });
         await writeFile(abs, content, "utf8");
         return `Écrit ${content.length} caractères dans ${abs}`;

@@ -16,6 +16,9 @@ export async function runSubAgent(opts) {
         tools: childRegistry,
         cwd: opts.cwd,
         maxIterations: 15,
+        getPolicyState: opts.getPolicyState,
+        onAllowSession: opts.onAllowSession,
+        onAllowPersist: opts.onAllowPersist,
     });
     const result = await loop.send(opts.prompt);
     log.info(`← Sub-agent '${opts.subAgent.name}' terminé.`);

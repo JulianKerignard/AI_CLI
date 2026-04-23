@@ -1,4 +1,56 @@
 import { spawn } from "node:child_process";
+// Whitelist env passée aux subprocess MCP : on NE propage PAS les tokens.
+// Sans ça, un MCP tiers pourrait lire AICLI_AUTH_TOKEN, ANTHROPIC_API_KEY,
+// MISTRAL_API_KEY... dans ses vars d'env.
+const MCP_ENV_WHITELIST = [
+    "PATH",
+    "HOME",
+    "USER",
+    "USERNAME",
+    "TMPDIR",
+    "TMP",
+    "TEMP",
+    "LANG",
+    "LC_ALL",
+    "LC_CTYPE",
+    "TERM",
+    "TERMINFO",
+    "COLORTERM",
+    "SHELL",
+    "NODE_PATH",
+    "APPDATA",
+    "LOCALAPPDATA",
+    "PROGRAMFILES",
+    "SYSTEMROOT",
+    "COMSPEC",
+    "WINDIR",
+];
+function sanitizeEnv(userEnv) {
+    const out = {};
+    for (const key of MCP_ENV_WHITELIST) {
+        if (process.env[key] !== undefined)
+            out[key] = process.env[key];
+    }
+    // Les env vars du config.env passent en dernier (user-controlled). On
+    // refuse quand même les env vars dangereuses qui peuvent hijack loaders.
+    const DANGEROUS = new Set([
+        "LD_PRELOAD",
+        "LD_LIBRARY_PATH",
+        "DYLD_INSERT_LIBRARIES",
+        "DYLD_LIBRARY_PATH",
+        "NODE_OPTIONS",
+        "PYTHONPATH",
+    ]);
+    if (userEnv) {
+        for (const [k, v] of Object.entries(userEnv)) {
+            if (DANGEROUS.has(k))
+                continue;
+            out[k] = v;
+        }
+    }
+    return out;
+}
+const MAX_BUFFER_BYTES = 10_000_000; // 10MB cap pour éviter OOM si serveur buggy
 /**
  * Client MCP stdio minimal : line-delimited JSON-RPC 2.0.
  * Implémente juste ce qu'il faut : initialize, tools/list, tools/call.
@@ -9,16 +61,21 @@ export class McpClient {
     nextId = 1;
     pending = new Map();
     buffer = "";
+    killed = false;
     constructor(name, config) {
         this.name = name;
         this.child = spawn(config.command, config.args ?? [], {
-            env: { ...process.env, ...config.env },
+            env: sanitizeEnv(config.env),
             stdio: ["pipe", "pipe", "pipe"],
         });
         this.child.stdout.setEncoding("utf8");
         this.child.stdout.on("data", (chunk) => this.onStdout(chunk));
-        this.child.stderr.on("data", () => {
-            /* silencieux — beaucoup de serveurs MCP loguent là */
+        // stderr affiché en debug uniquement — sinon masqué (beaucoup de MCP
+        // loguent verbosely leur boot, pollue l'UI). AICLI_DEBUG_MCP=1 pour voir.
+        this.child.stderr.on("data", (chunk) => {
+            if (process.env.AICLI_DEBUG_MCP === "1") {
+                process.stderr.write(`[mcp:${name}] ${chunk}`);
+            }
         });
         this.child.on("error", (err) => {
             for (const cb of this.pending.values()) {
@@ -29,6 +86,14 @@ export class McpClient {
     }
     onStdout(chunk) {
         this.buffer += chunk;
+        // Cap buffer pour éviter OOM si serveur MCP envoie du binary sans \n.
+        if (this.buffer.length > MAX_BUFFER_BYTES && !this.killed) {
+            this.killed = true;
+            // eslint-disable-next-line no-console
+            console.warn(`[mcp:${this.name}] buffer > ${MAX_BUFFER_BYTES} bytes, kill`);
+            this.child.kill();
+            return;
+        }
         let idx;
         while ((idx = this.buffer.indexOf("\n")) !== -1) {
             const line = this.buffer.slice(0, idx).trim();
@@ -46,7 +111,11 @@ export class McpClient {
                 }
             }
             catch {
-                /* ignore ligne non-JSON */
+                // ligne non-JSON — debug only pour éviter bruit
+                if (process.env.AICLI_DEBUG_MCP === "1") {
+                    // eslint-disable-next-line no-console
+                    console.warn(`[mcp:${this.name}] non-JSON line:`, line.slice(0, 200));
+                }
             }
         }
     }

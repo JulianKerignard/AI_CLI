@@ -1,5 +1,5 @@
 import { readFile } from "node:fs/promises";
-import { isAbsolute, resolve } from "node:path";
+import { resolvePath, guardPath } from "../utils/path-guard.js";
 export const readTool = {
     name: "Read",
     description: "Lit un fichier du système de fichiers local.",
@@ -22,7 +22,8 @@ export const readTool = {
         const raw = String(input.path ?? "");
         if (!raw)
             throw new Error("Read: 'path' manquant");
-        const abs = isAbsolute(raw) ? raw : resolve(ctx.cwd, raw);
+        const abs = resolvePath(raw, ctx.cwd);
+        guardPath(abs, { mode: "read", cwd: ctx.cwd });
         const content = await readFile(abs, "utf8");
         const lines = content.split(/\r?\n/);
         const numbered = lines

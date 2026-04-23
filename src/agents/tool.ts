@@ -2,12 +2,18 @@ import type { Tool } from "../tools/types.js";
 import type { SubAgent } from "./types.js";
 import type { Provider } from "../agent/provider.js";
 import type { ToolRegistry } from "../tools/registry.js";
+import type { PolicyState } from "../permissions/policy.js";
 import { runSubAgent } from "./runner.js";
 
 export function makeAgentTool(opts: {
   subAgents: SubAgent[];
   provider: Provider;
   parentTools: ToolRegistry;
+  // Propagation permissions : le sub-agent doit respecter le mode parent
+  // (plan/default/accept-edits/bypass) sinon c'est un bypass trivial.
+  getPolicyState?: () => PolicyState;
+  onAllowSession?: (toolName: string) => void;
+  onAllowPersist?: (toolName: string) => void;
 }): Tool {
   return {
     name: "Agent",
@@ -40,6 +46,9 @@ export function makeAgentTool(opts: {
         provider: opts.provider,
         parentTools: parentToolsWithoutAgent,
         cwd: ctx.cwd,
+        getPolicyState: opts.getPolicyState,
+        onAllowSession: opts.onAllowSession,
+        onAllowPersist: opts.onAllowPersist,
       });
     },
   };
