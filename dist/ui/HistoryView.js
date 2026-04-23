@@ -39,10 +39,19 @@ export function HistoryView() {
 }
 // Zone dynamique affichant l'assistant streamant (si en cours). Re-rend
 // à chaque delta pour voir le texte grossir.
+//
+// ⚠ historyStore.getStreaming() retourne la MÊME référence d'objet tant que
+// le stream est en cours (on mute .text). Un setStreaming(sameRef) ne
+// déclenche PAS le re-render dans React (Object.is bail). On snapshot une
+// copie à chaque change pour forcer la nouvelle référence.
 export function StreamingView() {
-    const [streaming, setStreaming] = useState(() => historyStore.getStreaming());
+    const snapshot = () => {
+        const cur = historyStore.getStreaming();
+        return cur ? { ...cur } : null;
+    };
+    const [streaming, setStreaming] = useState(() => snapshot());
     useEffect(() => {
-        const update = () => setStreaming(historyStore.getStreaming());
+        const update = () => setStreaming(snapshot());
         historyStore.on("change", update);
         return () => {
             historyStore.off("change", update);
