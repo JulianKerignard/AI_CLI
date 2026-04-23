@@ -106,10 +106,26 @@ export class AgentLoop {
   }
 
   async send(userInput: string): Promise<string> {
-    this.messages.push({
-      role: "user",
-      content: [{ type: "text", text: userInput }],
-    });
+    // Récupère les images attachées via /image. Si le modèle ne supporte
+    // pas la vision, warn et drop les images (ne pas casser le send).
+    const { takeAllAndClear } = await import("../ui/pending-images.js");
+    const pending = takeAllAndClear();
+    const content: ContentBlock[] = [];
+    if (pending.length > 0) {
+      const { modelSupportsVision } = await import("./provider.js");
+      const modelId = this.opts.provider.name.replace(/^http\(|\)$/g, "");
+      if (!modelSupportsVision(modelId)) {
+        log.warn(
+          `${modelId} ne supporte pas la vision — ${pending.length} image(s) ignorée(s). Switch sur mistral-* ou gemini-* via /model.`,
+        );
+      } else {
+        // Anthropic format : images AVANT le texte pour que le modèle les
+        // "voie" avec le contexte de la question qui suit.
+        for (const img of pending) content.push(img.block);
+      }
+    }
+    content.push({ type: "text", text: userInput });
+    this.messages.push({ role: "user", content });
     this.opts.onRecord?.("user", userInput);
     return await this.runUntilEnd();
   }

@@ -305,6 +305,35 @@ export function builtinCommands(allCommands) {
             },
         },
         {
+            name: "image",
+            description: "Attache une image au prochain message (png/jpg/webp/gif, max 4.5M, 4 images max). Usage : /image ./screenshot.png",
+            async run(_ctx, args) {
+                const path = args.trim();
+                if (!path) {
+                    const { listPending } = await import("../ui/pending-images.js");
+                    const items = listPending();
+                    if (items.length === 0) {
+                        log.info("Aucune image attachée. Usage : /image <path>");
+                        return;
+                    }
+                    log.info(`${items.length} image(s) en attente :\n` +
+                        items
+                            .map((i) => `  • ${i.displayName} (${Math.round(i.sizeBytes / 1024)}k)`)
+                            .join("\n"));
+                    return;
+                }
+                const { addImage } = await import("../ui/pending-images.js");
+                const { CWD } = await import("../utils/paths.js");
+                try {
+                    const item = await addImage(path, CWD);
+                    log.info(`Image attachée : ${item.displayName} (${Math.round(item.sizeBytes / 1024)}k). Envoie ton prompt.`);
+                }
+                catch (err) {
+                    log.error(err.message);
+                }
+            },
+        },
+        {
             name: "refresh",
             description: "Force le refresh du catalogue de modèles + latences (bypass cache 30s).",
             async run(ctx) {

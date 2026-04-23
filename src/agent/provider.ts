@@ -7,6 +7,19 @@ export interface TextBlock {
   text: string;
 }
 
+// Image format Anthropic : base64 inline. Utilisé pour les modèles vision
+// (mistral-large/medium/small, gemini-*, certains NVIDIA). Le bridge
+// /api/v1/messages convertit en format provider (imageUrl Mistral, inline_data
+// Gemini). Taille max ~6MB base64 côté bridge.
+export interface ImageBlock {
+  type: "image";
+  source: {
+    type: "base64";
+    media_type: "image/png" | "image/jpeg" | "image/webp" | "image/gif";
+    data: string; // base64 sans préfixe data:
+  };
+}
+
 export interface ToolUseBlock {
   type: "tool_use";
   id: string;
@@ -21,7 +34,11 @@ export interface ToolResultBlock {
   is_error?: boolean;
 }
 
-export type ContentBlock = TextBlock | ToolUseBlock | ToolResultBlock;
+export type ContentBlock =
+  | TextBlock
+  | ImageBlock
+  | ToolUseBlock
+  | ToolResultBlock;
 
 export interface Message {
   role: Role;
@@ -78,4 +95,13 @@ export function extractText(content: ContentBlock[]): string {
     .filter((b): b is TextBlock => b.type === "text")
     .map((b) => b.text)
     .join("\n");
+}
+
+// Détection des modèles vision côté bridge /api/v1/models.
+// Le champ `vision: boolean` est déjà exposé par le bridge pour chaque
+// modèle du catalog — voir model-catalog.ts.
+const VISION_MODELS_PATTERN =
+  /mistral-(large|medium|small)-latest|gemini-/i;
+export function modelSupportsVision(modelId: string): boolean {
+  return VISION_MODELS_PATTERN.test(modelId);
 }
