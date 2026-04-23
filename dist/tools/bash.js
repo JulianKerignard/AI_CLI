@@ -68,6 +68,22 @@ export const bashTool = {
         const timeout = Number(input.timeout_ms ?? 30000);
         if (!command)
             throw new Error("Bash: 'command' manquant");
+        // Bloque les `echo`, `printf`, `Write-Host` purs (sans redirection, sans
+        // pipe, sans substitution) — utilisés par l'agent pour PARLER à l'user
+        // alors qu'il devrait juste écrire du texte dans sa réponse. On ne bloque
+        // PAS les usages légitimes comme `echo $VAR`, `echo x > file`, `echo | cat`.
+        const trimmed = command.trim();
+        const speakPatterns = [
+            /^echo\s+['"]?[^|><$`&;]*['"]?\s*$/i,
+            /^printf\s+['"]?[^|><$`&;]*['"]?\s*$/i,
+            /^Write-Host\s+['"]?[^|><$`&;]*['"]?\s*$/i,
+        ];
+        if (speakPatterns.some((re) => re.test(trimmed))) {
+            return ("exit 1\nstderr:\n[bloqué] N'utilise pas Bash pour parler. Écris " +
+                "directement le texte dans ta réponse — il s'affiche à l'utilisateur " +
+                "sans passer par un outil. Bash est réservé aux vraies commandes " +
+                "système (install, test, build, inspection fichiers).");
+        }
         // Détection cross-plateforme : sh sur Unix, Git Bash / WSL / pwsh /
         // cmd.exe sur Windows selon ce qui est dispo. L'agent reçoit un
         // hint dans le system prompt pour adapter la syntaxe si besoin.
