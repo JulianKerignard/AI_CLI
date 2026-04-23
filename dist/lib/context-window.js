@@ -3,8 +3,11 @@
 // a besoin de cette info pour décider si un auto-compact préventif est
 // nécessaire).
 export function cleanProvider(name) {
-    const m = /^http\((.+)\)$/.exec(name);
-    return m ? m[1] : name;
+    const httpMatch = /^http\((.+)\)$/.exec(name);
+    const inner = httpMatch ? httpMatch[1] : name;
+    // Strip le préfixe "nvidia/" pour l'affichage UI. Le routing upstream
+    // utilise l'ID complet via `this.opts.model`, pas via cette chaîne.
+    return inner.startsWith("nvidia/") ? inner.slice("nvidia/".length) : inner;
 }
 export function contextWindowFor(model) {
     const m = cleanProvider(model).toLowerCase();

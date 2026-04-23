@@ -4,8 +4,11 @@
 // nécessaire).
 
 export function cleanProvider(name: string): string {
-  const m = /^http\((.+)\)$/.exec(name);
-  return m ? m[1] : name;
+  const httpMatch = /^http\((.+)\)$/.exec(name);
+  const inner = httpMatch ? httpMatch[1] : name;
+  // Strip le préfixe "nvidia/" pour l'affichage UI. Le routing upstream
+  // utilise l'ID complet via `this.opts.model`, pas via cette chaîne.
+  return inner.startsWith("nvidia/") ? inner.slice("nvidia/".length) : inner;
 }
 
 export function contextWindowFor(model: string): number {

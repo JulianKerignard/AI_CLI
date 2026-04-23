@@ -1,6 +1,7 @@
 import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
 import { useState, useMemo, useEffect } from "react";
 import { Box, Text, useInput } from "ink";
+import { displayModelId } from "../lib/model-selector.js";
 export function ModelPicker({ items, initial, pageSize = 10, onChoose }) {
     const [query, setQuery] = useState("");
     const [idx, setIdx] = useState(() => {
@@ -12,6 +13,7 @@ export function ModelPicker({ items, initial, pageSize = 10, onChoose }) {
         if (!q)
             return items;
         return items.filter((m) => m.id.toLowerCase().includes(q) ||
+            displayModelId(m.id).toLowerCase().includes(q) ||
             m.category.toLowerCase().includes(q) ||
             m.provider.toLowerCase().includes(q));
     }, [items, query]);
@@ -70,6 +72,6 @@ export function ModelPicker({ items, initial, pageSize = 10, onChoose }) {
                         const realIdx = start + i;
                         const active = realIdx === idx;
                         const speed = speedBadge(m.description);
-                        return (_jsxs(Box, { children: [_jsx(Text, { color: active ? "#e27649" : "#4a4239", children: active ? "›" : " " }), _jsxs(Text, { color: active ? "#f6f1e8" : "#bdb3a1", children: [" ", m.id.padEnd(55)] }), _jsx(Text, { color: providerColor(m.provider), children: m.provider }), _jsxs(Text, { color: "#8a8270", children: ["  ", m.category] }), speed && (_jsxs(Text, { color: speed.color, children: ["  (", speed.label, ")"] }))] }, m.id));
+                        return (_jsxs(Box, { children: [_jsx(Text, { color: active ? "#e27649" : "#4a4239", children: active ? "›" : " " }), _jsxs(Text, { color: active ? "#f6f1e8" : "#bdb3a1", children: [" ", displayModelId(m.id).padEnd(55)] }), _jsx(Text, { color: providerColor(m.provider), children: m.provider }), _jsxs(Text, { color: "#8a8270", children: ["  ", m.category] }), speed && (_jsxs(Text, { color: speed.color, children: ["  (", speed.label, ")"] }))] }, m.id));
                     })] }), _jsx(Box, { marginTop: 1, children: _jsxs(Text, { color: "#8a8270", children: [filtered.length, " match \u00B7 \u2191\u2193 naviguer \u00B7 Enter valider \u00B7 Esc annuler"] }) })] }));
 }

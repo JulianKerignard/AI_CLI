@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect } from "react";
 import { Box, Text, useInput } from "ink";
+import { displayModelId } from "../lib/model-selector.js";
 
 // Picker natif Ink — remplace @inquirer/search qui créait un readline
 // parallèle et laissait des artefacts visuels. Flèches ↑↓ pour naviguer,
@@ -33,6 +34,7 @@ export function ModelPicker({ items, initial, pageSize = 10, onChoose }: Props) 
     return items.filter(
       (m) =>
         m.id.toLowerCase().includes(q) ||
+        displayModelId(m.id).toLowerCase().includes(q) ||
         m.category.toLowerCase().includes(q) ||
         m.provider.toLowerCase().includes(q),
     );
@@ -120,7 +122,7 @@ export function ModelPicker({ items, initial, pageSize = 10, onChoose }: Props) 
               </Text>
               <Text color={active ? "#f6f1e8" : "#bdb3a1"}>
                 {" "}
-                {m.id.padEnd(55)}
+                {displayModelId(m.id).padEnd(55)}
               </Text>
               <Text color={providerColor(m.provider)}>{m.provider}</Text>
               <Text color="#8a8270">

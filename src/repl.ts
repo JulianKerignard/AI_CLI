@@ -11,6 +11,7 @@ import {
   appendEvent,
 } from "./sessions/store.js";
 import { BetterModelWatcher } from "./lib/better-model-watcher.js";
+import { cleanProvider } from "./lib/context-window.js";
 import { detectShell, shellSyntaxHint } from "./tools/shell-detect.js";
 import { createBaseRegistry } from "./tools/registry.js";
 import { DemoProvider } from "./agent/demo-provider.js";
@@ -247,7 +248,7 @@ export async function startRepl(): Promise<void> {
   // Banner poussé dans l'historique après mount.
   log.banner("AI_CLI v0.1.0");
   log.info(
-    `${log.kicker("provider")}  ${log.ink(provider.name)}   ${log.kicker("cwd")}  ${log.inkMuted(CWD)}`,
+    `${log.kicker("provider")}  ${log.ink(cleanProvider(provider.name))}   ${log.kicker("cwd")}  ${log.inkMuted(CWD)}`,
   );
   log.info(
     `${log.kicker("loaded")}  ${log.inkMuted(

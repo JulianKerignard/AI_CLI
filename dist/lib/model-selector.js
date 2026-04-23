@@ -89,6 +89,11 @@ function normalizeModelId(id) {
         return id.slice("nvidia/".length);
     return id;
 }
+// Display-only : strip le préfixe "nvidia/" pour l'affichage UI. L'ID complet
+// reste utilisé pour les requêtes API, credentials, sessions.
+export function displayModelId(id) {
+    return normalizeModelId(id);
+}
 // Fallback par catégorie pour les modèles inconnus (pas dans MODEL_QUALITY).
 function qualityFallback(category) {
     const cat = (category || "").toLowerCase();
