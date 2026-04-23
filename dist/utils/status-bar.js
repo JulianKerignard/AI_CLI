@@ -201,12 +201,9 @@ export function renderStatusLines(cols) {
             color(`${pctNum}%`) +
             resetPart);
     }
-    if (state.bucketUsed !== undefined && state.bucketCapacity) {
-        const coldBadge = state.bucketCold ? " " + DANGER("cold") : "";
-        parts2.push(MUTED("bucket ") +
-            INK(`${state.bucketUsed}/${state.bucketCapacity}`) +
-            coldBadge);
-    }
+    // Bucket caché de la status line : le retry upstream gère les 429
+    // automatiquement, l'info bucket est trompeuse (hardcoded, pas précise
+    // par modèle côté NVIDIA). On garde la variable d'état pour debug futur.
     const line2 = parts2.join(FAINT("  ·  "));
     let phaseStr = PHASE_COLOR[state.phase](PHASE_SYM[state.phase] + " " + PHASE_LABEL[state.phase]);
     if (state.phase === "executing-tool" && state.toolName) {

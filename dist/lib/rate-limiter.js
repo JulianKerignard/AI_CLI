@@ -12,8 +12,11 @@ export class RateLimiter {
     // État "cold" : si on a reçu un 429, on resserre temporairement (2/min au
     // lieu de 3) pendant COLD_DURATION_MS.
     coldUntil = 0;
-    COLD_CAPACITY = 2;
-    COLD_DURATION_MS = 5 * 60 * 1000;
+    // Cold désactivé effectivement : on laisse le retry upstream gérer les
+    // 429 au cas par cas, plutôt que de pénaliser 5 min après un faux positif.
+    // markCold(retryAfterMs) reste respecté via forcedWaitUntil uniquement.
+    COLD_CAPACITY = 60;
+    COLD_DURATION_MS = 30 * 1000;
     constructor(opts = {}) {
         this.opts = opts;
         this.capacity = opts.capacity ?? DEFAULT_CAPACITY;

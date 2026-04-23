@@ -27,8 +27,13 @@ interface Opts {
 // Les modèles NVIDIA sont préfixés "nvidia/" (convention Chat-Mistral).
 // Les personas (maxime-latest, etc.) routent vers Mistral côté serveur,
 // donc bucket Mistral côté client.
-const MISTRAL_LIMITER = new RateLimiter({ capacity: 3, windowMs: 60_000 });
-const NVIDIA_LIMITER = new RateLimiter({ capacity: 30, windowMs: 60_000 });
+// Limiters désactivés de facto (capacité haute) : on laisse l'user taper
+// librement. En cas de 429 upstream, le wrapper retry dans loop.ts pause
+// automatiquement (15s → 30s → 60s) et retry. Plus simple et réactif
+// que de deviner la limite côté CLI (varie par modèle chez NVIDIA).
+// markCold(retryAfter) reste utilisé pour respecter un Retry-After explicite.
+const MISTRAL_LIMITER = new RateLimiter({ capacity: 60, windowMs: 60_000 });
+const NVIDIA_LIMITER = new RateLimiter({ capacity: 60, windowMs: 60_000 });
 
 function isNvidiaModel(model: string): boolean {
   return model.startsWith("nvidia/");
