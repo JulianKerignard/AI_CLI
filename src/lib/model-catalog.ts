@@ -59,3 +59,9 @@ export function invalidateCatalog(): void {
   cache = null;
   inflight = null;
 }
+
+// Accès synchrone au catalog actuel (pour modelSupportsVision qui doit
+// répondre sans async roundtrip). Retourne [] si pas encore fetch.
+export function listCatalogModels(): CatalogModel[] {
+  return cache?.models ?? [];
+}

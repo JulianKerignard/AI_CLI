@@ -97,11 +97,20 @@ export function extractText(content: ContentBlock[]): string {
     .join("\n");
 }
 
-// Détection des modèles vision côté bridge /api/v1/models.
-// Le champ `vision: boolean` est déjà exposé par le bridge pour chaque
-// modèle du catalog — voir model-catalog.ts.
-const VISION_MODELS_PATTERN =
+// Détection des modèles vision : lookup dans le catalog (source de vérité :
+// champ `vision: boolean` exposé par /api/v1/models). Fallback regex si le
+// catalog n'est pas encore chargé (jamais fetch + offline).
+const VISION_FALLBACK_PATTERN =
   /mistral-(large|medium|small)-latest|gemini-/i;
-export function modelSupportsVision(modelId: string): boolean {
-  return VISION_MODELS_PATTERN.test(modelId);
+
+export async function modelSupportsVision(modelId: string): Promise<boolean> {
+  try {
+    const { listCatalogModels } = await import("../lib/model-catalog.js");
+    const models = listCatalogModels();
+    const m = models.find((x) => x.id === modelId);
+    if (m && typeof m.vision === "boolean") return m.vision;
+  } catch {
+    /* catalog pas dispo */
+  }
+  return VISION_FALLBACK_PATTERN.test(modelId);
 }

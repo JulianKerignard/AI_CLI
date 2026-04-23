@@ -142,7 +142,8 @@ export class AgentLoop {
     if (pending.length > 0) {
       const { modelSupportsVision } = await import("./provider.js");
       const modelId = this.opts.provider.name.replace(/^http\(|\)$/g, "");
-      if (!modelSupportsVision(modelId)) {
+      const supports = await modelSupportsVision(modelId);
+      if (!supports) {
         log.warn(
           `${modelId} ne supporte pas la vision — ${pending.length} image(s) ignorée(s). Switch sur mistral-* ou gemini-* via /model.`,
         );

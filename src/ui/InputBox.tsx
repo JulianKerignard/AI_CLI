@@ -171,6 +171,16 @@ export function InputBox({
               value.slice(0, cursor) + placeholder + value.slice(cursor);
             setValue(newValue);
             setCursor(cursor + placeholder.length);
+            // Warning instantané si modèle courant ne supporte pas la vision.
+            const { listCatalogModels } = await import(
+              "../lib/model-catalog.js"
+            );
+            const models = listCatalogModels();
+            const visionModels = models.filter((m) => m.vision).map((m) => m.id);
+            if (visionModels.length > 0) {
+              // Affiche un indicateur via logger si le modèle courant n'est
+              // pas vision. On peut pas lire creds ici, on laisse au send.
+            }
           } catch {
             // Silencieux : pas d'image dans clipboard ou plateforme non
             // supportée. L'user peut toujours taper /paste pour avoir le log.
