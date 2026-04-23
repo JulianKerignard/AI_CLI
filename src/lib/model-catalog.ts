@@ -18,7 +18,7 @@ export interface CatalogModel {
   speed?: string;
 }
 
-const TTL_MS = 60_000;
+const TTL_MS = 30_000;
 let cache: { models: CatalogModel[]; expiresAt: number } | null = null;
 let inflight: Promise<CatalogModel[]> | null = null;
 

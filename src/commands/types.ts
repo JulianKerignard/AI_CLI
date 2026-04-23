@@ -31,6 +31,8 @@ export interface CommandContext {
   auth: AuthHandlers;
   permissions: PermissionsHandlers;
   exit: () => void;
+  /** Force le watcher à re-fetcher /api/v1/models immédiatement. */
+  refreshCatalog?: () => void;
 }
 
 export interface SlashCommand {

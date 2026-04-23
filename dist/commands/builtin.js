@@ -305,6 +305,21 @@ export function builtinCommands(allCommands) {
             },
         },
         {
+            name: "refresh",
+            description: "Force le refresh du catalogue de modèles + latences (bypass cache 30s).",
+            async run(ctx) {
+                const { invalidateCatalog } = await import("../lib/model-catalog.js");
+                invalidateCatalog();
+                if (ctx.refreshCatalog) {
+                    ctx.refreshCatalog();
+                    log.info("Catalogue invalidé, nouveau fetch en cours…");
+                }
+                else {
+                    log.info("Catalogue invalidé (prochain poll dans < 60s).");
+                }
+            },
+        },
+        {
             name: "resume",
             description: "Reprend une conversation passée lancée depuis ce dossier.",
             async run({ agent }) {

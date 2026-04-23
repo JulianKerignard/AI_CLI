@@ -366,8 +366,10 @@ export async function startRepl(): Promise<void> {
         phase: "idle",
       });
       // Reset la suggestion : l'user vient de switcher, on redémarre
-      // l'évaluation à partir du nouveau modèle.
+      // l'évaluation à partir du nouveau modèle. Force un refresh immédiat
+      // pour recalculer Q/V du nouveau modèle sans attendre le poll.
       watcher.clearSuggestion();
+      watcher.forceRefresh();
     },
     onLogout: () => {
       currentCreds = null;
@@ -468,6 +470,7 @@ export async function startRepl(): Promise<void> {
           auth,
           permissions,
           exit,
+          refreshCatalog: () => watcher.forceRefresh(),
         });
       } else {
         await agent.send(input);

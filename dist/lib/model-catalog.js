@@ -2,7 +2,7 @@
 // BetterModelWatcher re-fetchaient la même URL indépendamment. Maintenant
 // un seul fetch par intervalle TTL + invalidation manuelle (ex: sur
 // onLogin quand on change de serveur).
-const TTL_MS = 60_000;
+const TTL_MS = 30_000;
 let cache = null;
 let inflight = null;
 export async function fetchCatalog(creds, opts = {}) {

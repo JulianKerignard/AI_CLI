@@ -8,7 +8,7 @@ import { updateStatus } from "../utils/status-bar.js";
 //
 // Reset à chaque switch de modèle (onLogin) via clearSuggestion().
 
-const POLL_INTERVAL_MS = 2 * 60 * 1000;
+const POLL_INTERVAL_MS = 60 * 1000;
 const MIN_SCORE_DELTA = 1.5; // Seuil pour déclencher une suggestion
 
 interface ApiModel {
@@ -36,7 +36,16 @@ export class BetterModelWatcher {
 
   start(): void {
     if (this.timer || this.stopped) return;
-    this.timer = setTimeout(() => this.tick(), 30_000);
+    // Premier tick rapide (3s) pour avoir les indices Q/V affichés dès
+    // l'ouverture du REPL. Puis poll régulier chaque 60s.
+    this.timer = setTimeout(() => this.tick(), 3_000);
+  }
+
+  // Force un fetch immédiat (pour /refresh ou après un switch de modèle).
+  forceRefresh(): void {
+    if (this.stopped) return;
+    if (this.timer) clearTimeout(this.timer);
+    this.timer = setTimeout(() => this.tick(), 0);
   }
 
   stop(): void {
