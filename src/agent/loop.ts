@@ -106,9 +106,37 @@ export class AgentLoop {
   }
 
   async send(userInput: string): Promise<string> {
-    // Récupère les images attachées via /image. Si le modèle ne supporte
-    // pas la vision, warn et drop les images (ne pas casser le send).
-    const { takeAllAndClear } = await import("../ui/pending-images.js");
+    // 1. Auto-détection de paths image dans le prompt (drag-drop terminal
+    //    insère un path, user ajoute sa question à côté). Extrait, attache,
+    //    strip du texte. Tolère quotes (iTerm2) + paths avec espaces.
+    const { addImage, takeAllAndClear } = await import(
+      "../ui/pending-images.js"
+    );
+    const imgRegex =
+      /(?:'([^']+\.(?:png|jpe?g|webp|gif))'|"([^"]+\.(?:png|jpe?g|webp|gif))"|(\S+\.(?:png|jpe?g|webp|gif)))/gi;
+    let cleanedText = userInput;
+    const detectedPaths: string[] = [];
+    for (const m of userInput.matchAll(imgRegex)) {
+      const path = m[1] ?? m[2] ?? m[3];
+      if (path) detectedPaths.push(path);
+    }
+    for (const path of detectedPaths) {
+      try {
+        const item = await addImage(path, this.opts.cwd);
+        cleanedText = cleanedText.replace(new RegExp(`['"]?${path.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}['"]?`, "g"), "").trim();
+        log.info(
+          `Image détectée et attachée : ${item.displayName} (${Math.round(item.sizeBytes / 1024)}k)`,
+        );
+      } catch (err) {
+        // Path existe pas ou extension invalide : laisse tel quel dans le texte.
+        log.faint(
+          `(path ${path} ignoré : ${(err as Error).message})`,
+        );
+      }
+    }
+    if (!cleanedText) cleanedText = "décris cette image";
+
+    // 2. Récupère TOUTES les images attachées (auto-détectées + /image).
     const pending = takeAllAndClear();
     const content: ContentBlock[] = [];
     if (pending.length > 0) {
@@ -124,9 +152,9 @@ export class AgentLoop {
         for (const img of pending) content.push(img.block);
       }
     }
-    content.push({ type: "text", text: userInput });
+    content.push({ type: "text", text: cleanedText });
     this.messages.push({ role: "user", content });
-    this.opts.onRecord?.("user", userInput);
+    this.opts.onRecord?.("user", cleanedText);
     return await this.runUntilEnd();
   }
 
