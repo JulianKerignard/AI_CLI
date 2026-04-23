@@ -21,11 +21,21 @@ jobs:
         run: |
           iwr -useb "https://raw.githubusercontent.com/${{ github.repository }}/${{ github.sha }}/scripts/install.ps1" | iex
 
+      - name: Debug install tree
+        shell: pwsh
+        run: |
+          Write-Host "=== Content of $env:USERPROFILE\.aicli ==="
+          Get-ChildItem -Path "$env:USERPROFILE\.aicli" -Recurse -Depth 3 -ErrorAction SilentlyContinue | Select-Object FullName
+          Write-Host "=== aicli.cmd path ==="
+          Get-ChildItem -Path "$env:USERPROFILE\.aicli\aicli*" -ErrorAction SilentlyContinue
+
       - name: Verify aicli entrypoint exists
         shell: pwsh
         run: |
           $entrypoint = Join-Path $env:USERPROFILE ".aicli\node_modules\@juliank.\aicli\dist\index.js"
           if (-not (Test-Path $entrypoint)) {
+            Write-Host "Not at expected path, searching..."
+            Get-ChildItem -Path "$env:USERPROFILE\.aicli" -Filter "index.js" -Recurse -ErrorAction SilentlyContinue | Select-Object FullName
             Write-Error "FAIL: $entrypoint missing"
             exit 1
           }
