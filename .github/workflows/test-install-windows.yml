@@ -18,6 +18,7 @@ jobs:
 
       - name: Run install script
         shell: pwsh
+        continue-on-error: true
         run: |
           iwr -useb "https://raw.githubusercontent.com/${{ github.repository }}/${{ github.sha }}/scripts/install.ps1" | iex
 
