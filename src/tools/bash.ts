@@ -12,8 +12,8 @@ function tailCap(text: string, label: string): string {
   if (text.length <= MAX_STREAM_CHARS) return text;
   const tail = text.slice(-MAX_STREAM_CHARS);
   const droppedChars = text.length - tail.length;
-  const lines = text.split("\n").length;
-  const keptLines = tail.split("\n").length;
+  const lines = text.split(/\r?\n/).length;
+  const keptLines = tail.split(/\r?\n/).length;
   return (
     `[${label} tronqué : ${droppedChars.toLocaleString()} chars coupés au début, garde les ${keptLines} dernières lignes sur ${lines}]\n` +
     tail
@@ -33,7 +33,7 @@ export const bashTool: Tool = {
     const code = exitMatch ? exitMatch[1] : "?";
     const stdoutBlock = output.split("stdout:\n")[1]?.split("\nstderr:")[0] ?? "";
     const stderrBlock = output.split("stderr:\n")[1] ?? "";
-    const stdoutLines = stdoutBlock ? stdoutBlock.split("\n").filter(Boolean).length : 0;
+    const stdoutLines = stdoutBlock ? stdoutBlock.split(/\r?\n/).filter(Boolean).length : 0;
     const hasStderr = stderrBlock.trim().length > 0;
     const truncated = /\[(stdout|stderr) tronqué/.test(output);
     const timeout = /^\[timeout/.test(output);
@@ -49,7 +49,7 @@ export const bashTool: Tool = {
       stdoutLines <= 5 &&
       stdoutTrimmed.length <= 300
     ) {
-      const indented = stdoutTrimmed.split("\n").map((l) => "  " + l).join("\n");
+      const indented = stdoutTrimmed.split(/\r?\n/).map((l) => "  " + l).join("\n");
       return `exit 0\n${indented}`;
     }
     const parts: string[] = [`exit ${code}`];

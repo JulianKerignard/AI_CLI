@@ -21,7 +21,7 @@ export const grepTool: Tool = {
   formatResult: (input, output) => {
     if (output.startsWith("(aucun")) return "0 matches";
     const mode = String(input.output_mode ?? "files_with_matches");
-    const lines = output.split("\n").filter(Boolean);
+    const lines = output.split(/\r?\n/).filter(Boolean);
     const more = /… \((\d+) lignes tronquées\)/.exec(output);
     const n = lines.length - (more ? 1 : 0);
     if (mode === "content") return `${n}${more ? "+" : ""} matching lines`;
@@ -127,7 +127,7 @@ function truncateOutput(
   if (text.length > MAX_OUTPUT_BYTES) {
     text = text.slice(0, MAX_OUTPUT_BYTES) + "\n… (sortie tronquée)";
   }
-  const lines = text.split("\n");
+  const lines = text.split(/\r?\n/);
   if (mode === "content" || mode === "files_with_matches") {
     if (lines.length > headLimit) {
       return (

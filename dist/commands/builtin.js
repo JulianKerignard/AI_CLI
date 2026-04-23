@@ -320,6 +320,17 @@ export function builtinCommands(allCommands) {
             },
         },
         {
+            name: "mode",
+            description: "Cycle permission mode (alternative à Shift+Tab pour conhost/cmd.exe).",
+            async run({ permissions }) {
+                const { inputController } = await import("../ui/input-controller.js");
+                // Déclenche le même event que Shift+Tab → le listener dans repl
+                // cycle et update la status bar + persist.
+                inputController.cyclePermissionMode();
+                log.info(`Mode → ${permissions.getMode()} (après cycle)`);
+            },
+        },
+        {
             name: "resume",
             description: "Reprend une conversation passée lancée depuis ce dossier.",
             async run({ agent }) {

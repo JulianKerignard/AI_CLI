@@ -25,7 +25,9 @@ export interface GitInfo {
   dirty: boolean;
 }
 
-const CACHE_TTL_MS = 10_000; // refresh léger pour ne pas spammer git
+// Cache plus agressif sur Windows : git.exe en PATH peut ajouter 200-500ms
+// par invocation si pas warm (Windows Defender scan). 60s évite de re-spawn.
+const CACHE_TTL_MS = process.platform === "win32" ? 60_000 : 10_000;
 let cached: { at: number; cwd: string; info: GitInfo } | null = null;
 
 export function getGitInfo(cwd: string): GitInfo {
@@ -65,7 +67,9 @@ export function getGitInfo(cwd: string): GitInfo {
   try {
     const proc = spawnSync("git", ["diff", "--numstat", "HEAD"], {
       cwd: info.repoRoot,
-      timeout: 500,
+      // Windows : git.exe peut être lent au premier call (Defender scan).
+      // 300ms suffit si warm, cache à 60s absorbe les premiers spawns.
+      timeout: process.platform === "win32" ? 300 : 500,
       encoding: "utf8",
       stdio: ["ignore", "pipe", "pipe"],
     });

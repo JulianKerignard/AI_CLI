@@ -93,16 +93,38 @@ const PHASE_LABEL: Record<Phase, string> = {
   offline: "offline",
 };
 
-const PHASE_SYM: Record<Phase, string> = {
-  idle: "·",
-  loading: "↻",
-  thinking: "●",
-  streaming: "●",
-  "waiting-quota": "⏳",
-  "executing-tool": "◆",
-  compacting: "↻",
-  offline: "○",
-};
+// Sur Windows hors Windows Terminal (conhost legacy, cmd.exe), beaucoup de
+// code points Unicode ne s'affichent pas. WT_SESSION est set uniquement
+// par Windows Terminal. Fallback ASCII si on détecte conhost/cmd.
+const IS_LEGACY_CONSOLE =
+  process.platform === "win32" && !process.env.WT_SESSION;
+
+const PHASE_SYM: Record<Phase, string> = IS_LEGACY_CONSOLE
+  ? {
+      idle: ".",
+      loading: "~",
+      thinking: "*",
+      streaming: "*",
+      "waiting-quota": "...",
+      "executing-tool": "#",
+      compacting: "~",
+      offline: "o",
+    }
+  : {
+      idle: "·",
+      loading: "↻",
+      thinking: "●",
+      streaming: "●",
+      "waiting-quota": "⏳",
+      "executing-tool": "◆",
+      compacting: "↻",
+      offline: "○",
+    };
+
+// Glyphes utilisés dans le rendu (◆, ┤├, etc.) — versions ASCII pour conhost.
+const GLYPH = IS_LEGACY_CONSOLE
+  ? { diamond: "#", sepLine: "-", midDot: ".", arrowUp: "^", arrowDown: "v", star: "*" }
+  : { diamond: "◆", sepLine: "─", midDot: "·", arrowUp: "↑", arrowDown: "↓", star: "★" };
 
 const PHASE_COLOR: Record<Phase, (s: string) => string> = {
   idle: chalk.hex("#8a8270"),
@@ -176,7 +198,7 @@ export function renderStatusLines(cols: number): string[] {
     ? chalk.bgHex("#245454").hex("#f6f1e8")(` ${tag} `)
     : "";
   const ruleLen = Math.max(0, cols - visibleLen(tagBox) - 2);
-  const rule = TEAL("─".repeat(ruleLen)) + (tagBox ? "  " + tagBox : "");
+  const rule = TEAL(GLYPH.sepLine.repeat(ruleLen)) + (tagBox ? "  " + tagBox : "");
 
   const parts1: string[] = [];
   if (state.provider) {
@@ -184,7 +206,7 @@ export function renderStatusLines(cols: number): string[] {
     const ctxStr =
       ctxWin >= 1_000_000 ? `${ctxWin / 1_000_000}M` : `${ctxWin / 1_000}k`;
     let head =
-      ACCENT("◆ ") +
+      ACCENT(GLYPH.diamond + " ") +
       INK_BRIGHT.bold(cleanProvider(state.provider)) +
       FAINT(` (${ctxStr} ctx)`);
     // Indices Q/V du modèle actif — pushés par le watcher à chaque check.
@@ -209,9 +231,9 @@ export function renderStatusLines(cols: number): string[] {
 
   const tokenSegs: string[] = [];
   if ((state.tokensIn ?? 0) > 0)
-    tokenSegs.push(MUTED("↑") + INK(compact(state.tokensIn!)));
+    tokenSegs.push(MUTED(GLYPH.arrowUp) + INK(compact(state.tokensIn!)));
   if ((state.tokensOut ?? 0) > 0)
-    tokenSegs.push(MUTED("↓") + INK(compact(state.tokensOut!)));
+    tokenSegs.push(MUTED(GLYPH.arrowDown) + INK(compact(state.tokensOut!)));
   if (tokenSegs.length > 0) parts1.push(tokenSegs.join(" "));
 
   if (git && (git.additions > 0 || git.deletions > 0)) {
@@ -291,7 +313,7 @@ export function renderStatusLines(cols: number): string[] {
     const shortId = parts[parts.length - 1] || state.suggestedBetter.id;
     phaseStr +=
       FAINT("  ·  ") +
-      SUCCESS("★ ") +
+      SUCCESS(GLYPH.star + " ") +
       ACCENT_SOFT(shortId) +
       FAINT(" · ") +
       MUTED("Q") +
@@ -307,11 +329,13 @@ export function renderStatusLines(cols: number): string[] {
   let modePart = "";
   if (state.permissionMode && state.permissionMode !== "default") {
     if (state.permissionMode === "bypass") {
-      modePart = chalk.hex("#e26849").bold("⚠ bypass") + "  ";
+      modePart = chalk.hex("#e26849").bold(
+        (IS_LEGACY_CONSOLE ? "! " : "⚠ ") + "bypass",
+      ) + "  ";
     } else if (state.permissionMode === "plan") {
-      modePart = ACCENT_SOFT("⎔ plan") + "  ";
+      modePart = ACCENT_SOFT((IS_LEGACY_CONSOLE ? "[P] " : "⎔ ") + "plan") + "  ";
     } else if (state.permissionMode === "accept-edits") {
-      modePart = SUCCESS("✓ accept-edits") + "  ";
+      modePart = SUCCESS((IS_LEGACY_CONSOLE ? "[E] " : "✓ ") + "accept-edits") + "  ";
     } else {
       modePart = MUTED(state.permissionMode) + "  ";
     }
