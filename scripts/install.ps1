@@ -1,13 +1,19 @@
 # AI_CLI installer pour Windows PowerShell.
 #
-# Usage :
+# Usage (stable) :
 #   iwr -useb https://chat.juliankerignard.fr/install-aicli.ps1 | iex
+#
+# Usage (dev) :
+#   $env:AICLI_CHANNEL="dev"; iwr -useb https://chat.juliankerignard.fr/install-aicli.ps1 | iex
 #
 # Strategie : installe aicli dans $HOME\.aicli (hors AppData) pour eviter
 # Windows Defender qui mange des fichiers dans AppData\Roaming\npm. Ajoute
 # automatiquement le dossier au PATH user (persistant). Pas besoin d'admin.
 
 $ErrorActionPreference = "Stop"
+# Channel : "latest" (stable, default) ou "dev" (prerelease). Override via
+# $env:AICLI_CHANNEL="dev" avant de lancer le script.
+$channel = if ($env:AICLI_CHANNEL) { $env:AICLI_CHANNEL } else { "latest" }
 
 Write-Host "AI_CLI installer" -ForegroundColor Blue
 Write-Host ""
@@ -45,9 +51,9 @@ Remove-Item -Force "$env:APPDATA\npm\aicli*" -ErrorAction SilentlyContinue
 Remove-Item -Recurse -Force "$installDir\node_modules" -ErrorAction SilentlyContinue
 
 # 4. Install avec prefix custom (Defender ne surveille pas $HOME\.aicli).
-Write-Host "Installation de @juliank./aicli dans $installDir..." -ForegroundColor White
+Write-Host "Installation de @juliank./aicli@$channel dans $installDir..." -ForegroundColor White
 $env:NPM_CONFIG_PREFIX = $installDir
-npm install -g "@juliank./aicli@latest" 2>&1 | Where-Object { $_ -notmatch "npm warn" } | Out-Host
+npm install -g "@juliank./aicli@$channel" 2>&1 | Where-Object { $_ -notmatch "npm warn" } | Out-Host
 if ($LASTEXITCODE -ne 0) {
   Write-Host "Install echouee." -ForegroundColor Red
   exit 1

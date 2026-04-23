@@ -1,8 +1,11 @@
 #!/usr/bin/env bash
 # AI_CLI installer — une commande pour Mac / Linux / WSL / Git Bash Windows.
 #
-# Usage :
+# Usage (stable) :
 #   curl -fsSL https://chat.juliankerignard.fr/install-aicli.sh | bash
+#
+# Usage (dev) :
+#   AICLI_CHANNEL=dev curl -fsSL https://chat.juliankerignard.fr/install-aicli.sh | bash
 #
 # Ou direct depuis le repo :
 #   curl -fsSL https://raw.githubusercontent.com/JulianKerignard/AI_CLI/main/scripts/install.sh | bash
@@ -10,6 +13,9 @@
 # Prerequis : Node.js 18+ (le script verifie).
 
 set -e
+
+# Channel : "latest" (stable, default) ou "dev" (prerelease).
+CHANNEL="${AICLI_CHANNEL:-latest}"
 
 # Couleurs ANSI pour un output lisible.
 RED=$'\e[31m'
@@ -55,11 +61,11 @@ if command -v aicli >/dev/null 2>&1; then
 fi
 
 # 4. Install depuis npm registry.
-printf "${BOLD}Installation depuis npm registry...${RESET}\n"
-if ! npm install -g @juliank./aicli@latest; then
+printf "${BOLD}Installation depuis npm registry (channel: ${CHANNEL})...${RESET}\n"
+if ! npm install -g "@juliank./aicli@${CHANNEL}"; then
   printf "\n${RED}Install échoué.${RESET} Essaye :\n"
   printf "  ${YELLOW}npm cache clean --force${RESET}\n"
-  printf "  ${YELLOW}npm install -g @juliank./aicli@latest${RESET}\n"
+  printf "  ${YELLOW}npm install -g \"@juliank./aicli@${CHANNEL}\"${RESET}\n"
   exit 1
 fi
 
