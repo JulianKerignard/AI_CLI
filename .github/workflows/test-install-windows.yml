@@ -1,0 +1,43 @@
+name: Test install Windows
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "scripts/install.ps1"
+      - ".github/workflows/test-install-windows.yml"
+
+jobs:
+  test-install:
+    runs-on: windows-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Run install script
+        shell: pwsh
+        run: |
+          iwr -useb "https://raw.githubusercontent.com/${{ github.repository }}/${{ github.sha }}/scripts/install.ps1" | iex
+
+      - name: Verify aicli entrypoint exists
+        shell: pwsh
+        run: |
+          $entrypoint = Join-Path $env:USERPROFILE ".aicli\node_modules\@juliank.\aicli\dist\index.js"
+          if (-not (Test-Path $entrypoint)) {
+            Write-Error "FAIL: $entrypoint missing"
+            exit 1
+          }
+          Write-Host "OK: $entrypoint exists"
+
+      - name: Verify aicli binary responds
+        shell: pwsh
+        run: |
+          $env:Path = "$env:USERPROFILE\.aicli;$env:Path"
+          $version = & aicli --version 2>&1
+          Write-Host "aicli output: $version"
+          if ($LASTEXITCODE -ne 0) {
+            Write-Error "aicli failed"
+            exit 1
+          }
