@@ -26,14 +26,26 @@ export const bashTool = {
         // output = "exit N\nstdout:\n…\nstderr:\n…"
         const exitMatch = /^exit (\S+)/m.exec(output);
         const code = exitMatch ? exitMatch[1] : "?";
-        const stdoutLines = (output.match(/^stdout:$/m) ? 1 : 0)
-            ? output.split("stdout:\n")[1]?.split("stderr:")[0]?.split("\n").length ?? 0
-            : 0;
-        const hasStderr = /stderr:/m.test(output);
+        const stdoutBlock = output.split("stdout:\n")[1]?.split("\nstderr:")[0] ?? "";
+        const stderrBlock = output.split("stderr:\n")[1] ?? "";
+        const stdoutLines = stdoutBlock ? stdoutBlock.split("\n").filter(Boolean).length : 0;
+        const hasStderr = stderrBlock.trim().length > 0;
         const truncated = /\[(stdout|stderr) tronqué/.test(output);
         const timeout = /^\[timeout/.test(output);
         if (timeout)
             return "timeout";
+        // Inline le stdout si court (≤5 lignes, ≤300 chars) pour que l'user
+        // voie directement le résultat de `echo`, `pwd`, `date`, etc.
+        const stdoutTrimmed = stdoutBlock.trim();
+        if (code === "0" &&
+            !hasStderr &&
+            !truncated &&
+            stdoutLines > 0 &&
+            stdoutLines <= 5 &&
+            stdoutTrimmed.length <= 300) {
+            const indented = stdoutTrimmed.split("\n").map((l) => "  " + l).join("\n");
+            return `exit 0\n${indented}`;
+        }
         const parts = [`exit ${code}`];
         if (stdoutLines > 0)
             parts.push(`${stdoutLines} stdout lines`);
