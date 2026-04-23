@@ -396,6 +396,25 @@ export function builtinCommands(allCommands: () => SlashCommand[]): SlashCommand
       },
     },
     {
+      name: "paste",
+      description:
+        "Attache l'image du clipboard système (screenshot Cmd+Shift+4, copy image). Marche sur macOS/Linux/Windows.",
+      async run() {
+        const { pasteFromClipboard } = await import(
+          "../ui/pending-images.js"
+        );
+        const { CWD } = await import("../utils/paths.js");
+        try {
+          const item = await pasteFromClipboard(CWD);
+          log.info(
+            `Image clipboard attachée : ${item.displayName} (${Math.round(item.sizeBytes / 1024)}k). Envoie ton prompt.`,
+          );
+        } catch (err) {
+          log.error((err as Error).message);
+        }
+      },
+    },
+    {
       name: "image",
       description:
         "Attache une image au prochain message (png/jpg/webp/gif, max 4.5M, 4 images max). Usage : /image ./screenshot.png",
