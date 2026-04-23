@@ -1,4 +1,9 @@
 import { EventEmitter } from "node:events";
+// Events : `items-change` pour HistoryView (items figés) et `streaming-change`
+// pour StreamingView (delta en cours). Avant : un seul event `change` qui
+// déclenchait un setItems([...all]) O(n) sur chaque delta SSE = re-render
+// quadratique du terminal. Séparés → HistoryView ne re-render que sur push
+// effectif, StreamingView uniquement sur delta.
 class HistoryStore extends EventEmitter {
     items = [];
     streaming = null;
@@ -15,10 +20,11 @@ class HistoryStore extends EventEmitter {
         if (this.streaming) {
             this.items.push(this.streaming);
             this.streaming = null;
+            this.emit("streaming-change");
         }
         const id = this.nextId++;
         this.items.push({ ...item, id });
-        this.emit("change");
+        this.emit("items-change");
         return id;
     }
     // Démarre/continue un message assistant streamé. Tant qu'on appelle
@@ -29,6 +35,7 @@ class HistoryStore extends EventEmitter {
             // Si un streaming d'autre type existe, on le fige d'abord.
             if (this.streaming) {
                 this.items.push(this.streaming);
+                this.emit("items-change");
             }
             this.streaming = {
                 type: "assistant",
@@ -39,19 +46,21 @@ class HistoryStore extends EventEmitter {
         else {
             this.streaming.text += delta;
         }
-        this.emit("change");
+        this.emit("streaming-change");
     }
     endAssistant() {
         if (this.streaming) {
             this.items.push(this.streaming);
             this.streaming = null;
-            this.emit("change");
+            this.emit("items-change");
+            this.emit("streaming-change");
         }
     }
     clear() {
         this.items = [];
         this.streaming = null;
-        this.emit("change");
+        this.emit("items-change");
+        this.emit("streaming-change");
     }
 }
 export const historyStore = new HistoryStore();

@@ -47,9 +47,11 @@ export function HistoryView() {
 
   useEffect(() => {
     const update = () => setItems([...historyStore.getItems()]);
-    historyStore.on("change", update);
+    // S'abonner uniquement à items-change (pas streaming-change) pour ne
+    // PAS re-render la liste figée à chaque delta de stream.
+    historyStore.on("items-change", update);
     return () => {
-      historyStore.off("change", update);
+      historyStore.off("items-change", update);
     };
   }, []);
 
@@ -82,9 +84,10 @@ export function StreamingView() {
 
   useEffect(() => {
     const update = () => setStreaming(snapshot());
-    historyStore.on("change", update);
+    // Uniquement streaming-change : pas besoin de re-render sur items-change.
+    historyStore.on("streaming-change", update);
     return () => {
-      historyStore.off("change", update);
+      historyStore.off("streaming-change", update);
     };
   }, []);
 

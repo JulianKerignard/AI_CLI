@@ -59,6 +59,3 @@ export function savePermissions(cfg: PermissionsConfig): void {
   }
 }
 
-export function permissionsFilePath(): string {
-  return FILE;
-}

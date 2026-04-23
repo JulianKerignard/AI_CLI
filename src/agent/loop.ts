@@ -424,5 +424,3 @@ export class AgentLoop {
   }
 }
 
-// Ré-export helper pour consommation externe (commande /usage).
-export { formatQuotaStatus };

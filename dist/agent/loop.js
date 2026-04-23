@@ -1,5 +1,5 @@
 import { extractText } from "./provider.js";
-import { log, formatQuotaStatus } from "../utils/logger.js";
+import { log } from "../utils/logger.js";
 import { decide } from "../permissions/policy.js";
 import { askPermission, logDenied } from "../permissions/prompt.js";
 import { compactMessages, estimateTokens } from "./compactor.js";
@@ -345,5 +345,3 @@ export class AgentLoop {
         return finalText;
     }
 }
-// Ré-export helper pour consommation externe (commande /usage).
-export { formatQuotaStatus };

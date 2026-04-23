@@ -381,10 +381,6 @@ export function setSessionTotals(inTotal: number, outTotal: number): void {
   scheduleRender();
 }
 
-export function getStatus(): Readonly<Segments> {
-  return { ...state };
-}
-
 export function resetTurn(): void {
   state.tokensIn = undefined;
   state.tokensOut = undefined;

@@ -1,4 +1,4 @@
-import type { Tool, ToolCall } from "../tools/types.js";
+import type { Tool } from "../tools/types.js";
 
 export type Role = "system" | "user" | "assistant" | "tool";
 
@@ -82,12 +82,6 @@ export interface ChatOptions {
 export interface Provider {
   name: string;
   chat(opts: ChatOptions): Promise<ProviderResponse>;
-}
-
-export function extractToolCalls(response: ProviderResponse): ToolCall[] {
-  return response.content
-    .filter((b): b is ToolUseBlock => b.type === "tool_use")
-    .map((b) => ({ id: b.id, name: b.name, input: b.input }));
 }
 
 export function extractText(content: ContentBlock[]): string {

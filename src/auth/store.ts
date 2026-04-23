@@ -67,10 +67,6 @@ export function clearCredentials(): void {
   if (existsSync(FILE)) unlinkSync(FILE);
 }
 
-export function credentialsFilePath(): string {
-  return FILE;
-}
-
 // Check que le fichier n'est pas lisible par d'autres users (équivalent
 // StrictModes SSH). Avertit l'user si les perms sont trop permissives.
 export function checkCredentialsPerms(): { ok: boolean; warning?: string } {

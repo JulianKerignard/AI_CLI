@@ -71,10 +71,6 @@ export function listPending(): ReadonlyArray<PendingImage> {
   return pending;
 }
 
-export function clearPending(): void {
-  pending.length = 0;
-}
-
 export function takeAllAndClear(): PendingImage[] {
   const out = [...pending];
   pending.length = 0;

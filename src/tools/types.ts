@@ -29,8 +29,3 @@ export interface ToolCall {
   input: Record<string, unknown>;
 }
 
-export interface ToolResult {
-  id: string;
-  output: string;
-  isError?: boolean;
-}

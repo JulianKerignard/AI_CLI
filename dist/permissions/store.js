@@ -42,6 +42,3 @@ export function savePermissions(cfg) {
         // Windows : chmod pas supporté, on ignore.
     }
 }
-export function permissionsFilePath() {
-    return FILE;
-}

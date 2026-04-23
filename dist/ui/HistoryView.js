@@ -30,9 +30,11 @@ export function HistoryView() {
     const [items, setItems] = useState(() => historyStore.getItems());
     useEffect(() => {
         const update = () => setItems([...historyStore.getItems()]);
-        historyStore.on("change", update);
+        // S'abonner uniquement à items-change (pas streaming-change) pour ne
+        // PAS re-render la liste figée à chaque delta de stream.
+        historyStore.on("items-change", update);
         return () => {
-            historyStore.off("change", update);
+            historyStore.off("items-change", update);
         };
     }, []);
     return (_jsx(Static, { items: items, children: (item) => (_jsx(Box, { paddingLeft: 0, children: formatItem(item) }, item.id)) }));
@@ -52,9 +54,10 @@ export function StreamingView() {
     const [streaming, setStreaming] = useState(() => snapshot());
     useEffect(() => {
         const update = () => setStreaming(snapshot());
-        historyStore.on("change", update);
+        // Uniquement streaming-change : pas besoin de re-render sur items-change.
+        historyStore.on("streaming-change", update);
         return () => {
-            historyStore.off("change", update);
+            historyStore.off("streaming-change", update);
         };
     }, []);
     if (!streaming)

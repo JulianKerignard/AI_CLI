@@ -288,9 +288,6 @@ export function setSessionTotals(inTotal, outTotal) {
     state.sessionOutTotal = outTotal;
     scheduleRender();
 }
-export function getStatus() {
-    return { ...state };
-}
 export function resetTurn() {
     state.tokensIn = undefined;
     state.tokensOut = undefined;

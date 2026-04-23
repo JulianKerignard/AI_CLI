@@ -52,9 +52,6 @@ export async function addImage(rawPath, cwd) {
 export function listPending() {
     return pending;
 }
-export function clearPending() {
-    pending.length = 0;
-}
 export function takeAllAndClear() {
     const out = [...pending];
     pending.length = 0;
