@@ -32347,7 +32347,8 @@ var init_favorites = __esm({
       "gpt-oss": "nvidia/openai/gpt-oss-120b",
       "qwen-coder": "nvidia/qwen/qwen2.5-coder-32b-instruct",
       "kimi-k2": "nvidia/moonshotai/kimi-k2-instruct",
-      "kimi-thinking": "nvidia/moonshotai/kimi-k2-thinking"
+      "kimi-thinking": "nvidia/moonshotai/kimi-k2-thinking",
+      "flash-lite": "google/gemini-flash-lite-latest"
     };
     FAVORITE_ORDER = [
       "hy3",
@@ -32360,7 +32361,8 @@ var init_favorites = __esm({
       "gpt-oss",
       "qwen-coder",
       "kimi-k2",
-      "kimi-thinking"
+      "kimi-thinking",
+      "flash-lite"
     ];
     __name(resolveFavoriteAlias, "resolveFavoriteAlias");
     FAVORITE_FULL_IDS = new Set(
@@ -34384,7 +34386,7 @@ import { fileURLToPath } from "node:url";
 import { homedir as homedir6 } from "node:os";
 function getLocalVersion() {
   if (true) {
-    return "0.1.1-dev.13";
+    return "0.1.1-dev.14";
   }
   try {
     const here = dirname4(fileURLToPath(import.meta.url));
