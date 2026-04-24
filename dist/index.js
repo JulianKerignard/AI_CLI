@@ -34335,7 +34335,7 @@ import { fileURLToPath } from "node:url";
 import { homedir as homedir6 } from "node:os";
 function getLocalVersion() {
   if (true) {
-    return "0.1.1-dev.6";
+    return "0.1.1-dev.7";
   }
   try {
     const here = dirname4(fileURLToPath(import.meta.url));
