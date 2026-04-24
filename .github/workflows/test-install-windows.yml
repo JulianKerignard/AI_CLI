@@ -6,6 +6,12 @@ on:
     paths:
       - "scripts/install.ps1"
       - ".github/workflows/test-install-windows.yml"
+      # Trigger aussi sur changements du build ou deps — permet de catcher
+      # les régressions cross-platform (ex: bug subpath imports chalk) avant
+      # qu'un user Windows ne les rencontre.
+      - "scripts/build.mjs"
+      - "package.json"
+      - "package-lock.json"
 
 jobs:
   test-install:
@@ -47,8 +53,30 @@ jobs:
         run: |
           $env:Path = "$env:USERPROFILE\.aicli;$env:Path"
           $version = & aicli --version 2>&1
-          Write-Host "aicli output: $version"
+          Write-Host "aicli --version: $version"
           if ($LASTEXITCODE -ne 0) {
-            Write-Error "aicli failed"
+            Write-Error "aicli --version failed"
+            exit 1
+          }
+
+      - name: Verify full import chain (--help charge ink + chalk)
+        shell: pwsh
+        run: |
+          # --help force le chargement de tous les imports lourds (ink, chalk,
+          # yaml, inquirer). C'est ici qu'on catcherait un ERR_PACKAGE_IMPORT_NOT_DEFINED
+          # ou autre bug de résolution modules avant qu'un user Windows ne le voie.
+          $env:Path = "$env:USERPROFILE\.aicli;$env:Path"
+          $help = & aicli --help 2>&1
+          Write-Host "aicli --help exit: $LASTEXITCODE"
+          if ($LASTEXITCODE -ne 0) {
+            Write-Host "--- output ---"
+            Write-Host $help
+            Write-Error "aicli --help failed — regression dans le bundle ou import chain"
+            exit 1
+          }
+          if ($help -notmatch "REPL") {
+            Write-Host "--- output ---"
+            Write-Host $help
+            Write-Error "aicli --help ne contient pas 'REPL' — output inattendu"
             exit 1
           }
