@@ -6,10 +6,15 @@
 // requête (mapAnthropicModel fait la résolution), mais /model <alias>
 // a besoin de connaître le fullId pour le matcher au catalog.
 
+// Note : les fullIds doivent matcher EXACTEMENT ce que retourne
+// /api/v1/models côté serveur. Les IDs Google et OpenRouter sont préfixés
+// ("google/", "openrouter/") dans le catalog, même si MODEL_ALIASES côté
+// site n'a pas le préfixe (la résolution ajoute le préfixe via
+// resolveGoogleId/resolveOpenRouterId avant la requête).
 export const FAVORITE_ALIASES: Record<string, string> = {
   hy3: "openrouter/tencent/hy3-preview:free",
   "ling-1t": "openrouter/inclusionai/ling-2.6-1t:free",
-  flash: "gemini-flash-latest",
+  flash: "google/gemini-flash-latest",
   large: "mistral-large-latest",
   codestral: "codestral-latest",
   devstral: "devstral-latest",
