@@ -32339,7 +32339,7 @@ var init_favorites = __esm({
     FAVORITE_ALIASES = {
       hy3: "openrouter/tencent/hy3-preview:free",
       "ling-1t": "openrouter/inclusionai/ling-2.6-1t:free",
-      flash: "gemini-flash-latest",
+      flash: "google/gemini-flash-latest",
       large: "mistral-large-latest",
       codestral: "codestral-latest",
       devstral: "devstral-latest"
@@ -34374,7 +34374,7 @@ import { fileURLToPath } from "node:url";
 import { homedir as homedir6 } from "node:os";
 function getLocalVersion() {
   if (true) {
-    return "0.1.1-dev.9";
+    return "0.1.1-dev.10";
   }
   try {
     const here = dirname4(fileURLToPath(import.meta.url));
