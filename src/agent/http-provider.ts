@@ -129,9 +129,12 @@ export class HttpProvider implements Provider {
       content: m.content,
     }));
 
+    // max_tokens omis volontairement : chaque modèle upstream a sa propre
+    // limite, et le bridge a un fallback à 4096 avec cap à 8192. Laisser
+    // le serveur décider évite d'imposer une borne fixe qui soit trop
+    // large (réserve inutile) soit trop serrée (tronque du code long).
     const body = {
       model: this.opts.model,
-      max_tokens: 8192,
       system: opts.system,
       messages: anthropicMessages,
       tools:
