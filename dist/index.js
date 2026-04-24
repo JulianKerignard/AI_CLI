@@ -10053,14 +10053,14 @@ var require_react_reconciler_production = __commonJS({
       __name(markRetryLaneIfNotHydrated, "markRetryLaneIfNotHydrated");
       var exports2 = {};
       "use strict";
-      var React19 = require_react(), Scheduler2 = require_scheduler(), assign = Object.assign, REACT_LEGACY_ELEMENT_TYPE = /* @__PURE__ */ Symbol.for("react.element"), REACT_ELEMENT_TYPE = /* @__PURE__ */ Symbol.for("react.transitional.element"), REACT_PORTAL_TYPE = /* @__PURE__ */ Symbol.for("react.portal"), REACT_FRAGMENT_TYPE = /* @__PURE__ */ Symbol.for("react.fragment"), REACT_STRICT_MODE_TYPE = /* @__PURE__ */ Symbol.for("react.strict_mode"), REACT_PROFILER_TYPE = /* @__PURE__ */ Symbol.for("react.profiler"), REACT_CONSUMER_TYPE = /* @__PURE__ */ Symbol.for("react.consumer"), REACT_CONTEXT_TYPE = /* @__PURE__ */ Symbol.for("react.context"), REACT_FORWARD_REF_TYPE = /* @__PURE__ */ Symbol.for("react.forward_ref"), REACT_SUSPENSE_TYPE = /* @__PURE__ */ Symbol.for("react.suspense"), REACT_SUSPENSE_LIST_TYPE = /* @__PURE__ */ Symbol.for("react.suspense_list"), REACT_MEMO_TYPE = /* @__PURE__ */ Symbol.for("react.memo"), REACT_LAZY_TYPE = /* @__PURE__ */ Symbol.for("react.lazy");
+      var React20 = require_react(), Scheduler2 = require_scheduler(), assign = Object.assign, REACT_LEGACY_ELEMENT_TYPE = /* @__PURE__ */ Symbol.for("react.element"), REACT_ELEMENT_TYPE = /* @__PURE__ */ Symbol.for("react.transitional.element"), REACT_PORTAL_TYPE = /* @__PURE__ */ Symbol.for("react.portal"), REACT_FRAGMENT_TYPE = /* @__PURE__ */ Symbol.for("react.fragment"), REACT_STRICT_MODE_TYPE = /* @__PURE__ */ Symbol.for("react.strict_mode"), REACT_PROFILER_TYPE = /* @__PURE__ */ Symbol.for("react.profiler"), REACT_CONSUMER_TYPE = /* @__PURE__ */ Symbol.for("react.consumer"), REACT_CONTEXT_TYPE = /* @__PURE__ */ Symbol.for("react.context"), REACT_FORWARD_REF_TYPE = /* @__PURE__ */ Symbol.for("react.forward_ref"), REACT_SUSPENSE_TYPE = /* @__PURE__ */ Symbol.for("react.suspense"), REACT_SUSPENSE_LIST_TYPE = /* @__PURE__ */ Symbol.for("react.suspense_list"), REACT_MEMO_TYPE = /* @__PURE__ */ Symbol.for("react.memo"), REACT_LAZY_TYPE = /* @__PURE__ */ Symbol.for("react.lazy");
       /* @__PURE__ */ Symbol.for("react.scope");
       var REACT_ACTIVITY_TYPE = /* @__PURE__ */ Symbol.for("react.activity");
       /* @__PURE__ */ Symbol.for("react.legacy_hidden");
       /* @__PURE__ */ Symbol.for("react.tracing_marker");
       var REACT_MEMO_CACHE_SENTINEL = /* @__PURE__ */ Symbol.for("react.memo_cache_sentinel");
       /* @__PURE__ */ Symbol.for("react.view_transition");
-      var MAYBE_ITERATOR_SYMBOL = Symbol.iterator, REACT_CLIENT_REFERENCE = /* @__PURE__ */ Symbol.for("react.client.reference"), isArrayImpl = Array.isArray, ReactSharedInternals = React19.__CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE, rendererVersion = $$$config.rendererVersion, rendererPackageName = $$$config.rendererPackageName, extraDevToolsConfig = $$$config.extraDevToolsConfig, getPublicInstance = $$$config.getPublicInstance, getRootHostContext = $$$config.getRootHostContext, getChildHostContext = $$$config.getChildHostContext, prepareForCommit = $$$config.prepareForCommit, resetAfterCommit = $$$config.resetAfterCommit, createInstance = $$$config.createInstance;
+      var MAYBE_ITERATOR_SYMBOL = Symbol.iterator, REACT_CLIENT_REFERENCE = /* @__PURE__ */ Symbol.for("react.client.reference"), isArrayImpl = Array.isArray, ReactSharedInternals = React20.__CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE, rendererVersion = $$$config.rendererVersion, rendererPackageName = $$$config.rendererPackageName, extraDevToolsConfig = $$$config.extraDevToolsConfig, getPublicInstance = $$$config.getPublicInstance, getRootHostContext = $$$config.getRootHostContext, getChildHostContext = $$$config.getChildHostContext, prepareForCommit = $$$config.prepareForCommit, resetAfterCommit = $$$config.resetAfterCommit, createInstance = $$$config.createInstance;
       $$$config.cloneMutableInstance;
       var appendInitialChild = $$$config.appendInitialChild, finalizeInitialChildren = $$$config.finalizeInitialChildren, shouldSetTextContent = $$$config.shouldSetTextContent, createTextInstance = $$$config.createTextInstance;
       $$$config.cloneMutableTextInstance;
@@ -23166,14 +23166,14 @@ var require_react_reconciler_development = __commonJS({
       __name(getCurrentFiberForDevTools, "getCurrentFiberForDevTools");
       var exports2 = {};
       "use strict";
-      var React19 = require_react(), Scheduler2 = require_scheduler(), assign = Object.assign, REACT_LEGACY_ELEMENT_TYPE = /* @__PURE__ */ Symbol.for("react.element"), REACT_ELEMENT_TYPE = /* @__PURE__ */ Symbol.for("react.transitional.element"), REACT_PORTAL_TYPE = /* @__PURE__ */ Symbol.for("react.portal"), REACT_FRAGMENT_TYPE = /* @__PURE__ */ Symbol.for("react.fragment"), REACT_STRICT_MODE_TYPE = /* @__PURE__ */ Symbol.for("react.strict_mode"), REACT_PROFILER_TYPE = /* @__PURE__ */ Symbol.for("react.profiler"), REACT_CONSUMER_TYPE = /* @__PURE__ */ Symbol.for("react.consumer"), REACT_CONTEXT_TYPE = /* @__PURE__ */ Symbol.for("react.context"), REACT_FORWARD_REF_TYPE = /* @__PURE__ */ Symbol.for("react.forward_ref"), REACT_SUSPENSE_TYPE = /* @__PURE__ */ Symbol.for("react.suspense"), REACT_SUSPENSE_LIST_TYPE = /* @__PURE__ */ Symbol.for("react.suspense_list"), REACT_MEMO_TYPE = /* @__PURE__ */ Symbol.for("react.memo"), REACT_LAZY_TYPE = /* @__PURE__ */ Symbol.for("react.lazy");
+      var React20 = require_react(), Scheduler2 = require_scheduler(), assign = Object.assign, REACT_LEGACY_ELEMENT_TYPE = /* @__PURE__ */ Symbol.for("react.element"), REACT_ELEMENT_TYPE = /* @__PURE__ */ Symbol.for("react.transitional.element"), REACT_PORTAL_TYPE = /* @__PURE__ */ Symbol.for("react.portal"), REACT_FRAGMENT_TYPE = /* @__PURE__ */ Symbol.for("react.fragment"), REACT_STRICT_MODE_TYPE = /* @__PURE__ */ Symbol.for("react.strict_mode"), REACT_PROFILER_TYPE = /* @__PURE__ */ Symbol.for("react.profiler"), REACT_CONSUMER_TYPE = /* @__PURE__ */ Symbol.for("react.consumer"), REACT_CONTEXT_TYPE = /* @__PURE__ */ Symbol.for("react.context"), REACT_FORWARD_REF_TYPE = /* @__PURE__ */ Symbol.for("react.forward_ref"), REACT_SUSPENSE_TYPE = /* @__PURE__ */ Symbol.for("react.suspense"), REACT_SUSPENSE_LIST_TYPE = /* @__PURE__ */ Symbol.for("react.suspense_list"), REACT_MEMO_TYPE = /* @__PURE__ */ Symbol.for("react.memo"), REACT_LAZY_TYPE = /* @__PURE__ */ Symbol.for("react.lazy");
       /* @__PURE__ */ Symbol.for("react.scope");
       var REACT_ACTIVITY_TYPE = /* @__PURE__ */ Symbol.for("react.activity");
       /* @__PURE__ */ Symbol.for("react.legacy_hidden");
       /* @__PURE__ */ Symbol.for("react.tracing_marker");
       var REACT_MEMO_CACHE_SENTINEL = /* @__PURE__ */ Symbol.for("react.memo_cache_sentinel");
       /* @__PURE__ */ Symbol.for("react.view_transition");
-      var MAYBE_ITERATOR_SYMBOL = Symbol.iterator, REACT_CLIENT_REFERENCE = /* @__PURE__ */ Symbol.for("react.client.reference"), isArrayImpl = Array.isArray, ReactSharedInternals = React19.__CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE, rendererVersion = $$$config.rendererVersion, rendererPackageName = $$$config.rendererPackageName, extraDevToolsConfig = $$$config.extraDevToolsConfig, getPublicInstance = $$$config.getPublicInstance, getRootHostContext = $$$config.getRootHostContext, getChildHostContext = $$$config.getChildHostContext, prepareForCommit = $$$config.prepareForCommit, resetAfterCommit = $$$config.resetAfterCommit, createInstance = $$$config.createInstance;
+      var MAYBE_ITERATOR_SYMBOL = Symbol.iterator, REACT_CLIENT_REFERENCE = /* @__PURE__ */ Symbol.for("react.client.reference"), isArrayImpl = Array.isArray, ReactSharedInternals = React20.__CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE, rendererVersion = $$$config.rendererVersion, rendererPackageName = $$$config.rendererPackageName, extraDevToolsConfig = $$$config.extraDevToolsConfig, getPublicInstance = $$$config.getPublicInstance, getRootHostContext = $$$config.getRootHostContext, getChildHostContext = $$$config.getChildHostContext, prepareForCommit = $$$config.prepareForCommit, resetAfterCommit = $$$config.resetAfterCommit, createInstance = $$$config.createInstance;
       $$$config.cloneMutableInstance;
       var appendInitialChild = $$$config.appendInitialChild, finalizeInitialChildren = $$$config.finalizeInitialChildren, shouldSetTextContent = $$$config.shouldSetTextContent, createTextInstance = $$$config.createTextInstance;
       $$$config.cloneMutableTextInstance;
@@ -27378,7 +27378,7 @@ var require_extension = __commonJS({
 var require_websocket = __commonJS({
   "node_modules/ws/lib/websocket.js"(exports, module) {
     "use strict";
-    var EventEmitter9 = __require("events");
+    var EventEmitter10 = __require("events");
     var https = __require("https");
     var http = __require("http");
     var net = __require("net");
@@ -27410,7 +27410,7 @@ var require_websocket = __commonJS({
     var protocolVersions = [8, 13];
     var readyStates = ["CONNECTING", "OPEN", "CLOSING", "CLOSED"];
     var subprotocolRegex = /^[!#$%&'*+\-.0-9A-Z^_`|a-z~]+$/;
-    var WebSocket2 = class _WebSocket extends EventEmitter9 {
+    var WebSocket2 = class _WebSocket extends EventEmitter10 {
       static {
         __name(this, "WebSocket");
       }
@@ -28435,7 +28435,7 @@ var require_subprotocol = __commonJS({
 var require_websocket_server = __commonJS({
   "node_modules/ws/lib/websocket-server.js"(exports, module) {
     "use strict";
-    var EventEmitter9 = __require("events");
+    var EventEmitter10 = __require("events");
     var http = __require("http");
     var { Duplex } = __require("stream");
     var { createHash: createHash2 } = __require("crypto");
@@ -28448,7 +28448,7 @@ var require_websocket_server = __commonJS({
     var RUNNING = 0;
     var CLOSING = 1;
     var CLOSED = 2;
-    var WebSocketServer2 = class extends EventEmitter9 {
+    var WebSocketServer2 = class extends EventEmitter10 {
       static {
         __name(this, "WebSocketServer");
       }
@@ -31565,18 +31565,18 @@ var require_react_jsx_runtime_development = __commonJS({
         return "object" === typeof object && null !== object && object.$$typeof === REACT_ELEMENT_TYPE;
       }
       __name(isValidElement, "isValidElement");
-      var React19 = require_react(), REACT_ELEMENT_TYPE = /* @__PURE__ */ Symbol.for("react.transitional.element"), REACT_PORTAL_TYPE = /* @__PURE__ */ Symbol.for("react.portal"), REACT_FRAGMENT_TYPE = /* @__PURE__ */ Symbol.for("react.fragment"), REACT_STRICT_MODE_TYPE = /* @__PURE__ */ Symbol.for("react.strict_mode"), REACT_PROFILER_TYPE = /* @__PURE__ */ Symbol.for("react.profiler"), REACT_CONSUMER_TYPE = /* @__PURE__ */ Symbol.for("react.consumer"), REACT_CONTEXT_TYPE = /* @__PURE__ */ Symbol.for("react.context"), REACT_FORWARD_REF_TYPE = /* @__PURE__ */ Symbol.for("react.forward_ref"), REACT_SUSPENSE_TYPE = /* @__PURE__ */ Symbol.for("react.suspense"), REACT_SUSPENSE_LIST_TYPE = /* @__PURE__ */ Symbol.for("react.suspense_list"), REACT_MEMO_TYPE = /* @__PURE__ */ Symbol.for("react.memo"), REACT_LAZY_TYPE = /* @__PURE__ */ Symbol.for("react.lazy"), REACT_ACTIVITY_TYPE = /* @__PURE__ */ Symbol.for("react.activity"), REACT_CLIENT_REFERENCE = /* @__PURE__ */ Symbol.for("react.client.reference"), ReactSharedInternals = React19.__CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE, hasOwnProperty = Object.prototype.hasOwnProperty, isArrayImpl = Array.isArray, createTask = console.createTask ? console.createTask : function() {
+      var React20 = require_react(), REACT_ELEMENT_TYPE = /* @__PURE__ */ Symbol.for("react.transitional.element"), REACT_PORTAL_TYPE = /* @__PURE__ */ Symbol.for("react.portal"), REACT_FRAGMENT_TYPE = /* @__PURE__ */ Symbol.for("react.fragment"), REACT_STRICT_MODE_TYPE = /* @__PURE__ */ Symbol.for("react.strict_mode"), REACT_PROFILER_TYPE = /* @__PURE__ */ Symbol.for("react.profiler"), REACT_CONSUMER_TYPE = /* @__PURE__ */ Symbol.for("react.consumer"), REACT_CONTEXT_TYPE = /* @__PURE__ */ Symbol.for("react.context"), REACT_FORWARD_REF_TYPE = /* @__PURE__ */ Symbol.for("react.forward_ref"), REACT_SUSPENSE_TYPE = /* @__PURE__ */ Symbol.for("react.suspense"), REACT_SUSPENSE_LIST_TYPE = /* @__PURE__ */ Symbol.for("react.suspense_list"), REACT_MEMO_TYPE = /* @__PURE__ */ Symbol.for("react.memo"), REACT_LAZY_TYPE = /* @__PURE__ */ Symbol.for("react.lazy"), REACT_ACTIVITY_TYPE = /* @__PURE__ */ Symbol.for("react.activity"), REACT_CLIENT_REFERENCE = /* @__PURE__ */ Symbol.for("react.client.reference"), ReactSharedInternals = React20.__CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE, hasOwnProperty = Object.prototype.hasOwnProperty, isArrayImpl = Array.isArray, createTask = console.createTask ? console.createTask : function() {
         return null;
       };
-      React19 = {
+      React20 = {
         react_stack_bottom_frame: /* @__PURE__ */ __name(function(callStackForError) {
           return callStackForError();
         }, "react_stack_bottom_frame")
       };
       var specialPropKeyWarningShown;
       var didWarnAboutElementRef = {};
-      var unknownOwnerDebugStack = React19.react_stack_bottom_frame.bind(
-        React19,
+      var unknownOwnerDebugStack = React20.react_stack_bottom_frame.bind(
+        React20,
         UnknownOwner
       )();
       var unknownOwnerDebugTask = createTask(getTaskName(UnknownOwner));
@@ -32713,7 +32713,7 @@ import { AsyncResource as AsyncResource2 } from "node:async_hooks";
 function isFactory(value) {
   return typeof value === "function";
 }
-function useState13(defaultValue2) {
+function useState14(defaultValue2) {
   return withPointer((pointer) => {
     const setState = AsyncResource2.bind(/* @__PURE__ */ __name(function setState2(newValue) {
       if (pointer.get() !== newValue) {
@@ -32733,7 +32733,7 @@ var init_use_state = __esm({
   "node_modules/@inquirer/core/dist/lib/use-state.js"() {
     init_hook_engine();
     __name(isFactory, "isFactory");
-    __name(useState13, "useState");
+    __name(useState14, "useState");
   }
 });
 
@@ -33120,8 +33120,8 @@ var init_make_theme = __esm({
 
 // node_modules/@inquirer/core/dist/lib/use-prefix.js
 function usePrefix({ status = "idle", theme }) {
-  const [showLoader, setShowLoader] = useState13(false);
-  const [tick, setTick] = useState13(0);
+  const [showLoader, setShowLoader] = useState14(false);
+  const [tick, setTick] = useState14(0);
   const { prefix, spinner } = makeTheme(theme);
   useEffect12(() => {
     if (status === "loading") {
@@ -33159,7 +33159,7 @@ var init_use_prefix = __esm({
 
 // node_modules/@inquirer/core/dist/lib/use-ref.js
 function useRef4(val) {
-  return useState13({ current: val })[0];
+  return useState14({ current: val })[0];
 }
 var init_use_ref = __esm({
   "node_modules/@inquirer/core/dist/lib/use-ref.js"() {
@@ -34294,10 +34294,10 @@ var init_dist6 = __esm({
     dist_default7 = createPrompt((config, done) => {
       const { prefill = "tab" } = config;
       const theme = makeTheme(inputTheme, config.theme);
-      const [status, setStatus] = useState13("idle");
-      const [defaultValue2, setDefaultValue] = useState13(String(config.default ?? ""));
-      const [errorMsg, setError] = useState13();
-      const [value, setValue] = useState13("");
+      const [status, setStatus] = useState14("idle");
+      const [defaultValue2, setDefaultValue] = useState14(String(config.default ?? ""));
+      const [errorMsg, setError] = useState14();
+      const [value, setValue] = useState14("");
       const prefix = usePrefix({ status, theme });
       async function validate2(value2) {
         const { required, pattern, patternError = "Invalid input" } = config;
@@ -34389,7 +34389,7 @@ import { fileURLToPath } from "node:url";
 import { homedir as homedir6 } from "node:os";
 function getLocalVersion() {
   if (true) {
-    return "0.1.1-dev.18";
+    return "0.1.1-dev.19";
   }
   try {
     const here = dirname4(fileURLToPath(import.meta.url));
@@ -41959,7 +41959,7 @@ var require_dist = __commonJS({
 });
 
 // src/repl.ts
-var import_react41 = __toESM(require_react(), 1);
+var import_react42 = __toESM(require_react(), 1);
 
 // node_modules/ink/build/render.js
 import { Stream } from "node:stream";
@@ -51034,7 +51034,7 @@ var InputHistory = class {
 };
 
 // src/ui/App.tsx
-var import_react40 = __toESM(require_react(), 1);
+var import_react41 = __toESM(require_react(), 1);
 
 // src/ui/HistoryView.tsx
 var import_react34 = __toESM(require_react(), 1);
@@ -52185,13 +52185,111 @@ function SessionPicker({ items, onChoose }) {
 }
 __name(SessionPicker, "SessionPicker");
 
-// src/ui/App.tsx
+// src/ui/ask-controller.ts
+import { EventEmitter as EventEmitter9 } from "node:events";
+var AskController = class extends EventEmitter9 {
+  static {
+    __name(this, "AskController");
+  }
+  current = null;
+  getCurrent() {
+    return this.current;
+  }
+  async open(question, options) {
+    if (this.current) {
+      this.current.resolve(null);
+    }
+    return new Promise((resolve6) => {
+      this.current = { question, options, resolve: resolve6 };
+      this.emit("change");
+    });
+  }
+  close(answer) {
+    const cur = this.current;
+    this.current = null;
+    if (cur) cur.resolve(answer);
+    this.emit("change");
+  }
+};
+var askController = new AskController();
+
+// src/ui/AskPicker.tsx
+var import_react40 = __toESM(require_react(), 1);
 var import_jsx_runtime7 = __toESM(require_jsx_runtime(), 1);
+function AskPicker({ question, options, onAnswer }) {
+  const hasOptions = Array.isArray(options) && options.length > 0;
+  const [idx, setIdx] = (0, import_react40.useState)(0);
+  const [typed, setTyped] = (0, import_react40.useState)("");
+  use_input_default((input, key) => {
+    if (key.escape) {
+      onAnswer(null);
+      return;
+    }
+    if (key.return) {
+      if (hasOptions) {
+        onAnswer(options[idx] ?? null);
+      } else {
+        onAnswer(typed.trim() || null);
+      }
+      return;
+    }
+    if (hasOptions) {
+      if (key.upArrow) {
+        setIdx((i) => (i - 1 + options.length) % options.length);
+      } else if (key.downArrow) {
+        setIdx((i) => (i + 1) % options.length);
+      }
+      return;
+    }
+    if (key.backspace || key.delete) {
+      setTyped((t) => t.slice(0, -1));
+      return;
+    }
+    if (key.ctrl || key.meta) return;
+    if (input && input.length > 0) {
+      setTyped((t) => t + input);
+    }
+  });
+  return /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)(
+    Box_default,
+    {
+      flexDirection: "column",
+      borderStyle: "round",
+      borderColor: "#e27649",
+      paddingX: 1,
+      children: [
+        /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)(Box_default, { children: [
+          /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(Text, { color: "#ec9470", children: "\u25C6 " }),
+          /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(Text, { color: "#f6f1e8", children: question })
+        ] }),
+        hasOptions ? /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(Box_default, { flexDirection: "column", marginTop: 1, children: options.map((opt, i) => {
+          const active = i === idx;
+          return /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)(Box_default, { children: [
+            /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(Text, { color: active ? "#e27649" : "#4a4239", children: active ? "\u203A" : " " }),
+            /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)(Text, { color: active ? "#f6f1e8" : "#bdb3a1", children: [
+              " ",
+              opt
+            ] })
+          ] }, i);
+        }) }) : /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)(Box_default, { marginTop: 1, children: [
+          /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(Text, { color: "#8a8270", children: "r\xE9ponse \u203A " }),
+          /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(Text, { children: typed }),
+          /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(Text, { inverse: true, children: " " })
+        ] }),
+        /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(Box_default, { marginTop: 1, children: /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(Text, { color: "#8a8270", children: hasOptions ? "\u2191\u2193 naviguer \xB7 Enter valider \xB7 Esc annuler" : "tape ta r\xE9ponse \xB7 Enter valider \xB7 Esc annuler" }) })
+      ]
+    }
+  );
+}
+__name(AskPicker, "AskPicker");
+
+// src/ui/App.tsx
+var import_jsx_runtime8 = __toESM(require_jsx_runtime(), 1);
 function App2({ history } = {}) {
   const { stdout } = use_stdout_default();
-  const [columns, setColumns] = (0, import_react40.useState)(stdout?.columns ?? 100);
-  const [inputDisabled, setInputDisabled] = (0, import_react40.useState)(false);
-  (0, import_react40.useEffect)(() => {
+  const [columns, setColumns] = (0, import_react41.useState)(stdout?.columns ?? 100);
+  const [inputDisabled, setInputDisabled] = (0, import_react41.useState)(false);
+  (0, import_react41.useEffect)(() => {
     if (!stdout) return;
     const update = /* @__PURE__ */ __name(() => setColumns(stdout.columns ?? 100), "update");
     stdout.on("resize", update);
@@ -52199,47 +52297,55 @@ function App2({ history } = {}) {
       stdout.off("resize", update);
     };
   }, [stdout]);
-  (0, import_react40.useEffect)(() => {
+  (0, import_react41.useEffect)(() => {
     const update = /* @__PURE__ */ __name(() => setInputDisabled(inputController.disabled), "update");
     inputController.on("disabled-change", update);
     return () => {
       inputController.off("disabled-change", update);
     };
   }, []);
-  const [pickerActive, setPickerActive] = (0, import_react40.useState)(
+  const [pickerActive, setPickerActive] = (0, import_react41.useState)(
     () => pickerController.getCurrent()
   );
-  (0, import_react40.useEffect)(() => {
+  (0, import_react41.useEffect)(() => {
     const update = /* @__PURE__ */ __name(() => setPickerActive(pickerController.getCurrent()), "update");
     pickerController.on("change", update);
     return () => {
       pickerController.off("change", update);
     };
   }, []);
-  const [permissionActive, setPermissionActive] = (0, import_react40.useState)(
+  const [permissionActive, setPermissionActive] = (0, import_react41.useState)(
     () => permissionController.getCurrent()
   );
-  (0, import_react40.useEffect)(() => {
+  (0, import_react41.useEffect)(() => {
     const update = /* @__PURE__ */ __name(() => setPermissionActive(permissionController.getCurrent()), "update");
     permissionController.on("change", update);
     return () => {
       permissionController.off("change", update);
     };
   }, []);
-  const [sessionActive, setSessionActive] = (0, import_react40.useState)(
+  const [sessionActive, setSessionActive] = (0, import_react41.useState)(
     () => sessionController.getCurrent()
   );
-  (0, import_react40.useEffect)(() => {
+  (0, import_react41.useEffect)(() => {
     const update = /* @__PURE__ */ __name(() => setSessionActive(sessionController.getCurrent()), "update");
     sessionController.on("change", update);
     return () => {
       sessionController.off("change", update);
     };
   }, []);
-  return /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)(Box_default, { flexDirection: "column", children: [
-    /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(HistoryView, {}),
-    /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(StreamingView, {}),
-    permissionActive ? /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(
+  const [askActive, setAskActive] = (0, import_react41.useState)(() => askController.getCurrent());
+  (0, import_react41.useEffect)(() => {
+    const update = /* @__PURE__ */ __name(() => setAskActive(askController.getCurrent()), "update");
+    askController.on("change", update);
+    return () => {
+      askController.off("change", update);
+    };
+  }, []);
+  return /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)(Box_default, { flexDirection: "column", children: [
+    /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(HistoryView, {}),
+    /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(StreamingView, {}),
+    permissionActive ? /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(
       PermissionPicker,
       {
         toolName: permissionActive.toolName,
@@ -52247,20 +52353,27 @@ function App2({ history } = {}) {
         input: permissionActive.input,
         onChoose: (d) => permissionController.close(d)
       }
-    ) : sessionActive ? /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(
+    ) : askActive ? /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(
+      AskPicker,
+      {
+        question: askActive.question,
+        options: askActive.options,
+        onAnswer: (a) => askController.close(a)
+      }
+    ) : sessionActive ? /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(
       SessionPicker,
       {
         items: sessionActive.items,
         onChoose: (p) => sessionController.close(p)
       }
-    ) : pickerActive ? /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(
+    ) : pickerActive ? /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(
       ModelPicker,
       {
         items: pickerActive.items,
         initial: pickerActive.initial,
         onChoose: (id) => pickerController.close(id)
       }
-    ) : /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(
+    ) : /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(
       InputBox,
       {
         disabled: inputDisabled,
@@ -52271,7 +52384,7 @@ function App2({ history } = {}) {
         onCyclePermissionMode: () => inputController.cyclePermissionMode()
       }
     ),
-    /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(StatusLine, { columns })
+    /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(StatusLine, { columns })
   ] });
 }
 __name(App2, "App");
@@ -53341,6 +53454,43 @@ function humanSize(bytes) {
 }
 __name(humanSize, "humanSize");
 
+// src/tools/ask.ts
+var askTool = {
+  name: "AskUser",
+  description: "Pose une question \xE0 l'user quand la demande est ambigu\xEB ou destructive sans contexte. Fournis des options si un choix multiple est naturel (picker), sinon laisse vide pour une r\xE9ponse texte libre. NE PAS utiliser pour des questions triviales \u2014 seulement quand agir sans clarification risque de casser ou de faire perdre du temps \xE0 l'user.",
+  formatInvocation: /* @__PURE__ */ __name((input) => {
+    const q = String(input.question ?? "");
+    return q.length > 70 ? q.slice(0, 70) + "\u2026" : q;
+  }, "formatInvocation"),
+  formatResult: /* @__PURE__ */ __name((_input, output) => {
+    return output.length > 80 ? output.slice(0, 80) + "\u2026" : output;
+  }, "formatResult"),
+  schema: {
+    type: "object",
+    properties: {
+      question: {
+        type: "string",
+        description: "La question \xE0 poser, concise et claire."
+      },
+      options: {
+        type: "array",
+        items: { type: "string" },
+        description: "Liste d'options pr\xE9d\xE9finies (2-6 items). Si fournie, affiche un picker. Sinon input texte libre."
+      }
+    },
+    required: ["question"]
+  },
+  async run(input) {
+    const question = String(input.question ?? "").trim();
+    if (!question) return "(question vide, skip)";
+    const rawOptions = Array.isArray(input.options) ? input.options.map((o) => String(o).trim()).filter((o) => o.length > 0) : void 0;
+    const options = rawOptions && rawOptions.length > 0 ? rawOptions : void 0;
+    const answer = await askController.open(question, options);
+    if (answer === null) return "(aucune r\xE9ponse, user a annul\xE9)";
+    return answer;
+  }
+};
+
 // src/tools/registry.ts
 var ToolRegistry = class {
   static {
@@ -53374,6 +53524,7 @@ function createBaseRegistry() {
   registry.register(grepTool);
   registry.register(lsTool);
   registry.register(bashTool);
+  registry.register(askTool);
   return registry;
 }
 __name(createBaseRegistry, "createBaseRegistry");
@@ -53932,7 +54083,15 @@ init_provider();
 init_logger();
 
 // src/permissions/policy.ts
-var SAFE_TOOLS = /* @__PURE__ */ new Set(["Read", "Glob", "Grep", "Ls"]);
+var SAFE_TOOLS = /* @__PURE__ */ new Set([
+  "Read",
+  "Glob",
+  "Grep",
+  "Ls",
+  // AskUser = pose une question à l'user via Ink picker. Aucune IO système,
+  // doit passer en plan mode (l'agent a besoin de clarifier pour son plan).
+  "AskUser"
+]);
 var EDIT_TOOLS = /* @__PURE__ */ new Set(["Write", "Edit"]);
 var EXECUTE_TOOLS = /* @__PURE__ */ new Set(["Bash"]);
 function categorize(toolName) {
@@ -55676,22 +55835,25 @@ ${MODE_BLOCK[mode]}
 
 Si doute : CONVERSATION.
 
-# Poser des questions \xE0 l'user
+# Poser des questions \xE0 l'user (tool AskUser)
 
-Si la demande est **ambigu\xEB** ou **destructive sans contexte clair**, POSE UNE QUESTION en texte avant d'agir. Termine ton turn (pas de tool_use). L'user r\xE9pondra dans son prochain message et tu pourras encha\xEEner.
+Si la demande est **ambigu\xEB** ou **destructive sans contexte clair**, utilise le tool **AskUser** pour clarifier avant d'agir. Deux modes :
 
-Exemples o\xF9 poser la question :
-- "supprime les vieux fichiers" \u2192 quels fichiers ? quel crit\xE8re d'\xE2ge ?
-- "refactore cette fonction" \u2192 dans quel sens ? (lisibilit\xE9, perf, split) \u2014 si ce n'est pas \xE9vident.
-- "update les deps" \u2192 toutes ? patch/minor/major ? une sp\xE9cifique ?
-- "\xE9cris un test" \u2192 pour quoi ? quel framework ? (s'il n'y en a pas d\xE9j\xE0 dans le projet)
+- **Avec options** (2-6 choix) : affiche un picker. Ex: \`AskUser({ question: "Quelle granularit\xE9 ?", options: ["patch", "minor", "major"] })\`.
+- **Sans options** : input texte libre pour des r\xE9ponses ouvertes. Ex: \`AskUser({ question: "Quel motif chercher dans les logs ?" })\`.
 
-Exemples o\xF9 NE PAS poser la question (juste agir) :
+Exemples o\xF9 utiliser AskUser :
+- "supprime les vieux fichiers" \u2192 options ["tous", "> 7 jours", "> 30 jours", "annuler"]
+- "refactore cette fonction" \u2192 options ["lisibilit\xE9", "perf", "split en plusieurs"]
+- "update les deps" \u2192 options ["patch", "minor", "major"]
+- "\xE9cris un test" (pas de framework d\xE9tect\xE9) \u2192 texte libre "Quel framework ?"
+
+Exemples o\xF9 NE PAS utiliser AskUser (juste agir) :
 - "lis package.json" \u2192 lis.
 - "fix le typo dans README.md" \u2192 lis, trouve, corrige.
-- "lance les tests" \u2192 npm test (ou l'\xE9quivalent d\xE9tect\xE9).
+- "lance les tests" \u2192 npm test (ou \xE9quivalent).
 
-R\xE8gle : une question > un fix au pif qui casse. Mais une question \xE9videmment inutile > fait perdre du temps.
+R\xE8gle : AskUser > un fix au pif qui casse. Mais AskUser \xE9videmment inutile > fait perdre du temps.
 
 # Style
 - **Concis par d\xE9faut** (comme Claude) : r\xE9ponse courte, droit au but. Pas de pr\xE9ambule ("Bien s\xFBr", "Voici"), pas de r\xE9sum\xE9 final ("J'ai fini de...", "En r\xE9sum\xE9..."), pas d'emojis sauf si l'user en met.
@@ -55810,7 +55972,7 @@ async function startRepl() {
   installConsolePatch2();
   const history = new InputHistory();
   const inkInstance = render_default(
-    import_react41.default.createElement(App2, {
+    import_react42.default.createElement(App2, {
       history
     }),
     {
