@@ -6,6 +6,7 @@ import { editTool } from "./edit.js";
 import { globTool } from "./glob.js";
 import { grepTool } from "./grep.js";
 import { lsTool } from "./ls.js";
+import { askTool } from "./ask.js";
 
 export class ToolRegistry {
   private tools = new Map<string, Tool>();
@@ -42,5 +43,6 @@ export function createBaseRegistry(): ToolRegistry {
   registry.register(grepTool);
   registry.register(lsTool);
   registry.register(bashTool);
+  registry.register(askTool);
   return registry;
 }

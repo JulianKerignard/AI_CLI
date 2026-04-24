@@ -1,6 +1,16 @@
+// Schema JSON minimal envoyé avec les tools à l'API. On supporte les
+// types de base + array avec items (pour AskUser qui prend un array de
+// string options). Pas besoin d'un validateur complet — c'est juste ce
+// que le modèle lit pour former ses tool_use.
+interface ToolParamSchema {
+  type: string;
+  description?: string;
+  items?: { type: string };
+}
+
 export interface ToolSchema {
   type: "object";
-  properties: Record<string, { type: string; description?: string }>;
+  properties: Record<string, ToolParamSchema>;
   required?: string[];
 }
 

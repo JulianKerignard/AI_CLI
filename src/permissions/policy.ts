@@ -11,7 +11,15 @@ export type ToolCategory = "safe" | "edit" | "execute";
 
 export type Decision = "allow" | "deny" | "ask";
 
-const SAFE_TOOLS: ReadonlySet<string> = new Set(["Read", "Glob", "Grep", "Ls"]);
+const SAFE_TOOLS: ReadonlySet<string> = new Set([
+  "Read",
+  "Glob",
+  "Grep",
+  "Ls",
+  // AskUser = pose une question à l'user via Ink picker. Aucune IO système,
+  // doit passer en plan mode (l'agent a besoin de clarifier pour son plan).
+  "AskUser",
+]);
 const EDIT_TOOLS: ReadonlySet<string> = new Set(["Write", "Edit"]);
 const EXECUTE_TOOLS: ReadonlySet<string> = new Set(["Bash"]);
 

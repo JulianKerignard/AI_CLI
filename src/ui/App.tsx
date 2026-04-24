@@ -11,6 +11,8 @@ import { permissionController } from "./permission-controller.js";
 import { PermissionPicker } from "./PermissionPicker.js";
 import { sessionController } from "./session-controller.js";
 import { SessionPicker } from "./SessionPicker.js";
+import { askController } from "./ask-controller.js";
+import { AskPicker } from "./AskPicker.js";
 
 // Layout :
 // ┌───────────────────────────┐
@@ -83,6 +85,16 @@ export function App({ history }: AppProps = {}) {
     };
   }, []);
 
+  // Ask picker actif (tool AskUser posé par l'agent).
+  const [askActive, setAskActive] = useState(() => askController.getCurrent());
+  useEffect(() => {
+    const update = () => setAskActive(askController.getCurrent());
+    askController.on("change", update);
+    return () => {
+      askController.off("change", update);
+    };
+  }, []);
+
   return (
     <Box flexDirection="column">
       <HistoryView />
@@ -93,6 +105,12 @@ export function App({ history }: AppProps = {}) {
           category={permissionActive.category}
           input={permissionActive.input}
           onChoose={(d) => permissionController.close(d)}
+        />
+      ) : askActive ? (
+        <AskPicker
+          question={askActive.question}
+          options={askActive.options}
+          onAnswer={(a) => askController.close(a)}
         />
       ) : sessionActive ? (
         <SessionPicker
