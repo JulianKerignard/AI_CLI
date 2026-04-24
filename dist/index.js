@@ -32320,6 +32320,45 @@ var init_store = __esm({
   }
 });
 
+// src/lib/favorites.ts
+var favorites_exports = {};
+__export(favorites_exports, {
+  FAVORITE_ALIASES: () => FAVORITE_ALIASES,
+  FAVORITE_FULL_IDS: () => FAVORITE_FULL_IDS,
+  FAVORITE_ORDER: () => FAVORITE_ORDER,
+  resolveFavoriteAlias: () => resolveFavoriteAlias
+});
+function resolveFavoriteAlias(input) {
+  const hit = FAVORITE_ALIASES[input.toLowerCase()];
+  return hit ?? null;
+}
+var FAVORITE_ALIASES, FAVORITE_ORDER, FAVORITE_FULL_IDS;
+var init_favorites = __esm({
+  "src/lib/favorites.ts"() {
+    "use strict";
+    FAVORITE_ALIASES = {
+      hy3: "openrouter/tencent/hy3-preview:free",
+      "ling-1t": "openrouter/inclusionai/ling-2.6-1t:free",
+      flash: "gemini-flash-latest",
+      large: "mistral-large-latest",
+      codestral: "codestral-latest",
+      devstral: "devstral-latest"
+    };
+    FAVORITE_ORDER = [
+      "hy3",
+      "ling-1t",
+      "flash",
+      "large",
+      "codestral",
+      "devstral"
+    ];
+    __name(resolveFavoriteAlias, "resolveFavoriteAlias");
+    FAVORITE_FULL_IDS = new Set(
+      Object.values(FAVORITE_ALIASES)
+    );
+  }
+});
+
 // src/agent/provider.ts
 var provider_exports = {};
 __export(provider_exports, {
@@ -34321,45 +34360,6 @@ var init_dist6 = __esm({
   }
 });
 
-// src/lib/favorites.ts
-var favorites_exports = {};
-__export(favorites_exports, {
-  FAVORITE_ALIASES: () => FAVORITE_ALIASES,
-  FAVORITE_FULL_IDS: () => FAVORITE_FULL_IDS,
-  FAVORITE_ORDER: () => FAVORITE_ORDER,
-  resolveFavoriteAlias: () => resolveFavoriteAlias
-});
-function resolveFavoriteAlias(input) {
-  const hit = FAVORITE_ALIASES[input.toLowerCase()];
-  return hit ?? null;
-}
-var FAVORITE_ALIASES, FAVORITE_ORDER, FAVORITE_FULL_IDS;
-var init_favorites = __esm({
-  "src/lib/favorites.ts"() {
-    "use strict";
-    FAVORITE_ALIASES = {
-      hy3: "openrouter/tencent/hy3-preview:free",
-      "ling-1t": "openrouter/inclusionai/ling-2.6-1t:free",
-      flash: "gemini-flash-latest",
-      large: "mistral-large-latest",
-      codestral: "codestral-latest",
-      devstral: "devstral-latest"
-    };
-    FAVORITE_ORDER = [
-      "hy3",
-      "ling-1t",
-      "flash",
-      "large",
-      "codestral",
-      "devstral"
-    ];
-    __name(resolveFavoriteAlias, "resolveFavoriteAlias");
-    FAVORITE_FULL_IDS = new Set(
-      Object.values(FAVORITE_ALIASES)
-    );
-  }
-});
-
 // src/lib/update-check.ts
 var update_check_exports = {};
 __export(update_check_exports, {
@@ -34374,7 +34374,7 @@ import { fileURLToPath } from "node:url";
 import { homedir as homedir6 } from "node:os";
 function getLocalVersion() {
   if (true) {
-    return "0.1.1-dev.8";
+    return "0.1.1-dev.9";
   }
   try {
     const here = dirname4(fileURLToPath(import.meta.url));
@@ -52322,7 +52322,10 @@ var BetterModelWatcher = class {
     }
     if (this.stopped) return;
     if (models.length === 0) return;
-    const scored = models.map((m) => scoreModel(m, this.mode)).sort((a, b) => b.score - a.score);
+    const { FAVORITE_FULL_IDS: FAVORITE_FULL_IDS2 } = await Promise.resolve().then(() => (init_favorites(), favorites_exports));
+    const favModels = models.filter((m) => FAVORITE_FULL_IDS2.has(m.id));
+    if (favModels.length === 0) return;
+    const scored = favModels.map((m) => scoreModel(m, this.mode)).sort((a, b) => b.score - a.score);
     const current = scored.find((s) => s.model.id === creds.model);
     const top = scored[0];
     if (!top) return;
@@ -54641,7 +54644,7 @@ function builtinCommands(allCommands) {
     },
     {
       name: "model",
-      description: "Change le mod\xE8le actif. /model \u2192 picker, /model <id> \u2192 switch direct.",
+      description: "Change le mod\xE8le actif (picker restreint aux favoris). /model <alias> \u2192 switch direct.",
       async run({ auth }, args2) {
         const creds = auth.getCredentials();
         if (!creds) {
@@ -54649,55 +54652,7 @@ function builtinCommands(allCommands) {
           return;
         }
         const targetId = args2.trim();
-        let models = [];
-        try {
-          const { fetchCatalog: fetchCatalog2 } = await Promise.resolve().then(() => (init_model_catalog(), model_catalog_exports));
-          models = await fetchCatalog2(creds);
-        } catch (err) {
-          log.error(
-            `Impossible de r\xE9cup\xE9rer les mod\xE8les : ${err instanceof Error ? err.message : err}`
-          );
-          return;
-        }
-        if (targetId) {
-          const { resolveFavoriteAlias: resolveFavoriteAlias2 } = await Promise.resolve().then(() => (init_favorites(), favorites_exports));
-          const resolved = resolveFavoriteAlias2(targetId) ?? targetId;
-          const match = models.find((m) => m.id === resolved);
-          if (!match) {
-            log.error(
-              `Mod\xE8le inconnu : ${targetId}. Tape /model sans argument pour voir la liste.`
-            );
-            return;
-          }
-          const updated = { ...creds, model: match.id };
-          auth.onLogin(updated);
-          log.info(
-            `Mod\xE8le \u2192 ${import_chalk4.default.hex("#e27649")(match.id)} ${import_chalk4.default.hex("#8a8270")(`(${match.provider})`)}`
-          );
-          return;
-        }
-        const { pickerController: pickerController2 } = await Promise.resolve().then(() => (init_picker_controller(), picker_controller_exports));
-        const chosen = await pickerController2.open(models, creds.model);
-        if (typeof chosen === "string" && chosen !== creds.model) {
-          const updated = { ...creds, model: chosen };
-          auth.onLogin(updated);
-          const picked = models.find((m) => m.id === chosen);
-          log.info(
-            `Mod\xE8le \u2192 ${import_chalk4.default.hex("#e27649")(chosen)} ${import_chalk4.default.hex("#8a8270")(`(${picked?.provider ?? "?"})`)}`
-          );
-        }
-      }
-    },
-    {
-      name: "fav",
-      description: "Picker restreint aux mod\xE8les favoris (hy3, ling-1t, flash, large, codestral, devstral).",
-      async run({ auth }) {
-        const creds = auth.getCredentials();
-        if (!creds) {
-          log.error("Non connect\xE9. Tape /login pour te connecter.");
-          return;
-        }
-        const { FAVORITE_FULL_IDS: FAVORITE_FULL_IDS2, FAVORITE_ORDER: FAVORITE_ORDER2, FAVORITE_ALIASES: FAVORITE_ALIASES2 } = await Promise.resolve().then(() => (init_favorites(), favorites_exports));
+        const { FAVORITE_ALIASES: FAVORITE_ALIASES2, FAVORITE_ORDER: FAVORITE_ORDER2, resolveFavoriteAlias: resolveFavoriteAlias2 } = await Promise.resolve().then(() => (init_favorites(), favorites_exports));
         const { fetchCatalog: fetchCatalog2 } = await Promise.resolve().then(() => (init_model_catalog(), model_catalog_exports));
         let catalog = [];
         try {
@@ -54705,6 +54660,22 @@ function builtinCommands(allCommands) {
         } catch (err) {
           log.error(
             `Impossible de r\xE9cup\xE9rer les mod\xE8les : ${err instanceof Error ? err.message : err}`
+          );
+          return;
+        }
+        if (targetId) {
+          const resolved = resolveFavoriteAlias2(targetId) ?? targetId;
+          const match = catalog.find((m) => m.id === resolved);
+          if (!match) {
+            log.error(
+              `Mod\xE8le inconnu : ${targetId}. Favoris dispos : ${FAVORITE_ORDER2.join(", ")}.`
+            );
+            return;
+          }
+          const updated = { ...creds, model: match.id };
+          auth.onLogin(updated);
+          log.info(
+            `Mod\xE8le \u2192 ${import_chalk4.default.hex("#e27649")(match.id)} ${import_chalk4.default.hex("#8a8270")(`(${match.provider})`)}`
           );
           return;
         }
@@ -54717,11 +54688,11 @@ function builtinCommands(allCommands) {
         }).filter((m) => m !== null);
         if (favs.length === 0) {
           log.error(
-            "Aucun favori disponible. V\xE9rifie que les providers sont activ\xE9s c\xF4t\xE9 serveur."
+            "Aucun favori dispo. V\xE9rifie que les providers sont activ\xE9s c\xF4t\xE9 serveur."
           );
           return;
         }
-        if (favs.length < FAVORITE_FULL_IDS2.size) {
+        if (favs.length < FAVORITE_ORDER2.length) {
           const missing = FAVORITE_ORDER2.filter(
             (a) => !byId.has(FAVORITE_ALIASES2[a])
           );
@@ -54762,8 +54733,10 @@ function builtinCommands(allCommands) {
           );
           return;
         }
+        const { FAVORITE_FULL_IDS: FAVORITE_FULL_IDS2 } = await Promise.resolve().then(() => (init_favorites(), favorites_exports));
+        models = models.filter((m) => FAVORITE_FULL_IDS2.has(m.id));
         if (models.length === 0) {
-          log.error("Aucun mod\xE8le disponible.");
+          log.error("Aucun mod\xE8le favori disponible.");
           return;
         }
         const { pickBest: pickBest2 } = await Promise.resolve().then(() => (init_model_selector(), model_selector_exports));
