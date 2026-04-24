@@ -366,8 +366,8 @@ export function builtinCommands(allCommands: () => SlashCommand[]): SlashCommand
     {
       name: "update",
       description:
-        "Check si une nouvelle version de aicli est dispo sur ton canal (dev/latest). /update apply pour installer.",
-      async run(_ctx, args) {
+        "Check, installe la nouvelle version de aicli sur ton canal (dev/latest) et relance l'app en place. /update check pour juste vérifier sans installer.",
+      async run(ctx, args) {
         const { checkForUpdate, npmInfoUrl } = await import(
           "../lib/update-check.js"
         );
@@ -390,41 +390,47 @@ export function builtinCommands(allCommands: () => SlashCommand[]): SlashCommand
         );
         log.dim(`Versions : ${npmInfoUrl()}`);
 
-        if (arg !== "apply") {
+        // `/update check` = juste afficher la dispo sans installer.
+        if (arg === "check") {
           log.info(
-            `Tape ${chalk.hex("#e27649").bold("/update apply")} pour installer.`,
+            `Tape ${chalk.hex("#e27649").bold("/update")} (sans arg) pour installer et relancer.`,
           );
           return;
         }
 
-        // /update apply → tire le tag correspondant au canal courant
-        // (@dev pour les prerelease, @latest pour les stable).
+        // Default : install + restart in-place.
         const installSpec = `@juliank./aicli@${status.channel}`;
         log.info(`Installation : ${installSpec}…`);
         const { spawn } = await import("node:child_process");
-        // Sur Windows, npm est un .cmd → shell:true requis pour que spawn le trouve
         const npmCmd = process.platform === "win32" ? "npm.cmd" : "npm";
-        await new Promise<void>((resolve) => {
+        const installOk = await new Promise<boolean>((resolve) => {
           const child = spawn(npmCmd, ["install", "-g", installSpec], {
             stdio: "inherit",
             env: process.env,
             shell: process.platform === "win32",
           });
-          child.on("close", (code) => {
-            if (code === 0) {
-              log.success(
-                "Mise à jour installée. Quitte (/exit) et relance aicli pour charger la nouvelle version.",
-              );
-            } else {
-              log.error(`npm install a échoué (exit ${code}).`);
-            }
-            resolve();
-          });
+          child.on("close", (code) => resolve(code === 0));
           child.on("error", (err) => {
             log.error(`Impossible de lancer npm : ${err.message}`);
-            resolve();
+            resolve(false);
           });
         });
+
+        if (!installOk) {
+          log.error(
+            "npm install a échoué. Version actuelle conservée, pas de relance.",
+          );
+          return;
+        }
+
+        log.success("Mise à jour installée. Relance in-place…");
+        if (ctx.restartApp) {
+          ctx.restartApp();
+        } else {
+          log.warn(
+            "Relance automatique non disponible. Tape /exit et relance aicli.",
+          );
+        }
       },
     },
     {

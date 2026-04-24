@@ -33,6 +33,10 @@ export interface CommandContext {
   exit: () => void;
   /** Force le watcher à re-fetcher /api/v1/models immédiatement. */
   refreshCatalog?: () => void;
+  /** Relance le binary aicli in-place après une mise à jour npm. Unmount
+   * Ink, restaure le terminal, spawn le nouveau process avec stdio
+   * hérité, et quitte le parent. L'user reste dans le même terminal. */
+  restartApp?: () => void;
 }
 
 export interface SlashCommand {

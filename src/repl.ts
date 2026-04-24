@@ -410,6 +410,36 @@ export async function startRepl(): Promise<void> {
     process.exit(0);
   };
 
+  // Restart in-place après /update : unmount Ink, restaure stdin en mode
+  // normal, spawn un nouveau aicli avec stdio hérité. Le parent se bloque
+  // sur spawnSync pendant que le child occupe le terminal ; quand l'user
+  // quitte le nouveau REPL, le parent exit avec le même code.
+  // Permet d'éviter d'avoir à faire /exit + aicli après /update.
+  const restartApp = () => {
+    cleanup();
+    try {
+      inkInstance.unmount();
+    } catch {
+      /* peut être déjà démonté */
+    }
+    // Laisse Ink finir son cleanup stdin avant spawnSync (raw mode off).
+    // Sans ça, le child hérite d'un stdin encore en raw mode incohérent.
+    setTimeout(async () => {
+      const { spawnSync } = await import("node:child_process");
+      const nodeBin = process.execPath;
+      // argv[1] = path vers dist/index.js (ou src/index.ts en dev).
+      // Relance le MÊME script, avec les mêmes args (--mode=..., etc.).
+      const scriptPath = process.argv[1];
+      const args = process.argv.slice(2);
+      log.info("Relance aicli…");
+      const result = spawnSync(nodeBin, [scriptPath, ...args], {
+        stdio: "inherit",
+        env: process.env,
+      });
+      process.exit(result.status ?? 0);
+    }, 50);
+  };
+
   const auth = {
     getCredentials: () => currentCreds,
     onLogin: (creds: Credentials) => {
@@ -531,6 +561,7 @@ export async function startRepl(): Promise<void> {
           permissions,
           exit,
           refreshCatalog: () => watcher.forceRefresh(),
+          restartApp,
         });
       } else {
         await agent.send(input);
