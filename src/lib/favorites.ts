@@ -21,6 +21,8 @@ export const FAVORITE_ALIASES: Record<string, string> = {
   nemotron: "nvidia/nvidia/llama-3.1-nemotron-ultra-253b-v1",
   "gpt-oss": "nvidia/openai/gpt-oss-120b",
   "qwen-coder": "nvidia/qwen/qwen2.5-coder-32b-instruct",
+  "kimi-k2": "nvidia/moonshotai/kimi-k2-instruct",
+  "kimi-thinking": "nvidia/moonshotai/kimi-k2-thinking",
 };
 
 // Ordre d'affichage dans le picker. Garde le même que le tableau saisi
@@ -35,6 +37,8 @@ export const FAVORITE_ORDER: readonly string[] = [
   "nemotron",
   "gpt-oss",
   "qwen-coder",
+  "kimi-k2",
+  "kimi-thinking",
 ];
 
 // Résolution alias → fullId. Retourne null si pas un alias connu.
