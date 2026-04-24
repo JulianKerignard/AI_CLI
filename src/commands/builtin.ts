@@ -226,7 +226,16 @@ export function builtinCommands(allCommands: () => SlashCommand[]): SlashCommand
 
         // Switch direct si ID fourni.
         if (targetId) {
-          const match = models.find((m) => m.id === targetId);
+          // Résout un alias favori (hy3, ling-1t, flash, large, codestral,
+          // devstral) vers son fullId avant de chercher dans le catalog.
+          // Le bridge côté serveur résout déjà ces alias côté requête, mais
+          // /model a besoin de matcher un item du catalog pour confirmer
+          // que le modèle existe et pour afficher son provider.
+          const { resolveFavoriteAlias } = await import(
+            "../lib/favorites.js"
+          );
+          const resolved = resolveFavoriteAlias(targetId) ?? targetId;
+          const match = models.find((m) => m.id === resolved);
           if (!match) {
             log.error(
               `Modèle inconnu : ${targetId}. Tape /model sans argument pour voir la liste.`,
@@ -251,6 +260,76 @@ export function builtinCommands(allCommands: () => SlashCommand[]): SlashCommand
           const picked = models.find((m) => m.id === chosen);
           log.info(
             `Modèle → ${chalk.hex("#e27649")(chosen)} ${chalk.hex("#8a8270")(`(${picked?.provider ?? "?"})`)}`,
+          );
+        }
+      },
+    },
+    {
+      name: "fav",
+      description:
+        "Picker restreint aux modèles favoris (hy3, ling-1t, flash, large, codestral, devstral).",
+      async run({ auth }) {
+        const creds = auth.getCredentials();
+        if (!creds) {
+          log.error("Non connecté. Tape /login pour te connecter.");
+          return;
+        }
+
+        const { FAVORITE_FULL_IDS, FAVORITE_ORDER, FAVORITE_ALIASES } =
+          await import("../lib/favorites.js");
+        const { fetchCatalog } = await import("../lib/model-catalog.js");
+
+        let catalog: Array<{
+          id: string;
+          provider: string;
+          category: string;
+          weight: number;
+          description?: string;
+        }> = [];
+        try {
+          catalog = await fetchCatalog(creds);
+        } catch (err) {
+          log.error(
+            `Impossible de récupérer les modèles : ${err instanceof Error ? err.message : err}`,
+          );
+          return;
+        }
+
+        // Filtre le catalog sur les 6 favoris, ordre saisi par l'user.
+        // Si un favori n'est pas dans le catalog (provider désactivé
+        // côté serveur), on le skip silencieusement — inutile de le
+        // proposer, l'appel échouerait.
+        const byId = new Map(catalog.map((m) => [m.id, m]));
+        const favs = FAVORITE_ORDER.map((alias) => {
+          const fullId = FAVORITE_ALIASES[alias];
+          const m = byId.get(fullId);
+          if (!m) return null;
+          return { ...m, alias };
+        }).filter((m): m is NonNullable<typeof m> => m !== null);
+
+        if (favs.length === 0) {
+          log.error(
+            "Aucun favori disponible. Vérifie que les providers sont activés côté serveur.",
+          );
+          return;
+        }
+        if (favs.length < FAVORITE_FULL_IDS.size) {
+          const missing = FAVORITE_ORDER.filter(
+            (a) => !byId.has(FAVORITE_ALIASES[a]),
+          );
+          log.dim(
+            `(${missing.length} favori(s) indisponible(s) : ${missing.join(", ")})`,
+          );
+        }
+
+        const { pickerController } = await import("../ui/picker-controller.js");
+        const chosen = await pickerController.open(favs, creds.model);
+        if (typeof chosen === "string" && chosen !== creds.model) {
+          const updated = { ...creds, model: chosen };
+          auth.onLogin(updated);
+          const picked = favs.find((m) => m.id === chosen);
+          log.info(
+            `Modèle → ${chalk.hex("#e27649")(picked?.alias ?? chosen)} ${chalk.hex("#8a8270")(`(${picked?.provider ?? "?"})`)}`,
           );
         }
       },
