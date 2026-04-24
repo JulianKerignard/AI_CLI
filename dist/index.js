@@ -34386,7 +34386,7 @@ import { fileURLToPath } from "node:url";
 import { homedir as homedir6 } from "node:os";
 function getLocalVersion() {
   if (true) {
-    return "0.1.1-dev.14";
+    return "0.1.1-dev.15";
   }
   try {
     const here = dirname4(fileURLToPath(import.meta.url));
@@ -54798,8 +54798,8 @@ function builtinCommands(allCommands) {
     },
     {
       name: "update",
-      description: "Check si une nouvelle version de aicli est dispo sur ton canal (dev/latest). /update apply pour installer.",
-      async run(_ctx, args2) {
+      description: "Check, installe la nouvelle version de aicli sur ton canal (dev/latest) et relance l'app en place. /update check pour juste v\xE9rifier sans installer.",
+      async run(ctx, args2) {
         const { checkForUpdate: checkForUpdate2, npmInfoUrl: npmInfoUrl2 } = await Promise.resolve().then(() => (init_update_check(), update_check_exports));
         const arg = args2.trim();
         const status = await checkForUpdate2(true);
@@ -54819,9 +54819,9 @@ function builtinCommands(allCommands) {
           `Mise \xE0 jour dispo (canal ${status.channel}) : ${import_chalk4.default.hex("#8a8270")(status.current)} \u2192 ${import_chalk4.default.hex("#e27649")(status.latest ?? "?")}`
         );
         log.dim(`Versions : ${npmInfoUrl2()}`);
-        if (arg !== "apply") {
+        if (arg === "check") {
           log.info(
-            `Tape ${import_chalk4.default.hex("#e27649").bold("/update apply")} pour installer.`
+            `Tape ${import_chalk4.default.hex("#e27649").bold("/update")} (sans arg) pour installer et relancer.`
           );
           return;
         }
@@ -54829,27 +54829,32 @@ function builtinCommands(allCommands) {
         log.info(`Installation : ${installSpec}\u2026`);
         const { spawn: spawn5 } = await import("node:child_process");
         const npmCmd = process.platform === "win32" ? "npm.cmd" : "npm";
-        await new Promise((resolve6) => {
+        const installOk = await new Promise((resolve6) => {
           const child = spawn5(npmCmd, ["install", "-g", installSpec], {
             stdio: "inherit",
             env: process.env,
             shell: process.platform === "win32"
           });
-          child.on("close", (code) => {
-            if (code === 0) {
-              log.success(
-                "Mise \xE0 jour install\xE9e. Quitte (/exit) et relance aicli pour charger la nouvelle version."
-              );
-            } else {
-              log.error(`npm install a \xE9chou\xE9 (exit ${code}).`);
-            }
-            resolve6();
-          });
+          child.on("close", (code) => resolve6(code === 0));
           child.on("error", (err) => {
             log.error(`Impossible de lancer npm : ${err.message}`);
-            resolve6();
+            resolve6(false);
           });
         });
+        if (!installOk) {
+          log.error(
+            "npm install a \xE9chou\xE9. Version actuelle conserv\xE9e, pas de relance."
+          );
+          return;
+        }
+        log.success("Mise \xE0 jour install\xE9e. Relance in-place\u2026");
+        if (ctx.restartApp) {
+          ctx.restartApp();
+        } else {
+          log.warn(
+            "Relance automatique non disponible. Tape /exit et relance aicli."
+          );
+        }
       }
     },
     {
@@ -55935,6 +55940,25 @@ async function startRepl() {
     log.info("Au revoir.");
     process.exit(0);
   }, "exit");
+  const restartApp = /* @__PURE__ */ __name(() => {
+    cleanup();
+    try {
+      inkInstance.unmount();
+    } catch {
+    }
+    setTimeout(async () => {
+      const { spawnSync: spawnSync2 } = await import("node:child_process");
+      const nodeBin = process.execPath;
+      const scriptPath = process.argv[1];
+      const args2 = process.argv.slice(2);
+      log.info("Relance aicli\u2026");
+      const result = spawnSync2(nodeBin, [scriptPath, ...args2], {
+        stdio: "inherit",
+        env: process.env
+      });
+      process.exit(result.status ?? 0);
+    }, 50);
+  }, "restartApp");
   const auth = {
     getCredentials: /* @__PURE__ */ __name(() => currentCreds, "getCredentials"),
     onLogin: /* @__PURE__ */ __name((creds) => {
@@ -56039,7 +56063,8 @@ async function startRepl() {
           auth,
           permissions,
           exit,
-          refreshCatalog: /* @__PURE__ */ __name(() => watcher.forceRefresh(), "refreshCatalog")
+          refreshCatalog: /* @__PURE__ */ __name(() => watcher.forceRefresh(), "refreshCatalog"),
+          restartApp
         });
       } else {
         await agent.send(input);
