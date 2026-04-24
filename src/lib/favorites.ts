@@ -18,10 +18,13 @@ export const FAVORITE_ALIASES: Record<string, string> = {
   large: "mistral-large-latest",
   codestral: "codestral-latest",
   devstral: "devstral-latest",
+  nemotron: "nvidia/nvidia/llama-3.1-nemotron-ultra-253b-v1",
+  "gpt-oss": "nvidia/openai/gpt-oss-120b",
+  "qwen-coder": "nvidia/qwen/qwen2.5-coder-32b-instruct",
 };
 
-// Ordre d'affichage dans /fav. Garde le même que le tableau saisi par
-// l'user pour qu'il retrouve ses repères.
+// Ordre d'affichage dans le picker. Garde le même que le tableau saisi
+// par l'user pour qu'il retrouve ses repères.
 export const FAVORITE_ORDER: readonly string[] = [
   "hy3",
   "ling-1t",
@@ -29,6 +32,9 @@ export const FAVORITE_ORDER: readonly string[] = [
   "large",
   "codestral",
   "devstral",
+  "nemotron",
+  "gpt-oss",
+  "qwen-coder",
 ];
 
 // Résolution alias → fullId. Retourne null si pas un alias connu.
