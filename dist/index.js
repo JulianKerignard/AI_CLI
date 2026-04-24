@@ -34380,7 +34380,7 @@ import { fileURLToPath } from "node:url";
 import { homedir as homedir6 } from "node:os";
 function getLocalVersion() {
   if (true) {
-    return "0.1.1-dev.11";
+    return "0.1.1-dev.12";
   }
   try {
     const here = dirname4(fileURLToPath(import.meta.url));
@@ -51558,6 +51558,16 @@ function cleanProvider(name) {
   return inner.startsWith("nvidia/") ? inner.slice("nvidia/".length) : inner;
 }
 __name(cleanProvider, "cleanProvider");
+function estimateBaselineTokens(system, tools) {
+  let chars = system.length;
+  for (const t of tools) {
+    chars += t.name.length;
+    chars += t.description.length;
+    chars += JSON.stringify(t.schema).length;
+  }
+  return Math.ceil(chars / 4);
+}
+__name(estimateBaselineTokens, "estimateBaselineTokens");
 function contextWindowFor(model) {
   const m = cleanProvider(model).toLowerCase();
   if (m.includes("kimi-k2")) return 256e3;
@@ -51716,12 +51726,16 @@ function renderStatusLines(cols) {
   const parts2 = [];
   const sessionTotal = (state.sessionInTotal ?? 0) + (state.sessionOutTotal ?? 0);
   const ctxWindow = state.contextWindow ?? contextWindowFor2(state.provider ?? "mistral-large-latest");
+  const baseline = state.baselineTokens ?? 0;
   {
-    const pct = Math.min(1, sessionTotal / ctxWindow);
+    const effectiveMax = Math.max(1, ctxWindow - baseline);
+    const convUsed = Math.max(0, sessionTotal - baseline);
+    const pct = Math.min(1, convUsed / effectiveMax);
     const pctNum = Math.round(pct * 100);
     const bar = renderBar(pct, 10);
+    const baselineTag = baseline > 0 ? FAINT(` (+${compact2(baseline)} base)`) : "";
     parts2.push(
-      INK_BRIGHT(compact2(sessionTotal)) + FAINT("/") + MUTED(compact2(ctxWindow)) + "  " + bar + "  " + ACCENT(`${pctNum}%`) + FAINT(" ctx")
+      INK_BRIGHT(compact2(convUsed)) + FAINT("/") + MUTED(compact2(effectiveMax)) + "  " + bar + "  " + ACCENT(`${pctNum}%`) + FAINT(" ctx") + baselineTag
     );
   }
   if (state.quotaUsed !== void 0 && state.quotaLimit) {
@@ -54156,9 +54170,14 @@ var AgentLoop = class {
         turnOutputTokens += response.usage.outputTokens;
       }
       if (response.quota) lastQuota = response.quota;
+      const baselineTokens = estimateBaselineTokens(
+        this.opts.system,
+        this.opts.tools.list()
+      );
       updateStatus({
         tokensIn: response.usage?.inputTokens ?? 0,
         tokensOut: response.usage?.outputTokens ?? Math.ceil(streamedChars / 4),
+        baselineTokens,
         ...response.quota ? {
           quotaUsed: response.quota.used,
           quotaLimit: response.quota.limit,
