@@ -51308,7 +51308,11 @@ function InputBox({
         exitHistory();
       }
     },
-    { isActive: !disabled }
+    // Garde le hook TOUJOURS actif — le check disabled est fait en tête
+    // du handler. Toggler isActive re-subscribe ink au stdin, ce qui sur
+    // Windows/PowerShell casse le raw mode et peut faire perdre le redraw
+    // de la box input (texte invisible au retour d'une slash command).
+    { isActive: true }
   );
   const rendered = (0, import_react35.useMemo)(() => {
     const lines = value.split("\n");
@@ -51382,13 +51386,24 @@ function InputBox({
         borderColor: disabled ? colors.borderDim : colors.border,
         paddingX: 1,
         flexDirection: "column",
-        children: disabled ? /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(Box_default, { flexDirection: "row", children: [
-          /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(Text, { color: colors.inkFaint, children: [
-            "\u203A",
-            "  "
-          ] }),
-          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Text, { color: colors.inkFaint, children: "\u2026en cours \u2014 attend la fin de g\xE9n\xE9ration" })
-        ] }) : showPlaceholder ? /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(Box_default, { flexDirection: "row", children: [
+        children: disabled && !value ? (
+          // Disabled sans rien tapé : affiche l'indicateur "en cours".
+          /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(Box_default, { flexDirection: "row", children: [
+            /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(Text, { color: colors.inkFaint, children: [
+              "\u203A",
+              "  "
+            ] }),
+            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Text, { color: colors.inkFaint, children: "\u2026en cours \u2014 attend la fin de g\xE9n\xE9ration" })
+          ] })
+        ) : disabled ? (
+          // Disabled AVEC du texte déjà tapé : garde le texte visible en dim
+          // pour que l'user ne pense pas qu'il est perdu. Caret caché car on
+          // ne peut pas éditer pendant l'exec.
+          rendered.map((line, i) => /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(Box_default, { flexDirection: "row", children: [
+            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Text, { color: colors.inkFaint, children: i === 0 ? "\u203A  " : "   " }),
+            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Text, { color: colors.inkFaint, children: line.text || " " })
+          ] }, i))
+        ) : showPlaceholder ? /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(Box_default, { flexDirection: "row", children: [
           /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(Text, { color: colors.accent, children: [
             "\u203A",
             "  "

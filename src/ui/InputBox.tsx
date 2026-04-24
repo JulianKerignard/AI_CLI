@@ -331,7 +331,11 @@ export function InputBox({
         exitHistory();
       }
     },
-    { isActive: !disabled },
+    // Garde le hook TOUJOURS actif — le check disabled est fait en tête
+    // du handler. Toggler isActive re-subscribe ink au stdin, ce qui sur
+    // Windows/PowerShell casse le raw mode et peut faire perdre le redraw
+    // de la box input (texte invisible au retour d'une slash command).
+    { isActive: true },
   );
 
   // Rendu multi-ligne : split par \n, place le caret inverse sur la ligne
@@ -420,11 +424,22 @@ export function InputBox({
       paddingX={1}
       flexDirection="column"
     >
-      {disabled ? (
+      {disabled && !value ? (
+        // Disabled sans rien tapé : affiche l'indicateur "en cours".
         <Box flexDirection="row">
           <Text color={c.inkFaint}>›{"  "}</Text>
           <Text color={c.inkFaint}>…en cours — attend la fin de génération</Text>
         </Box>
+      ) : disabled ? (
+        // Disabled AVEC du texte déjà tapé : garde le texte visible en dim
+        // pour que l'user ne pense pas qu'il est perdu. Caret caché car on
+        // ne peut pas éditer pendant l'exec.
+        rendered.map((line, i) => (
+          <Box key={i} flexDirection="row">
+            <Text color={c.inkFaint}>{i === 0 ? "›  " : "   "}</Text>
+            <Text color={c.inkFaint}>{line.text || " "}</Text>
+          </Box>
+        ))
       ) : showPlaceholder ? (
         <Box flexDirection="row">
           <Text color={c.accent}>›{"  "}</Text>
