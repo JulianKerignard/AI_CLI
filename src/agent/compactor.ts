@@ -19,11 +19,14 @@ const MAX_TOKENS_ESTIMATE = 60_000; // char/4 approx — fallback absolu
 const KEEP_TAIL_MESSAGES = 10; // garde les N derniers messages intacts
 const ABSOLUTE_MIN_HEAD = 4; // ne compact pas si moins de 4 messages à résumer
 
-// Seuil relatif au context window du modèle courant. On compact à 70%
-// avec un facteur de sécurité 1.2 sur l'estimation tokens (char/4 sous-
-// estime de ~15-20% sur JSON/code). Permet de gérer correctement les
-// petits ctx (phi-4 16k) comme les gros (kimi 256k).
-const RELATIVE_THRESHOLD = 0.70;
+// Seuil relatif au context window du modèle courant.
+// - <64k ctx : 60% (petits modèles, marge pour un Bash/Read volumineux)
+// - >=64k ctx : 70% (gros modèles, plus permissif)
+// Avec facteur de sécurité 1.2 sur l'estimation tokens (char/4 sous-
+// estime de ~15-20% sur JSON/code).
+const RELATIVE_THRESHOLD_SMALL = 0.60;
+const RELATIVE_THRESHOLD_LARGE = 0.70;
+const SMALL_CTX_BOUNDARY = 64_000;
 const TOKEN_ESTIMATE_SAFETY = 1.2;
 
 // Flag opt-out via env AICLI_COMPACT_THRESHOLD=0.
@@ -47,11 +50,15 @@ export function shouldCompact(
 ): boolean {
   if (DISABLED) return false;
   const tokens = estimateTokens(messages);
-  // Critère relatif : déclenche quand l'estimation × 1.2 dépasse 70% du
-  // ctx window. Sauve les petits modèles (phi-4 16k) et évite de compacter
-  // trop tôt sur les gros (kimi 256k).
+  // Critère relatif adaptatif : 60% sur les petits ctx (<64K), 70% sur
+  // les gros. Avec facteur de sécurité 1.2. Laisse plus de marge aux
+  // modèles 32K contre un gros Bash/Read qui explose d'un coup.
   if (contextWindow && contextWindow > 0) {
-    const relativeLimit = contextWindow * RELATIVE_THRESHOLD;
+    const threshold =
+      contextWindow < SMALL_CTX_BOUNDARY
+        ? RELATIVE_THRESHOLD_SMALL
+        : RELATIVE_THRESHOLD_LARGE;
+    const relativeLimit = contextWindow * threshold;
     if (tokens * TOKEN_ESTIMATE_SAFETY > relativeLimit) return true;
   }
   // Critère absolu (fallback si contextWindow inconnu).

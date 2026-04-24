@@ -6,7 +6,10 @@ import { detectShell } from "./shell-detect.js";
 // l'historique de l'agent (renvoyé à chaque turn suivant = coût exponentiel).
 // 32k chars ≈ 8k tokens — garde les dernières lignes où les erreurs/exit
 // apparaissent généralement. Les headers/progress bars en début sont sacrifiés.
-const MAX_STREAM_CHARS = 32_000;
+// Cap réduit de 32k → 8k chars (~2k tokens) : 32k = 8k tokens bouffés dans
+// l'historique agent à chaque npm install verbeux. Tail reste plus informatif
+// que head pour les sorties de commandes (erreurs + résumé en fin).
+const MAX_STREAM_CHARS = 8_000;
 
 function tailCap(text: string, label: string): string {
   if (text.length <= MAX_STREAM_CHARS) return text;
@@ -22,7 +25,7 @@ function tailCap(text: string, label: string): string {
 
 export const bashTool: Tool = {
   name: "Bash",
-  description: "Exécute une commande shell (timeout 30s). Stdout/stderr capés à 32k chars chacun (tail) pour préserver l'historique agent.",
+  description: "Exécute une commande shell (timeout 30s). Stdout/stderr capés à 8k chars chacun (tail) pour préserver l'historique agent.",
   formatInvocation: (input) => {
     const cmd = String(input.command ?? "");
     return cmd.length > 60 ? cmd.slice(0, 60) + "…" : cmd;
