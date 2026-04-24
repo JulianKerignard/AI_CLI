@@ -374,10 +374,8 @@ export async function startRepl(): Promise<void> {
       const { checkForUpdate } = await import("./lib/update-check.js");
       const status = await checkForUpdate();
       if (status?.updateAvailable && status.latest) {
-        const local = status.current.slice(0, 7);
-        const latest = status.latest.slice(0, 7);
         log.info(
-          `${log.accentSoft("↻")} mise à jour dispo : ${log.inkMuted(local)} → ${log.accent.bold(latest)} · tape ${log.accent.bold("/update")}`,
+          `${log.accentSoft("↻")} mise à jour dispo (${status.channel}) : ${log.inkMuted(status.current)} → ${log.accent.bold(status.latest)} · tape ${log.accent.bold("/update")}`,
         );
       }
     } catch {

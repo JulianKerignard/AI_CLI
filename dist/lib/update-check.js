@@ -2,23 +2,26 @@ import { readFileSync, writeFileSync, mkdirSync, existsSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { homedir } from "node:os";
-// Update checker : compare le commit SHA local (écrit au build dans
-// dist/.version) avec le SHA HEAD du repo GitHub. Silencieux, best-effort.
-// Cache 6h dans ~/.aicli/update-cache.json pour ne pas spammer GitHub API.
-const REPO_OWNER = "JulianKerignard";
-const REPO_NAME = "AI_CLI";
-const BRANCH = "main";
+// Update checker version-based : détecte le canal depuis la version locale
+// (prerelease `-dev.` → canal dev, sinon latest) et compare aux dist-tags
+// publiés sur npm. Évite de dériver sur des SHAs git qui ne correspondent
+// pas forcément à ce qui est réellement sur npm.
+const PACKAGE_NAME = "@juliank./aicli";
+// npm registry encode le `/` du scope en `%2F` dans l'URL.
+const REGISTRY_URL = `https://registry.npmjs.org/${PACKAGE_NAME.replace("/", "%2F")}`;
 const CACHE_TTL_MS = 6 * 60 * 60 * 1000;
 const CACHE_FILE = join(homedir(), ".aicli", "update-cache.json");
 const TIMEOUT_MS = 5_000;
-// Lit le SHA local écrit par scripts/set-version.mjs au build.
-export function getLocalSha() {
+// Lit la version depuis le package.json embarqué. Path depuis
+// dist/lib/update-check.js → ../../package.json (root du package installé).
+export function getLocalVersion() {
     try {
         const here = dirname(fileURLToPath(import.meta.url));
-        // dist/lib/update-check.js → dist/.version
-        const versionFile = join(here, "..", ".version");
-        if (existsSync(versionFile)) {
-            return readFileSync(versionFile, "utf8").trim();
+        const pkgFile = join(here, "..", "..", "package.json");
+        if (existsSync(pkgFile)) {
+            const pkg = JSON.parse(readFileSync(pkgFile, "utf8"));
+            if (typeof pkg.version === "string")
+                return pkg.version;
         }
     }
     catch {
@@ -26,7 +29,11 @@ export function getLocalSha() {
     }
     return "unknown";
 }
-// Cache read.
+// Semver prerelease = canal dev. Match `-dev.N`, `-alpha`, `-beta`, `-rc.N`, `-next`.
+// Une release stable (0.1.0, 1.2.3) → latest.
+export function detectChannel(version) {
+    return /-(?:dev|alpha|beta|rc|next)\b/i.test(version) ? "dev" : "latest";
+}
 function readCache() {
     try {
         if (!existsSync(CACHE_FILE))
@@ -50,21 +57,17 @@ function writeCache(status) {
         /* ignore */
     }
 }
-// Fetch silencieux du dernier commit SHA. Retourne null si erreur.
-async function fetchLatestSha(signal) {
+// Fetch des dist-tags du registry npm. Retourne `{ latest, dev, ... }` ou null.
+async function fetchDistTags(signal) {
     try {
-        const url = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/commits/${BRANCH}`;
-        const res = await fetch(url, {
-            headers: {
-                Accept: "application/vnd.github.v3+json",
-                "User-Agent": "aicli-update-check",
-            },
+        const res = await fetch(REGISTRY_URL, {
+            headers: { "User-Agent": "aicli-update-check" },
             signal,
         });
         if (!res.ok)
             return null;
         const data = (await res.json());
-        return typeof data.sha === "string" ? data.sha : null;
+        return data["dist-tags"] ?? null;
     }
     catch {
         return null;
@@ -72,30 +75,33 @@ async function fetchLatestSha(signal) {
 }
 // Check principal : lit cache, sinon fetch. Non-bloquant — échec = no-op.
 export async function checkForUpdate(force = false) {
-    const current = getLocalSha();
+    const current = getLocalVersion();
     if (current === "unknown")
         return null;
+    const channel = detectChannel(current);
     if (!force) {
         const cached = readCache();
-        if (cached && cached.current === current)
+        if (cached && cached.current === current && cached.channel === channel)
             return cached;
     }
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
-    const latest = await fetchLatestSha(ctrl.signal);
+    const tags = await fetchDistTags(ctrl.signal);
     clearTimeout(timer);
-    if (!latest)
+    if (!tags)
         return null;
+    const latest = tags[channel] ?? null;
     const status = {
         current,
         latest,
-        updateAvailable: !latest.startsWith(current) && !current.startsWith(latest),
+        channel,
+        updateAvailable: latest !== null && latest !== current,
         checkedAt: Date.now(),
     };
     writeCache(status);
     return status;
 }
-// URL de comparaison GitHub pour que l'user voie le diff.
-export function compareUrl(current, latest) {
-    return `https://github.com/${REPO_OWNER}/${REPO_NAME}/compare/${current.slice(0, 12)}...${latest.slice(0, 12)}`;
+// URL npm pour voir le détail des versions / le README publié.
+export function npmInfoUrl() {
+    return `https://www.npmjs.com/package/${PACKAGE_NAME}?activeTab=versions`;
 }

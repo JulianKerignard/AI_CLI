@@ -330,9 +330,9 @@ export function builtinCommands(allCommands: () => SlashCommand[]): SlashCommand
     {
       name: "update",
       description:
-        "Check si une nouvelle version de aicli est dispo. /update apply pour installer.",
+        "Check si une nouvelle version de aicli est dispo sur ton canal (dev/latest). /update apply pour installer.",
       async run(_ctx, args) {
-        const { checkForUpdate, getLocalSha, compareUrl } = await import(
+        const { checkForUpdate, npmInfoUrl } = await import(
           "../lib/update-check.js"
         );
         const arg = args.trim();
@@ -343,18 +343,16 @@ export function builtinCommands(allCommands: () => SlashCommand[]): SlashCommand
           );
           return;
         }
-        const localShort = status.current.slice(0, 7);
-        const latestShort = status.latest?.slice(0, 7) ?? "?";
         if (!status.updateAvailable) {
-          log.success(`Tu es à jour (${localShort}).`);
+          log.success(
+            `Tu es à jour (${status.current}, canal ${status.channel}).`,
+          );
           return;
         }
         log.info(
-          `Mise à jour dispo : ${chalk.hex("#8a8270")(localShort)} → ${chalk.hex("#e27649")(latestShort)}`,
+          `Mise à jour dispo (canal ${status.channel}) : ${chalk.hex("#8a8270")(status.current)} → ${chalk.hex("#e27649")(status.latest ?? "?")}`,
         );
-        if (status.latest) {
-          log.dim(`Diff : ${compareUrl(status.current, status.latest)}`);
-        }
+        log.dim(`Versions : ${npmInfoUrl()}`);
 
         if (arg !== "apply") {
           log.info(
@@ -363,21 +361,19 @@ export function builtinCommands(allCommands: () => SlashCommand[]): SlashCommand
           return;
         }
 
-        // /update apply → lance npm install -g depuis registry npm
-        log.info("Installation de la dernière version…");
+        // /update apply → tire le tag correspondant au canal courant
+        // (@dev pour les prerelease, @latest pour les stable).
+        const installSpec = `@juliank./aicli@${status.channel}`;
+        log.info(`Installation : ${installSpec}…`);
         const { spawn } = await import("node:child_process");
         // Sur Windows, npm est un .cmd → shell:true requis pour que spawn le trouve
         const npmCmd = process.platform === "win32" ? "npm.cmd" : "npm";
         await new Promise<void>((resolve) => {
-          const child = spawn(
-            npmCmd,
-            ["install", "-g", "@juliank./aicli@latest"],
-            {
-              stdio: "inherit",
-              env: process.env,
-              shell: process.platform === "win32",
-            },
-          );
+          const child = spawn(npmCmd, ["install", "-g", installSpec], {
+            stdio: "inherit",
+            env: process.env,
+            shell: process.platform === "win32",
+          });
           child.on("close", (code) => {
             if (code === 0) {
               log.success(
