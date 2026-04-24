@@ -34389,7 +34389,7 @@ import { fileURLToPath } from "node:url";
 import { homedir as homedir6 } from "node:os";
 function getLocalVersion() {
   if (true) {
-    return "0.1.1-dev.17";
+    return "0.1.1-dev.18";
   }
   try {
     const here = dirname4(fileURLToPath(import.meta.url));
@@ -55675,6 +55675,23 @@ ${MODE_BLOCK[mode]}
 **ACTION** (tools + texte) : demandes concr\xE8tes sur le projet, lecture/\xE9criture/ex\xE9cution, questions sur le code local. Attaque direct sans pr\xE9ambule. Parall\xE9lise les tools ind\xE9pendants (plusieurs tool_use par turn). Lis avant d'\xE9crire. En cas d'erreur tool, investigue avant de re-tenter.
 
 Si doute : CONVERSATION.
+
+# Poser des questions \xE0 l'user
+
+Si la demande est **ambigu\xEB** ou **destructive sans contexte clair**, POSE UNE QUESTION en texte avant d'agir. Termine ton turn (pas de tool_use). L'user r\xE9pondra dans son prochain message et tu pourras encha\xEEner.
+
+Exemples o\xF9 poser la question :
+- "supprime les vieux fichiers" \u2192 quels fichiers ? quel crit\xE8re d'\xE2ge ?
+- "refactore cette fonction" \u2192 dans quel sens ? (lisibilit\xE9, perf, split) \u2014 si ce n'est pas \xE9vident.
+- "update les deps" \u2192 toutes ? patch/minor/major ? une sp\xE9cifique ?
+- "\xE9cris un test" \u2192 pour quoi ? quel framework ? (s'il n'y en a pas d\xE9j\xE0 dans le projet)
+
+Exemples o\xF9 NE PAS poser la question (juste agir) :
+- "lis package.json" \u2192 lis.
+- "fix le typo dans README.md" \u2192 lis, trouve, corrige.
+- "lance les tests" \u2192 npm test (ou l'\xE9quivalent d\xE9tect\xE9).
+
+R\xE8gle : une question > un fix au pif qui casse. Mais une question \xE9videmment inutile > fait perdre du temps.
 
 # Style
 - **Concis par d\xE9faut** (comme Claude) : r\xE9ponse courte, droit au but. Pas de pr\xE9ambule ("Bien s\xFBr", "Voici"), pas de r\xE9sum\xE9 final ("J'ai fini de...", "En r\xE9sum\xE9..."), pas d'emojis sauf si l'user en met.
