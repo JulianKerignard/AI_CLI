@@ -32345,7 +32345,9 @@ var init_favorites = __esm({
       devstral: "devstral-latest",
       nemotron: "nvidia/nvidia/llama-3.1-nemotron-ultra-253b-v1",
       "gpt-oss": "nvidia/openai/gpt-oss-120b",
-      "qwen-coder": "nvidia/qwen/qwen2.5-coder-32b-instruct"
+      "qwen-coder": "nvidia/qwen/qwen2.5-coder-32b-instruct",
+      "kimi-k2": "nvidia/moonshotai/kimi-k2-instruct",
+      "kimi-thinking": "nvidia/moonshotai/kimi-k2-thinking"
     };
     FAVORITE_ORDER = [
       "hy3",
@@ -32356,7 +32358,9 @@ var init_favorites = __esm({
       "devstral",
       "nemotron",
       "gpt-oss",
-      "qwen-coder"
+      "qwen-coder",
+      "kimi-k2",
+      "kimi-thinking"
     ];
     __name(resolveFavoriteAlias, "resolveFavoriteAlias");
     FAVORITE_FULL_IDS = new Set(
@@ -34380,7 +34384,7 @@ import { fileURLToPath } from "node:url";
 import { homedir as homedir6 } from "node:os";
 function getLocalVersion() {
   if (true) {
-    return "0.1.1-dev.12";
+    return "0.1.1-dev.13";
   }
   try {
     const here = dirname4(fileURLToPath(import.meta.url));
