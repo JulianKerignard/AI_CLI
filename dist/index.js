@@ -55935,6 +55935,13 @@ async function startRepl() {
       log.error(err.message);
     } finally {
       inputController.setDisabled(false);
+      if (process.stdin.isTTY && typeof process.stdin.setRawMode === "function") {
+        try {
+          process.stdin.setRawMode(true);
+          process.stdin.resume();
+        } catch {
+        }
+      }
     }
     if (shouldExit) return;
   }

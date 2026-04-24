@@ -541,6 +541,22 @@ export async function startRepl(): Promise<void> {
       // Ré-enable l'input pour le prochain tour — qu'il y ait eu erreur
       // ou non, qu'on ait été /exit ou non.
       inputController.setDisabled(false);
+      // Windows / PowerShell : sur certains terminaux le raw mode stdin
+      // se perd après l'exec d'une slash command (re-render Ink, console.log,
+      // subprocess inherited stdio). Sans ça, useInput d'Ink ne capte plus
+      // aucune touche au tour suivant. On force le re-engage ici — no-op
+      // sur macOS/Linux si le raw mode était déjà actif.
+      if (
+        process.stdin.isTTY &&
+        typeof process.stdin.setRawMode === "function"
+      ) {
+        try {
+          process.stdin.setRawMode(true);
+          process.stdin.resume();
+        } catch {
+          /* ignore — certains terminaux non-TTY */
+        }
+      }
     }
 
     if (shouldExit) return;
