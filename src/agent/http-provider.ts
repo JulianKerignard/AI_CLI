@@ -164,6 +164,10 @@ export class HttpProvider implements Provider {
           "Content-Type": "application/json",
           "x-api-key": this.opts.token,
           Accept: "text/event-stream",
+          // Identifie le client côté bridge (persist dans Conversation.client
+          // pour séparer aicli vs claude-code vs anthropic-sdk dans le dataset).
+          "User-Agent": "aicli/0.1.1",
+          "x-client": "aicli",
         },
         body: JSON.stringify(body),
       });
