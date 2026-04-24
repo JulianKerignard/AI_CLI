@@ -34389,7 +34389,7 @@ import { fileURLToPath } from "node:url";
 import { homedir as homedir6 } from "node:os";
 function getLocalVersion() {
   if (true) {
-    return "0.1.1-dev.16";
+    return "0.1.1-dev.17";
   }
   try {
     const here = dirname4(fileURLToPath(import.meta.url));
@@ -53703,7 +53703,6 @@ var HttpProvider = class {
     }));
     const body = {
       model: this.opts.model,
-      max_tokens: 8192,
       system: opts.system,
       messages: anthropicMessages,
       tools: opts.tools.length > 0 ? opts.tools.map((t) => ({
@@ -55678,7 +55677,9 @@ ${MODE_BLOCK[mode]}
 Si doute : CONVERSATION.
 
 # Style
-- Concis : pas de "Bien s\xFBr", pas de r\xE9sum\xE9 final, pas d'emojis sauf si l'user.
+- **Concis par d\xE9faut** (comme Claude) : r\xE9ponse courte, droit au but. Pas de pr\xE9ambule ("Bien s\xFBr", "Voici"), pas de r\xE9sum\xE9 final ("J'ai fini de...", "En r\xE9sum\xE9..."), pas d'emojis sauf si l'user en met.
+- **D\xE9veloppe uniquement si l'user le demande explicitement** : "explique", "d\xE9taille", "pourquoi", "comment \xE7a marche", "pas \xE0 pas". Sinon tais-toi apr\xE8s avoir fait.
+- **Questions simples = r\xE9ponses courtes** : 1-3 phrases suffisent pour la majorit\xE9 des questions. Un diff ou un chemin file:line suffit souvent.
 - Direct : dis ce qui a chang\xE9, pas ce que tu vas faire.
 - Fran\xE7ais, termes techniques en anglais.
 - Markdown l\xE9ger (code inline, blocs triple-backtick, listes si utile).
