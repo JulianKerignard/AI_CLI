@@ -1,0 +1,73 @@
+name: Publish @dev
+
+on:
+  push:
+    branches: [develop]
+    paths:
+      - "src/**"
+      - "package.json"
+      - "package-lock.json"
+      - "tsconfig.json"
+      - ".github/workflows/publish-dev.yml"
+
+  # Bouton manuel dans l'onglet Actions pour forcer une publish
+  # (utile quand on n'a pas poussé de src mais qu'on veut un rebuild).
+  workflow_dispatch:
+
+concurrency:
+  group: publish-dev
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          # Token par défaut suffit pour push develop depuis le workflow,
+          # tant que branch protection n'interdit pas les pushes bot.
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          registry-url: "https://registry.npmjs.org"
+
+      - name: Install deps
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Build
+        run: npm run build
+
+      - name: Bump prerelease (dev.N -> dev.N+1)
+        run: npm version prerelease --preid=dev --no-git-tag-version
+
+      - name: Rebuild après bump (le set-version.mjs écrit dist/.version)
+        run: npm run build
+
+      - name: Expose la nouvelle version
+        id: version
+        run: echo "version=$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
+
+      - name: Publish @dev sur npm
+        run: npm publish --tag dev --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Commit bump + tag + push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add package.json package-lock.json dist/
+          # [skip ci] dans le message pour que le push du bump ne re-trigger
+          # pas ce workflow en boucle.
+          git commit -m "chore(dev): bump ${{ steps.version.outputs.version }} [skip ci]"
+          git tag -a "v${{ steps.version.outputs.version }}" -m "dev release ${{ steps.version.outputs.version }}"
+          git push origin develop --follow-tags
