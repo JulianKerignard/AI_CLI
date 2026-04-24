@@ -51,6 +51,10 @@ interface Segments {
   sessionInTotal?: number;
   sessionOutTotal?: number;
   contextWindow?: number;
+  // Coût "incompressible" de chaque requête : system prompt + schémas
+  // des tools. Pushé par l'agent loop après chaque réponse. Le render
+  // du ctx soustrait ce baseline pour afficher "conv only / max conv".
+  baselineTokens?: number;
   quotaUsed?: number;
   quotaLimit?: number;
   resetAt?: string;
@@ -252,21 +256,29 @@ export function renderStatusLines(cols: number): string[] {
   const ctxWindow =
     state.contextWindow ??
     contextWindowFor(state.provider ?? "mistral-large-latest");
-  // Toujours afficher le ctx (même à 0) pour que l'user voie la marge
-  // dispo avant de parler au modèle.
+  const baseline = state.baselineTokens ?? 0;
+  // Ctx affiché = conv utilisateur / max conv dispo, EXCLUANT le coût
+  // system prompt + tools schemas (incompressible, consommé à chaque
+  // tour). Avant : "salut" affichait 3k/32k (baseline inclus). Après :
+  // affiche ~0k / 28k avec un (+4k base) en faint pour transparence.
   {
-    const pct = Math.min(1, sessionTotal / ctxWindow);
+    const effectiveMax = Math.max(1, ctxWindow - baseline);
+    const convUsed = Math.max(0, sessionTotal - baseline);
+    const pct = Math.min(1, convUsed / effectiveMax);
     const pctNum = Math.round(pct * 100);
     const bar = renderBar(pct, 10);
+    const baselineTag =
+      baseline > 0 ? FAINT(` (+${compact(baseline)} base)`) : "";
     parts2.push(
-      INK_BRIGHT(compact(sessionTotal)) +
+      INK_BRIGHT(compact(convUsed)) +
         FAINT("/") +
-        MUTED(compact(ctxWindow)) +
+        MUTED(compact(effectiveMax)) +
         "  " +
         bar +
         "  " +
         ACCENT(`${pctNum}%`) +
-        FAINT(" ctx"),
+        FAINT(" ctx") +
+        baselineTag,
     );
   }
   if (state.quotaUsed !== undefined && state.quotaLimit) {

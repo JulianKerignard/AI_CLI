@@ -11,6 +11,26 @@ export function cleanProvider(name: string): string {
   return inner.startsWith("nvidia/") ? inner.slice("nvidia/".length) : inner;
 }
 
+// Estimation du coût "incompressible" envoyé à chaque requête : system
+// prompt + schémas JSON des tools. Ces tokens sont facturés à chaque tour
+// et consomment du context window, mais ils ne représentent PAS la
+// conversation user. Permet au status bar d'afficher une jauge "ctx
+// disponible pour la conversation" plutôt qu'un chiffre qui part déjà à
+// 3-4k au premier "salut".
+// Heuristique char/4 (même ratio que estimateTokens() dans compactor).
+export function estimateBaselineTokens(
+  system: string,
+  tools: Array<{ name: string; description: string; schema: unknown }>,
+): number {
+  let chars = system.length;
+  for (const t of tools) {
+    chars += t.name.length;
+    chars += t.description.length;
+    chars += JSON.stringify(t.schema).length;
+  }
+  return Math.ceil(chars / 4);
+}
+
 export function contextWindowFor(model: string): number {
   const m = cleanProvider(model).toLowerCase();
   // NVIDIA NIM — valeurs documentées sur build.nvidia.com.

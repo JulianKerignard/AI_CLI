@@ -13,7 +13,10 @@ import type { PolicyState } from "../permissions/policy.js";
 import { decide } from "../permissions/policy.js";
 import { askPermission, logDenied } from "../permissions/prompt.js";
 import { compactMessages, estimateTokens } from "./compactor.js";
-import { contextWindowFor } from "../lib/context-window.js";
+import {
+  contextWindowFor,
+  estimateBaselineTokens,
+} from "../lib/context-window.js";
 import { historyStore } from "../ui/history-store.js";
 import {
   updateStatus,
@@ -283,9 +286,17 @@ export class AgentLoop {
       if (response.quota) lastQuota = response.quota;
 
       // Update status bar avec les tokens réels + quota dès qu'ils arrivent.
+      // baselineTokens = coût system prompt + tools schemas. Permet au
+      // render du ctx d'exclure ce qui n'est PAS de la conversation user
+      // (affichage "salut" = ~0k au lieu de 3k).
+      const baselineTokens = estimateBaselineTokens(
+        this.opts.system,
+        this.opts.tools.list(),
+      );
       updateStatus({
         tokensIn: response.usage?.inputTokens ?? 0,
         tokensOut: response.usage?.outputTokens ?? Math.ceil(streamedChars / 4),
+        baselineTokens,
         ...(response.quota
           ? {
               quotaUsed: response.quota.used,
