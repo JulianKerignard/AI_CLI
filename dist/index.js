@@ -34321,6 +34321,45 @@ var init_dist6 = __esm({
   }
 });
 
+// src/lib/favorites.ts
+var favorites_exports = {};
+__export(favorites_exports, {
+  FAVORITE_ALIASES: () => FAVORITE_ALIASES,
+  FAVORITE_FULL_IDS: () => FAVORITE_FULL_IDS,
+  FAVORITE_ORDER: () => FAVORITE_ORDER,
+  resolveFavoriteAlias: () => resolveFavoriteAlias
+});
+function resolveFavoriteAlias(input) {
+  const hit = FAVORITE_ALIASES[input.toLowerCase()];
+  return hit ?? null;
+}
+var FAVORITE_ALIASES, FAVORITE_ORDER, FAVORITE_FULL_IDS;
+var init_favorites = __esm({
+  "src/lib/favorites.ts"() {
+    "use strict";
+    FAVORITE_ALIASES = {
+      hy3: "openrouter/tencent/hy3-preview:free",
+      "ling-1t": "openrouter/inclusionai/ling-2.6-1t:free",
+      flash: "gemini-flash-latest",
+      large: "mistral-large-latest",
+      codestral: "codestral-latest",
+      devstral: "devstral-latest"
+    };
+    FAVORITE_ORDER = [
+      "hy3",
+      "ling-1t",
+      "flash",
+      "large",
+      "codestral",
+      "devstral"
+    ];
+    __name(resolveFavoriteAlias, "resolveFavoriteAlias");
+    FAVORITE_FULL_IDS = new Set(
+      Object.values(FAVORITE_ALIASES)
+    );
+  }
+});
+
 // src/lib/update-check.ts
 var update_check_exports = {};
 __export(update_check_exports, {
@@ -34335,7 +34374,7 @@ import { fileURLToPath } from "node:url";
 import { homedir as homedir6 } from "node:os";
 function getLocalVersion() {
   if (true) {
-    return "0.1.1-dev.7";
+    return "0.1.1-dev.8";
   }
   try {
     const here = dirname4(fileURLToPath(import.meta.url));
@@ -54621,7 +54660,9 @@ function builtinCommands(allCommands) {
           return;
         }
         if (targetId) {
-          const match = models.find((m) => m.id === targetId);
+          const { resolveFavoriteAlias: resolveFavoriteAlias2 } = await Promise.resolve().then(() => (init_favorites(), favorites_exports));
+          const resolved = resolveFavoriteAlias2(targetId) ?? targetId;
+          const match = models.find((m) => m.id === resolved);
           if (!match) {
             log.error(
               `Mod\xE8le inconnu : ${targetId}. Tape /model sans argument pour voir la liste.`
@@ -54643,6 +54684,59 @@ function builtinCommands(allCommands) {
           const picked = models.find((m) => m.id === chosen);
           log.info(
             `Mod\xE8le \u2192 ${import_chalk4.default.hex("#e27649")(chosen)} ${import_chalk4.default.hex("#8a8270")(`(${picked?.provider ?? "?"})`)}`
+          );
+        }
+      }
+    },
+    {
+      name: "fav",
+      description: "Picker restreint aux mod\xE8les favoris (hy3, ling-1t, flash, large, codestral, devstral).",
+      async run({ auth }) {
+        const creds = auth.getCredentials();
+        if (!creds) {
+          log.error("Non connect\xE9. Tape /login pour te connecter.");
+          return;
+        }
+        const { FAVORITE_FULL_IDS: FAVORITE_FULL_IDS2, FAVORITE_ORDER: FAVORITE_ORDER2, FAVORITE_ALIASES: FAVORITE_ALIASES2 } = await Promise.resolve().then(() => (init_favorites(), favorites_exports));
+        const { fetchCatalog: fetchCatalog2 } = await Promise.resolve().then(() => (init_model_catalog(), model_catalog_exports));
+        let catalog = [];
+        try {
+          catalog = await fetchCatalog2(creds);
+        } catch (err) {
+          log.error(
+            `Impossible de r\xE9cup\xE9rer les mod\xE8les : ${err instanceof Error ? err.message : err}`
+          );
+          return;
+        }
+        const byId = new Map(catalog.map((m) => [m.id, m]));
+        const favs = FAVORITE_ORDER2.map((alias) => {
+          const fullId = FAVORITE_ALIASES2[alias];
+          const m = byId.get(fullId);
+          if (!m) return null;
+          return { ...m, alias };
+        }).filter((m) => m !== null);
+        if (favs.length === 0) {
+          log.error(
+            "Aucun favori disponible. V\xE9rifie que les providers sont activ\xE9s c\xF4t\xE9 serveur."
+          );
+          return;
+        }
+        if (favs.length < FAVORITE_FULL_IDS2.size) {
+          const missing = FAVORITE_ORDER2.filter(
+            (a) => !byId.has(FAVORITE_ALIASES2[a])
+          );
+          log.dim(
+            `(${missing.length} favori(s) indisponible(s) : ${missing.join(", ")})`
+          );
+        }
+        const { pickerController: pickerController2 } = await Promise.resolve().then(() => (init_picker_controller(), picker_controller_exports));
+        const chosen = await pickerController2.open(favs, creds.model);
+        if (typeof chosen === "string" && chosen !== creds.model) {
+          const updated = { ...creds, model: chosen };
+          auth.onLogin(updated);
+          const picked = favs.find((m) => m.id === chosen);
+          log.info(
+            `Mod\xE8le \u2192 ${import_chalk4.default.hex("#e27649")(picked?.alias ?? chosen)} ${import_chalk4.default.hex("#8a8270")(`(${picked?.provider ?? "?"})`)}`
           );
         }
       }
