@@ -1,6 +1,6 @@
 {
   "name": "@juliank./aicli",
-  "version": "0.1.1-dev.3",
+  "version": "0.1.1-dev.4",
   "description": "Un CLI interactif à la Claude Code : slash commands, skills, sub-agents, MCP — avec provider démo (pas de clé API).",
   "type": "module",
   "bin": {
