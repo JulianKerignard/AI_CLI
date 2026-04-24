@@ -3,6 +3,12 @@ import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { homedir } from "node:os";
 
+// Version injectée au build-time par esbuild (--define:__AICLI_VERSION__).
+// Fallback lecture package.json pour le dev runtime (tsx src/index.ts) où
+// esbuild ne tourne pas. La const doit rester simple (sans destructuring,
+// sans template string) pour que esbuild puisse la remplacer littéralement.
+declare const __AICLI_VERSION__: string | undefined;
+
 // Update checker version-based : détecte le canal depuis la version locale
 // (prerelease `-dev.` → canal dev, sinon latest) et compare aux dist-tags
 // publiés sur npm. Évite de dériver sur des SHAs git qui ne correspondent
@@ -26,17 +32,30 @@ export interface UpdateStatus {
   checkedAt: number;
 }
 
-// Lit la version depuis le package.json embarqué. Path depuis
-// dist/lib/update-check.js → ../../package.json (root du package installé).
+// Version : priorité à __AICLI_VERSION__ injecté au build (esbuild --define),
+// sinon fallback lecture package.json pour le mode dev (tsx src/index.ts).
+// Après bundling, le ternaire est réduit par esbuild à la constante — pas
+// de fs call au runtime.
 export function getLocalVersion(): string {
+  if (
+    typeof __AICLI_VERSION__ !== "undefined" &&
+    __AICLI_VERSION__ !== ""
+  ) {
+    return __AICLI_VERSION__;
+  }
+  // Dev fallback : on lit package.json depuis la racine du projet via
+  // import.meta.url. Path source (tsx) : src/lib/update-check.ts →
+  // ../../package.json. Path dist historique (non-bundled) : idem.
   try {
     const here = dirname(fileURLToPath(import.meta.url));
-    const pkgFile = join(here, "..", "..", "package.json");
-    if (existsSync(pkgFile)) {
-      const pkg = JSON.parse(readFileSync(pkgFile, "utf8")) as {
-        version?: string;
-      };
-      if (typeof pkg.version === "string") return pkg.version;
+    for (const rel of ["../../package.json", "../package.json"]) {
+      const pkgFile = join(here, rel);
+      if (existsSync(pkgFile)) {
+        const pkg = JSON.parse(readFileSync(pkgFile, "utf8")) as {
+          version?: string;
+        };
+        if (typeof pkg.version === "string") return pkg.version;
+      }
     }
   } catch {
     /* ignore */

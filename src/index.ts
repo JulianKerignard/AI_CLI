@@ -41,7 +41,8 @@ Modes permissions :
 }
 
 if (args.includes("--version") || args.includes("-v")) {
-  console.log("0.1.0");
+  const { getLocalVersion } = await import("./lib/update-check.js");
+  console.log(getLocalVersion());
   process.exit(0);
 }
 
