@@ -1,10 +1,29 @@
 import React from "react";
 import { render } from "ink";
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import { dirname, join } from "node:path";
 import { CWD } from "./utils/paths.js";
 import { log } from "./utils/logger.js";
 import { InputHistory } from "./utils/history.js";
 import { App } from "./ui/App.js";
 import { inputController } from "./ui/input-controller.js";
+
+// Lit la version depuis package.json (adjacent au dossier dist en prod,
+// ou à la racine du repo en dev tsx). Évite le hardcode du banner qui
+// se désynchronise des bumps publish-dev / publish-stable.
+function readPkgVersion(): string {
+  try {
+    const here = dirname(fileURLToPath(import.meta.url));
+    // dev (src/repl.ts) : ../package.json. prod (dist/repl.js) : ../package.json.
+    const pkgPath = join(here, "..", "package.json");
+    const pkg = JSON.parse(readFileSync(pkgPath, "utf8"));
+    return typeof pkg.version === "string" ? pkg.version : "?";
+  } catch {
+    return "?";
+  }
+}
+const APP_VERSION = readPkgVersion();
 import {
   newSessionId,
   openSession,
@@ -267,7 +286,7 @@ export async function startRepl(): Promise<void> {
   );
 
   // Banner poussé dans l'historique après mount.
-  log.banner("AI_CLI v0.1.0");
+  log.banner(`AI_CLI v${APP_VERSION}`);
   log.info(
     `${log.kicker("provider")}  ${log.ink(cleanProvider(provider.name))}   ${log.kicker("cwd")}  ${log.inkMuted(CWD)}`,
   );

@@ -69,8 +69,12 @@ export function clearCredentials(): void {
 
 // Check que le fichier n'est pas lisible par d'autres users (équivalent
 // StrictModes SSH). Avertit l'user si les perms sont trop permissives.
+// Skip sur Windows : NTFS gère ça via ACL pas via les bits POSIX, et
+// statSync renvoie systématiquement 0o666 sur ce FS — le warning est
+// donc un faux positif systématique.
 export function checkCredentialsPerms(): { ok: boolean; warning?: string } {
   if (!existsSync(FILE)) return { ok: true };
+  if (process.platform === "win32") return { ok: true };
   try {
     const s = statSync(FILE);
     const mode = s.mode & 0o777;
