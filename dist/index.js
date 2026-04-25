@@ -32163,10 +32163,10 @@ var init_session_controller = __esm({
       getCurrent() {
         return this.current;
       }
-      async open(items) {
+      async open(items, showCwd = false) {
         if (this.current) this.current.resolve(null);
         return new Promise((resolve6) => {
-          this.current = { items, resolve: resolve6 };
+          this.current = { items, showCwd, resolve: resolve6 };
           this.emit("change");
         });
       }
@@ -32185,6 +32185,7 @@ var init_session_controller = __esm({
 var store_exports = {};
 __export(store_exports, {
   appendEvent: () => appendEvent,
+  listAllSessions: () => listAllSessions,
   listSessions: () => listSessions,
   loadSession: () => loadSession,
   newSessionId: () => newSessionId,
@@ -32285,8 +32286,31 @@ function summarize(path2) {
     model: header.model,
     title,
     messageCount,
-    sizeBytes: st.size
+    sizeBytes: st.size,
+    cwd: header.cwd
   };
+}
+function listAllSessions(limit = 30) {
+  if (!existsSync5(BASE)) return [];
+  const out = [];
+  for (const hashDir of readdirSync(BASE)) {
+    const dir = join4(BASE, hashDir);
+    let files;
+    try {
+      files = readdirSync(dir).filter((f) => f.endsWith(".jsonl"));
+    } catch {
+      continue;
+    }
+    for (const f of files) {
+      const path2 = join4(dir, f);
+      try {
+        const summary = summarize(path2);
+        if (summary) out.push(summary);
+      } catch {
+      }
+    }
+  }
+  return out.sort((a, b) => b.startedAt - a.startedAt).slice(0, limit);
 }
 function loadSession(path2) {
   if (!existsSync5(path2)) return null;
@@ -32316,6 +32340,7 @@ var init_store = __esm({
     __name(appendEvent, "appendEvent");
     __name(listSessions, "listSessions");
     __name(summarize, "summarize");
+    __name(listAllSessions, "listAllSessions");
     __name(loadSession, "loadSession");
   }
 });
@@ -34389,7 +34414,7 @@ import { fileURLToPath } from "node:url";
 import { homedir as homedir6 } from "node:os";
 function getLocalVersion() {
   if (true) {
-    return "0.1.1-dev.19";
+    return "0.1.1-dev.20";
   }
   try {
     const here = dirname4(fileURLToPath(import.meta.url));
@@ -52070,6 +52095,19 @@ init_session_controller();
 // src/ui/SessionPicker.tsx
 var import_react39 = __toESM(require_react(), 1);
 var import_jsx_runtime6 = __toESM(require_jsx_runtime(), 1);
+function shortenCwd(cwd2) {
+  const home = process.env.HOME ?? process.env.USERPROFILE ?? "";
+  let s = cwd2;
+  if (home && s.startsWith(home)) s = "~" + s.slice(home.length);
+  if (s.length > 35) {
+    const parts = s.split("/");
+    if (parts.length > 4) {
+      return parts.slice(0, 2).join("/") + "/.../" + parts[parts.length - 1];
+    }
+  }
+  return s;
+}
+__name(shortenCwd, "shortenCwd");
 function formatRelative(ts) {
   const diff2 = Date.now() - ts;
   const s = Math.floor(diff2 / 1e3);
@@ -52091,15 +52129,17 @@ function formatDate(ts) {
   });
 }
 __name(formatDate, "formatDate");
-function SessionPicker({ items, onChoose }) {
+function SessionPicker({ items, onChoose, showCwd = false }) {
   const [query, setQuery] = (0, import_react39.useState)("");
   const [idx, setIdx] = (0, import_react39.useState)(0);
   const pageSize = 10;
   const filtered = (0, import_react39.useMemo)(() => {
     const q = query.toLowerCase();
     if (!q) return items;
-    return items.filter((s) => s.title.toLowerCase().includes(q));
-  }, [items, query]);
+    return items.filter(
+      (s) => s.title.toLowerCase().includes(q) || showCwd && s.cwd.toLowerCase().includes(q)
+    );
+  }, [items, query, showCwd]);
   (0, import_react39.useEffect)(() => {
     if (idx >= filtered.length) setIdx(0);
   }, [filtered.length, idx]);
@@ -52143,7 +52183,7 @@ function SessionPicker({ items, onChoose }) {
       paddingX: 1,
       children: [
         /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)(Box_default, { children: [
-          /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(Text, { color: colors.ink, bold: true, children: "Reprendre une session" }),
+          /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(Text, { color: colors.ink, bold: true, children: showCwd ? "Reprendre une session (tous dossiers)" : "Reprendre une session" }),
           /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(Text, { color: colors.inkDim, children: ` (${filtered.length}/${items.length})` })
         ] }),
         /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)(Box_default, { marginTop: 1, children: [
@@ -52157,24 +52197,28 @@ function SessionPicker({ items, onChoose }) {
           visible.map((s, i) => {
             const realIdx = start + i;
             const active = realIdx === idx;
-            return /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)(Box_default, { children: [
-              /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(Text, { color: active ? colors.accent : colors.inkFaint, children: active ? "\u203A" : " " }),
-              /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)(Text, { color: active ? colors.ink : colors.inkMuted, children: [
-                " ",
-                s.title.padEnd(50).slice(0, 50)
+            const titleWidth = showCwd ? 32 : 50;
+            return /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)(Box_default, { flexDirection: "column", children: [
+              /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)(Box_default, { children: [
+                /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(Text, { color: active ? colors.accent : colors.inkFaint, children: active ? "\u203A" : " " }),
+                /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)(Text, { color: active ? colors.ink : colors.inkMuted, children: [
+                  " ",
+                  s.title.padEnd(titleWidth).slice(0, titleWidth)
+                ] }),
+                /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)(Text, { color: colors.inkDim, children: [
+                  "  ",
+                  formatDate(s.startedAt),
+                  " (il y a ",
+                  formatRelative(s.startedAt),
+                  ")"
+                ] }),
+                /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)(Text, { color: colors.success, children: [
+                  "  ",
+                  s.messageCount,
+                  " msg"
+                ] })
               ] }),
-              /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)(Text, { color: colors.inkDim, children: [
-                "  ",
-                formatDate(s.startedAt),
-                " (il y a ",
-                formatRelative(s.startedAt),
-                ")"
-              ] }),
-              /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)(Text, { color: colors.success, children: [
-                "  ",
-                s.messageCount,
-                " msg"
-              ] })
+              showCwd && /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(Box_default, { marginLeft: 2, children: /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(Text, { color: colors.inkFaint, children: shortenCwd(s.cwd) }) })
             ] }, s.id);
           })
         ] }),
@@ -52364,6 +52408,7 @@ function App2({ history } = {}) {
       SessionPicker,
       {
         items: sessionActive.items,
+        showCwd: sessionActive.showCwd,
         onChoose: (p) => sessionController.close(p)
       }
     ) : pickerActive ? /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(
@@ -55091,20 +55136,21 @@ function builtinCommands(allCommands) {
     },
     {
       name: "resume",
-      description: "Reprend une conversation pass\xE9e lanc\xE9e depuis ce dossier.",
-      async run({ agent }) {
+      description: "Reprend une conversation pass\xE9e. /resume = ce dossier \xB7 /resume --all = tous dossiers confondus (cwd affich\xE9).",
+      async run({ agent }, args2) {
         const { CWD: CWD2 } = await Promise.resolve().then(() => (init_paths(), paths_exports));
-        const { listSessions: listSessions2, loadSession: loadSession2 } = await Promise.resolve().then(() => (init_store(), store_exports));
+        const { listSessions: listSessions2, listAllSessions: listAllSessions2, loadSession: loadSession2 } = await Promise.resolve().then(() => (init_store(), store_exports));
         const { sessionController: sessionController2 } = await Promise.resolve().then(() => (init_session_controller(), session_controller_exports));
         const { historyStore: historyStore2 } = await Promise.resolve().then(() => (init_history_store(), history_store_exports));
-        const sessions = listSessions2(CWD2, 30);
+        const all = args2.trim() === "--all";
+        const sessions = all ? listAllSessions2(50) : listSessions2(CWD2, 30);
         if (sessions.length === 0) {
           log.info(
-            "Aucune session pour ce dossier. Lance une conversation pour en cr\xE9er une."
+            all ? "Aucune session enregistr\xE9e. Lance une conversation pour en cr\xE9er une." : "Aucune session pour ce dossier. Tape /resume --all pour voir toutes les sessions."
           );
           return;
         }
-        const chosen = await sessionController2.open(sessions);
+        const chosen = await sessionController2.open(sessions, all);
         if (!chosen) return;
         const loaded = loadSession2(chosen);
         if (!loaded) {
