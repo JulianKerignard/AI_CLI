@@ -89,6 +89,23 @@ function sanitizeEnv(
 
 const MAX_BUFFER_BYTES = 10_000_000; // 10MB cap pour éviter OOM si serveur buggy
 
+// Timeouts différenciés. `initialize` + `tools/list` sont du handshake
+// rapide — 10s est large. `tools/call` peut légitimement durer longtemps
+// (fetch web, calcul, etc.) — 60s par défaut, override via env.
+const INIT_TIMEOUT_MS = 10_000;
+const DEFAULT_CALL_TIMEOUT_MS = 60_000;
+function callTimeoutMs(): number {
+  const fromEnv = Number(process.env.AICLI_MCP_TIMEOUT_MS);
+  return Number.isFinite(fromEnv) && fromEnv > 0 ? fromEnv : DEFAULT_CALL_TIMEOUT_MS;
+}
+
+// Version injectée au build par esbuild (--define:__AICLI_VERSION__).
+declare const __AICLI_VERSION__: string | undefined;
+const CLI_VERSION =
+  typeof __AICLI_VERSION__ !== "undefined" && __AICLI_VERSION__ !== ""
+    ? __AICLI_VERSION__
+    : "dev";
+
 /**
  * Client MCP stdio minimal : line-delimited JSON-RPC 2.0.
  * Implémente juste ce qu'il faut : initialize, tools/list, tools/call.
@@ -175,24 +192,32 @@ export class McpClient {
   }
 
   async initialize(): Promise<void> {
-    await this.request("initialize", {
-      protocolVersion: "2024-11-05",
-      capabilities: {},
-      clientInfo: { name: "aicli", version: "0.1.0" },
-    });
+    await this.request(
+      "initialize",
+      {
+        protocolVersion: "2024-11-05",
+        capabilities: {},
+        clientInfo: { name: "aicli", version: CLI_VERSION },
+      },
+      INIT_TIMEOUT_MS,
+    );
     this.child.stdin.write(
       JSON.stringify({ jsonrpc: "2.0", method: "notifications/initialized" }) + "\n",
     );
   }
 
   async listTools(): Promise<McpToolInfo[]> {
-    const res = await this.request("tools/list");
+    const res = await this.request("tools/list", undefined, INIT_TIMEOUT_MS);
     const result = (res.result ?? {}) as { tools?: McpToolInfo[] };
     return result.tools ?? [];
   }
 
   async callTool(name: string, args: Record<string, unknown>): Promise<string> {
-    const res = await this.request("tools/call", { name, arguments: args });
+    const res = await this.request(
+      "tools/call",
+      { name, arguments: args },
+      callTimeoutMs(),
+    );
     if (res.error) throw new Error(res.error.message);
     const result = (res.result ?? {}) as {
       content?: Array<{ type: string; text?: string }>;

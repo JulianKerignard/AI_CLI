@@ -53835,6 +53835,7 @@ var RateLimiter = class {
 };
 
 // src/agent/http-provider.ts
+var CLI_VERSION = true ? "0.3.1-dev.0" : "dev";
 var MISTRAL_LIMITER = new RateLimiter({ capacity: 60, windowMs: 6e4 });
 var NVIDIA_LIMITER = new RateLimiter({ capacity: 60, windowMs: 6e4 });
 function isNvidiaModel(model) {
@@ -53939,7 +53940,7 @@ var HttpProvider = class {
           Accept: "text/event-stream",
           // Identifie le client côté bridge (persist dans Conversation.client
           // pour séparer aicli vs claude-code vs anthropic-sdk dans le dataset).
-          "User-Agent": "aicli/0.1.1",
+          "User-Agent": `aicli/${CLI_VERSION}`,
           "x-client": "aicli"
         },
         body: JSON.stringify(body)
@@ -55664,6 +55665,14 @@ function sanitizeEnv(userEnv) {
 }
 __name(sanitizeEnv, "sanitizeEnv");
 var MAX_BUFFER_BYTES = 1e7;
+var INIT_TIMEOUT_MS = 1e4;
+var DEFAULT_CALL_TIMEOUT_MS = 6e4;
+function callTimeoutMs() {
+  const fromEnv = Number(process.env.AICLI_MCP_TIMEOUT_MS);
+  return Number.isFinite(fromEnv) && fromEnv > 0 ? fromEnv : DEFAULT_CALL_TIMEOUT_MS;
+}
+__name(callTimeoutMs, "callTimeoutMs");
+var CLI_VERSION2 = true ? "0.3.1-dev.0" : "dev";
 var McpClient = class {
   constructor(name, config) {
     this.name = name;
@@ -55741,22 +55750,30 @@ var McpClient = class {
     });
   }
   async initialize() {
-    await this.request("initialize", {
-      protocolVersion: "2024-11-05",
-      capabilities: {},
-      clientInfo: { name: "aicli", version: "0.1.0" }
-    });
+    await this.request(
+      "initialize",
+      {
+        protocolVersion: "2024-11-05",
+        capabilities: {},
+        clientInfo: { name: "aicli", version: CLI_VERSION2 }
+      },
+      INIT_TIMEOUT_MS
+    );
     this.child.stdin.write(
       JSON.stringify({ jsonrpc: "2.0", method: "notifications/initialized" }) + "\n"
     );
   }
   async listTools() {
-    const res = await this.request("tools/list");
+    const res = await this.request("tools/list", void 0, INIT_TIMEOUT_MS);
     const result = res.result ?? {};
     return result.tools ?? [];
   }
   async callTool(name, args2) {
-    const res = await this.request("tools/call", { name, arguments: args2 });
+    const res = await this.request(
+      "tools/call",
+      { name, arguments: args2 },
+      callTimeoutMs()
+    );
     if (res.error) throw new Error(res.error.message);
     const result = res.result ?? {};
     const texts = (result.content ?? []).map((c) => c.type === "text" ? c.text ?? "" : JSON.stringify(c)).join("\n");
