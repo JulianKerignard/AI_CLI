@@ -31697,10 +31697,10 @@ function takeAllAndClear() {
 }
 async function pasteFromClipboard(cwd2) {
   const { tmpdir } = await import("node:os");
-  const { join: join15 } = await import("node:path");
+  const { join: join16 } = await import("node:path");
   const { spawnSync: spawnSync2, spawn: spawn5 } = await import("node:child_process");
   const { createWriteStream } = await import("node:fs");
-  const tmpPath = join15(
+  const tmpPath = join16(
     tmpdir(),
     `aicli-paste-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.png`
   );
@@ -34414,7 +34414,7 @@ import { fileURLToPath } from "node:url";
 import { homedir as homedir6 } from "node:os";
 function getLocalVersion() {
   if (true) {
-    return "0.1.1-dev.20";
+    return "0.1.1-dev.21";
   }
   try {
     const here = dirname4(fileURLToPath(import.meta.url));
@@ -50983,6 +50983,9 @@ var import_react33 = __toESM(require_react(), 1);
 // src/repl.ts
 init_paths();
 init_logger();
+import { readFileSync as readFileSync12 } from "node:fs";
+import { fileURLToPath as fileURLToPath2 } from "node:url";
+import { dirname as dirname5, join as join15 } from "node:path";
 
 // src/utils/history.ts
 import { readFileSync as readFileSync2, writeFileSync, existsSync as existsSync3, mkdirSync } from "node:fs";
@@ -54597,6 +54600,7 @@ function clearCredentials() {
 __name(clearCredentials, "clearCredentials");
 function checkCredentialsPerms() {
   if (!existsSync7(FILE2)) return { ok: true };
+  if (process.platform === "win32") return { ok: true };
   try {
     const s = statSync3(FILE2);
     const mode = s.mode & 511;
@@ -55854,6 +55858,18 @@ function savePermissions(cfg) {
 __name(savePermissions, "savePermissions");
 
 // src/repl.ts
+function readPkgVersion() {
+  try {
+    const here = dirname5(fileURLToPath2(import.meta.url));
+    const pkgPath = join15(here, "..", "package.json");
+    const pkg = JSON.parse(readFileSync12(pkgPath, "utf8"));
+    return typeof pkg.version === "string" ? pkg.version : "?";
+  } catch {
+    return "?";
+  }
+}
+__name(readPkgVersion, "readPkgVersion");
+var APP_VERSION = readPkgVersion();
 function buildSystemPrompt(cwd2, mode = "default") {
   const shell = detectShell();
   const platformLine = `${process.platform} (${process.arch}). ${shellSyntaxHint(shell)}`;
@@ -56026,7 +56042,7 @@ async function startRepl() {
       patchConsole: false
     }
   );
-  log.banner("AI_CLI v0.1.0");
+  log.banner(`AI_CLI v${APP_VERSION}`);
   log.info(
     `${log.kicker("provider")}  ${log.ink(cleanProvider(provider.name))}   ${log.kicker("cwd")}  ${log.inkMuted(CWD)}`
   );
