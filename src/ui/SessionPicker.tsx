@@ -10,6 +10,24 @@ import { colors as c } from "./theme.js";
 interface Props {
   items: SessionSummary[];
   onChoose: (path: string | null) => void;
+  // Mode "--all" : sessions de tous dossiers confondus → afficher le cwd
+  // dans chaque ligne pour distinguer les projets. Sinon (mode défaut),
+  // toutes les sessions sont du même cwd, pas la peine de l'afficher.
+  showCwd?: boolean;
+}
+
+function shortenCwd(cwd: string): string {
+  const home = process.env.HOME ?? process.env.USERPROFILE ?? "";
+  let s = cwd;
+  if (home && s.startsWith(home)) s = "~" + s.slice(home.length);
+  // Tronque le milieu si trop long : ~/projets/.../mon-app
+  if (s.length > 35) {
+    const parts = s.split("/");
+    if (parts.length > 4) {
+      return parts.slice(0, 2).join("/") + "/.../" + parts[parts.length - 1];
+    }
+  }
+  return s;
 }
 
 function formatRelative(ts: number): string {
@@ -33,7 +51,7 @@ function formatDate(ts: number): string {
   });
 }
 
-export function SessionPicker({ items, onChoose }: Props) {
+export function SessionPicker({ items, onChoose, showCwd = false }: Props) {
   const [query, setQuery] = useState("");
   const [idx, setIdx] = useState(0);
   const pageSize = 10;
@@ -41,8 +59,12 @@ export function SessionPicker({ items, onChoose }: Props) {
   const filtered = useMemo(() => {
     const q = query.toLowerCase();
     if (!q) return items;
-    return items.filter((s) => s.title.toLowerCase().includes(q));
-  }, [items, query]);
+    return items.filter(
+      (s) =>
+        s.title.toLowerCase().includes(q) ||
+        (showCwd && s.cwd.toLowerCase().includes(q)),
+    );
+  }, [items, query, showCwd]);
 
   useEffect(() => {
     if (idx >= filtered.length) setIdx(0);
@@ -90,7 +112,7 @@ export function SessionPicker({ items, onChoose }: Props) {
     >
       <Box>
         <Text color={c.ink} bold>
-          Reprendre une session
+          {showCwd ? "Reprendre une session (tous dossiers)" : "Reprendre une session"}
         </Text>
         <Text color={c.inkDim}>{` (${filtered.length}/${items.length})`}</Text>
       </Box>
@@ -111,23 +133,35 @@ export function SessionPicker({ items, onChoose }: Props) {
         {visible.map((s, i) => {
           const realIdx = start + i;
           const active = realIdx === idx;
+          // En mode --all, le titre est plus court pour laisser de la
+          // place au cwd. Sinon le titre prend toute la largeur dispo.
+          const titleWidth = showCwd ? 32 : 50;
           return (
-            <Box key={s.id}>
-              <Text color={active ? c.accent : c.inkFaint}>
-                {active ? "›" : " "}
-              </Text>
-              <Text color={active ? c.ink : c.inkMuted}>
-                {" "}
-                {s.title.padEnd(50).slice(0, 50)}
-              </Text>
-              <Text color={c.inkDim}>
-                {"  "}
-                {formatDate(s.startedAt)} (il y a {formatRelative(s.startedAt)})
-              </Text>
-              <Text color={c.success}>
-                {"  "}
-                {s.messageCount} msg
-              </Text>
+            <Box key={s.id} flexDirection="column">
+              <Box>
+                <Text color={active ? c.accent : c.inkFaint}>
+                  {active ? "›" : " "}
+                </Text>
+                <Text color={active ? c.ink : c.inkMuted}>
+                  {" "}
+                  {s.title.padEnd(titleWidth).slice(0, titleWidth)}
+                </Text>
+                <Text color={c.inkDim}>
+                  {"  "}
+                  {formatDate(s.startedAt)} (il y a {formatRelative(s.startedAt)})
+                </Text>
+                <Text color={c.success}>
+                  {"  "}
+                  {s.messageCount} msg
+                </Text>
+              </Box>
+              {showCwd && (
+                <Box marginLeft={2}>
+                  <Text color={c.inkFaint}>
+                    {shortenCwd(s.cwd)}
+                  </Text>
+                </Box>
+              )}
             </Box>
           );
         })}

@@ -115,6 +115,7 @@ export function App({ history }: AppProps = {}) {
       ) : sessionActive ? (
         <SessionPicker
           items={sessionActive.items}
+          showCwd={sessionActive.showCwd}
           onChoose={(p) => sessionController.close(p)}
         />
       ) : pickerActive ? (

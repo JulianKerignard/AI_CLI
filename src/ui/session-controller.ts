@@ -8,6 +8,7 @@ type Resolver = (path: string | null) => void;
 
 interface Request {
   items: SessionSummary[];
+  showCwd: boolean;
   resolve: Resolver;
 }
 
@@ -18,10 +19,13 @@ class SessionController extends EventEmitter {
     return this.current;
   }
 
-  async open(items: SessionSummary[]): Promise<string | null> {
+  async open(
+    items: SessionSummary[],
+    showCwd = false,
+  ): Promise<string | null> {
     if (this.current) this.current.resolve(null);
     return new Promise<string | null>((resolve) => {
-      this.current = { items, resolve };
+      this.current = { items, showCwd, resolve };
       this.emit("change");
     });
   }

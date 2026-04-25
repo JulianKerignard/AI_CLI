@@ -522,10 +522,10 @@ export function builtinCommands(allCommands: () => SlashCommand[]): SlashCommand
     {
       name: "resume",
       description:
-        "Reprend une conversation passée lancée depuis ce dossier.",
-      async run({ agent }) {
+        "Reprend une conversation passée. /resume = ce dossier · /resume --all = tous dossiers confondus (cwd affiché).",
+      async run({ agent }, args) {
         const { CWD } = await import("../utils/paths.js");
-        const { listSessions, loadSession } = await import(
+        const { listSessions, listAllSessions, loadSession } = await import(
           "../sessions/store.js"
         );
         const { sessionController } = await import(
@@ -533,14 +533,17 @@ export function builtinCommands(allCommands: () => SlashCommand[]): SlashCommand
         );
         const { historyStore } = await import("../ui/history-store.js");
 
-        const sessions = listSessions(CWD, 30);
+        const all = args.trim() === "--all";
+        const sessions = all ? listAllSessions(50) : listSessions(CWD, 30);
         if (sessions.length === 0) {
           log.info(
-            "Aucune session pour ce dossier. Lance une conversation pour en créer une.",
+            all
+              ? "Aucune session enregistrée. Lance une conversation pour en créer une."
+              : "Aucune session pour ce dossier. Tape /resume --all pour voir toutes les sessions.",
           );
           return;
         }
-        const chosen = await sessionController.open(sessions);
+        const chosen = await sessionController.open(sessions, all);
         if (!chosen) return;
 
         const loaded = loadSession(chosen);

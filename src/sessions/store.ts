@@ -48,6 +48,7 @@ export interface SessionSummary {
   title: string; // 1er user message (tronqué)
   messageCount: number;
   sizeBytes: number;
+  cwd: string; // dossier d'origine de la session, pour /resume --all
 }
 
 function cwdHash(cwd: string): string {
@@ -157,7 +158,35 @@ function summarize(path: string): SessionSummary | null {
     title,
     messageCount,
     sizeBytes: st.size,
+    cwd: header.cwd,
   };
+}
+
+// Liste TOUTES les sessions tous dossiers confondus, triées desc par
+// startedAt. Pour /resume --all : permet de retrouver une conversation
+// même si on relance le CLI depuis un autre dossier que le projet d'origine.
+export function listAllSessions(limit = 30): SessionSummary[] {
+  if (!existsSync(BASE)) return [];
+  const out: SessionSummary[] = [];
+  for (const hashDir of readdirSync(BASE)) {
+    const dir = join(BASE, hashDir);
+    let files: string[];
+    try {
+      files = readdirSync(dir).filter((f) => f.endsWith(".jsonl"));
+    } catch {
+      continue;
+    }
+    for (const f of files) {
+      const path = join(dir, f);
+      try {
+        const summary = summarize(path);
+        if (summary) out.push(summary);
+      } catch {
+        // Fichier corrompu — on skip.
+      }
+    }
+  }
+  return out.sort((a, b) => b.startedAt - a.startedAt).slice(0, limit);
 }
 
 // Charge tous les events d'une session pour replay.
