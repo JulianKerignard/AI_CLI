@@ -16,6 +16,13 @@ export interface CatalogModel {
   ttftMs?: number | null;
   measuredAt?: number;
   speed?: string;
+  // Alias courts exposés par le serveur (ex: ["large", "mistral"]). Le premier
+  // est traité comme primaire (affiché dans le picker /model). Si absent côté
+  // serveur, le CLI retombe sur la liste hardcodée dans favorites.ts.
+  aliases?: string[];
+  // Marque les modèles que le serveur veut voir dans /model et /best. Si aucun
+  // modèle du catalog n'a ce flag, le CLI retombe sur la shortlist hardcodée.
+  favorite?: boolean;
 }
 
 const TTL_MS = 30_000;

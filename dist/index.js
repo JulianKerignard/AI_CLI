@@ -32348,51 +32348,64 @@ var init_store = __esm({
 // src/lib/favorites.ts
 var favorites_exports = {};
 __export(favorites_exports, {
-  FAVORITE_ALIASES: () => FAVORITE_ALIASES,
-  FAVORITE_FULL_IDS: () => FAVORITE_FULL_IDS,
-  FAVORITE_ORDER: () => FAVORITE_ORDER,
-  resolveFavoriteAlias: () => resolveFavoriteAlias
+  resolveAlias: () => resolveAlias,
+  resolveFavoritesFromCatalog: () => resolveFavoritesFromCatalog
 });
-function resolveFavoriteAlias(input) {
-  const hit = FAVORITE_ALIASES[input.toLowerCase()];
-  return hit ?? null;
+function resolveFavoritesFromCatalog(catalog) {
+  const tagged = catalog.filter(
+    (m) => m.favorite === true && Array.isArray(m.aliases) && m.aliases.length > 0
+  );
+  if (tagged.length > 0) {
+    const aliases2 = {};
+    const order = [];
+    const fullIds = /* @__PURE__ */ new Set();
+    for (const m of tagged) {
+      const list = m.aliases ?? [];
+      const primary = list[0];
+      if (!primary) continue;
+      aliases2[primary.toLowerCase()] = m.id;
+      order.push(primary);
+      for (const alt of list.slice(1)) {
+        aliases2[alt.toLowerCase()] = m.id;
+      }
+      fullIds.add(m.id);
+    }
+    return { aliases: aliases2, order, fullIds, source: "catalog" };
+  }
+  const aliases = {};
+  for (const f of FALLBACK_FAVORITES) {
+    aliases[f.alias.toLowerCase()] = f.fullId;
+  }
+  return {
+    aliases,
+    order: FALLBACK_FAVORITES.map((f) => f.alias),
+    fullIds: new Set(FALLBACK_FAVORITES.map((f) => f.fullId)),
+    source: "fallback"
+  };
 }
-var FAVORITE_ALIASES, FAVORITE_ORDER, FAVORITE_FULL_IDS;
+function resolveAlias(favorites, input) {
+  return favorites.aliases[input.trim().toLowerCase()] ?? null;
+}
+var FALLBACK_FAVORITES;
 var init_favorites = __esm({
   "src/lib/favorites.ts"() {
     "use strict";
-    FAVORITE_ALIASES = {
-      hy3: "openrouter/tencent/hy3-preview:free",
-      "ling-1t": "openrouter/inclusionai/ling-2.6-1t:free",
-      flash: "google/gemini-flash-latest",
-      large: "mistral-large-latest",
-      codestral: "codestral-latest",
-      devstral: "devstral-latest",
-      nemotron: "nvidia/nvidia/llama-3.1-nemotron-ultra-253b-v1",
-      "gpt-oss": "nvidia/openai/gpt-oss-120b",
-      "qwen-coder": "nvidia/qwen/qwen2.5-coder-32b-instruct",
-      "kimi-k2": "nvidia/moonshotai/kimi-k2-instruct",
-      "kimi-thinking": "nvidia/moonshotai/kimi-k2-thinking",
-      "flash-lite": "google/gemini-flash-lite-latest"
-    };
-    FAVORITE_ORDER = [
-      "hy3",
-      "ling-1t",
-      "flash",
-      "large",
-      "codestral",
-      "devstral",
-      "nemotron",
-      "gpt-oss",
-      "qwen-coder",
-      "kimi-k2",
-      "kimi-thinking",
-      "flash-lite"
+    FALLBACK_FAVORITES = [
+      { alias: "hy3", fullId: "openrouter/tencent/hy3-preview:free" },
+      { alias: "ling-1t", fullId: "openrouter/inclusionai/ling-2.6-1t:free" },
+      { alias: "flash", fullId: "google/gemini-flash-latest" },
+      { alias: "large", fullId: "mistral-large-latest" },
+      { alias: "codestral", fullId: "codestral-latest" },
+      { alias: "devstral", fullId: "devstral-latest" },
+      { alias: "nemotron", fullId: "nvidia/nvidia/llama-3.1-nemotron-ultra-253b-v1" },
+      { alias: "gpt-oss", fullId: "nvidia/openai/gpt-oss-120b" },
+      { alias: "qwen-coder", fullId: "nvidia/qwen/qwen2.5-coder-32b-instruct" },
+      { alias: "kimi-k2", fullId: "nvidia/moonshotai/kimi-k2-instruct" },
+      { alias: "kimi-thinking", fullId: "nvidia/moonshotai/kimi-k2-thinking" },
+      { alias: "flash-lite", fullId: "google/gemini-flash-lite-latest" }
     ];
-    __name(resolveFavoriteAlias, "resolveFavoriteAlias");
-    FAVORITE_FULL_IDS = new Set(
-      Object.values(FAVORITE_ALIASES)
-    );
+    __name(resolveFavoritesFromCatalog, "resolveFavoritesFromCatalog");
+    __name(resolveAlias, "resolveAlias");
   }
 });
 
@@ -52512,8 +52525,9 @@ var BetterModelWatcher = class {
     }
     if (this.stopped) return;
     if (models.length === 0) return;
-    const { FAVORITE_FULL_IDS: FAVORITE_FULL_IDS2 } = await Promise.resolve().then(() => (init_favorites(), favorites_exports));
-    const favModels = models.filter((m) => FAVORITE_FULL_IDS2.has(m.id));
+    const { resolveFavoritesFromCatalog: resolveFavoritesFromCatalog2 } = await Promise.resolve().then(() => (init_favorites(), favorites_exports));
+    const favorites = resolveFavoritesFromCatalog2(models);
+    const favModels = models.filter((m) => favorites.fullIds.has(m.id));
     if (favModels.length === 0) return;
     const scored = favModels.map((m) => scoreModel(m, this.mode)).sort((a, b) => b.score - a.score);
     const current = scored.find((s) => s.model.id === creds.model);
@@ -54893,7 +54907,7 @@ function builtinCommands(allCommands) {
           return;
         }
         const targetId = args2.trim();
-        const { FAVORITE_ALIASES: FAVORITE_ALIASES2, FAVORITE_ORDER: FAVORITE_ORDER2, resolveFavoriteAlias: resolveFavoriteAlias2 } = await Promise.resolve().then(() => (init_favorites(), favorites_exports));
+        const { resolveFavoritesFromCatalog: resolveFavoritesFromCatalog2, resolveAlias: resolveAlias2 } = await Promise.resolve().then(() => (init_favorites(), favorites_exports));
         const { fetchCatalog: fetchCatalog2 } = await Promise.resolve().then(() => (init_model_catalog(), model_catalog_exports));
         let catalog = [];
         try {
@@ -54904,12 +54918,13 @@ function builtinCommands(allCommands) {
           );
           return;
         }
+        const favorites = resolveFavoritesFromCatalog2(catalog);
         if (targetId) {
-          const resolved = resolveFavoriteAlias2(targetId) ?? targetId;
+          const resolved = resolveAlias2(favorites, targetId) ?? targetId;
           const match = catalog.find((m) => m.id === resolved);
           if (!match) {
             log.error(
-              `Mod\xE8le inconnu : ${targetId}. Favoris dispos : ${FAVORITE_ORDER2.join(", ")}.`
+              `Mod\xE8le inconnu : ${targetId}. Favoris dispos : ${favorites.order.join(", ")}.`
             );
             return;
           }
@@ -54921,9 +54936,9 @@ function builtinCommands(allCommands) {
           return;
         }
         const byId = new Map(catalog.map((m) => [m.id, m]));
-        const favs = FAVORITE_ORDER2.map((alias) => {
-          const fullId = FAVORITE_ALIASES2[alias];
-          const m = byId.get(fullId);
+        const favs = favorites.order.map((alias) => {
+          const fullId = favorites.aliases[alias.toLowerCase()];
+          const m = fullId ? byId.get(fullId) : void 0;
           if (!m) return null;
           return { ...m, alias };
         }).filter((m) => m !== null);
@@ -54933,10 +54948,11 @@ function builtinCommands(allCommands) {
           );
           return;
         }
-        if (favs.length < FAVORITE_ORDER2.length) {
-          const missing = FAVORITE_ORDER2.filter(
-            (a) => !byId.has(FAVORITE_ALIASES2[a])
-          );
+        if (favs.length < favorites.order.length) {
+          const missing = favorites.order.filter((a) => {
+            const fullId = favorites.aliases[a.toLowerCase()];
+            return !fullId || !byId.has(fullId);
+          });
           log.dim(
             `(${missing.length} favori(s) indisponible(s) : ${missing.join(", ")})`
           );
@@ -54974,8 +54990,9 @@ function builtinCommands(allCommands) {
           );
           return;
         }
-        const { FAVORITE_FULL_IDS: FAVORITE_FULL_IDS2 } = await Promise.resolve().then(() => (init_favorites(), favorites_exports));
-        models = models.filter((m) => FAVORITE_FULL_IDS2.has(m.id));
+        const { resolveFavoritesFromCatalog: resolveFavoritesFromCatalog2 } = await Promise.resolve().then(() => (init_favorites(), favorites_exports));
+        const favorites = resolveFavoritesFromCatalog2(models);
+        models = models.filter((m) => favorites.fullIds.has(m.id));
         if (models.length === 0) {
           log.error("Aucun mod\xE8le favori disponible.");
           return;
