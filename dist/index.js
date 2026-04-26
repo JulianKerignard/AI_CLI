@@ -31097,10 +31097,11 @@ function installConsolePatch() {
   console.warn = (...args2) => pushLine(args2, "warn");
   console.error = (...args2) => pushLine(args2, "error");
 }
-var HistoryStore, historyStore, installed;
+var MAX_ITEMS, HistoryStore, historyStore, installed;
 var init_history_store = __esm({
   "src/ui/history-store.ts"() {
     "use strict";
+    MAX_ITEMS = 500;
     HistoryStore = class extends EventEmitter3 {
       static {
         __name(this, "HistoryStore");
@@ -31108,11 +31109,30 @@ var init_history_store = __esm({
       items = [];
       streaming = null;
       nextId = 1;
+      evictedCount = 0;
+      constructor() {
+        super();
+        this.setMaxListeners(20);
+      }
       getItems() {
         return this.items;
       }
       getStreaming() {
         return this.streaming;
+      }
+      // Nombre d'items évincés depuis le début de la session (pour debug,
+      // affichage status bar, etc.).
+      getEvictedCount() {
+        return this.evictedCount;
+      }
+      // Trim head si on dépasse MAX_ITEMS. Appelé après chaque push. O(1) amortized
+      // (splice depuis le début est O(n) mais rare : on évince par batch d'1).
+      trimIfNeeded() {
+        if (this.items.length > MAX_ITEMS) {
+          const drop = this.items.length - MAX_ITEMS;
+          this.items.splice(0, drop);
+          this.evictedCount += drop;
+        }
       }
       // Push un item "figé". S'il y avait un streaming en cours, on le fige
       // d'abord puis on ajoute le nouvel item.
@@ -31124,6 +31144,7 @@ var init_history_store = __esm({
         }
         const id = this.nextId++;
         this.items.push({ ...item, id });
+        this.trimIfNeeded();
         this.emit("items-change");
         return id;
       }
@@ -31134,6 +31155,7 @@ var init_history_store = __esm({
         if (!this.streaming || this.streaming.type !== "assistant") {
           if (this.streaming) {
             this.items.push(this.streaming);
+            this.trimIfNeeded();
             this.emit("items-change");
           }
           this.streaming = {
@@ -31150,6 +31172,7 @@ var init_history_store = __esm({
         if (this.streaming) {
           this.items.push(this.streaming);
           this.streaming = null;
+          this.trimIfNeeded();
           this.emit("items-change");
           this.emit("streaming-change");
         }
@@ -31157,6 +31180,7 @@ var init_history_store = __esm({
       clear() {
         this.items = [];
         this.streaming = null;
+        this.evictedCount = 0;
         this.emit("items-change");
         this.emit("streaming-change");
       }
@@ -31876,6 +31900,10 @@ var init_input_controller = __esm({
       }
       pending = null;
       _disabled = false;
+      constructor() {
+        super();
+        this.setMaxListeners(20);
+      }
       get disabled() {
         return this._disabled;
       }
@@ -31931,6 +31959,10 @@ var init_picker_controller = __esm({
         __name(this, "PickerController");
       }
       current = null;
+      constructor() {
+        super();
+        this.setMaxListeners(20);
+      }
       getCurrent() {
         return this.current;
       }
@@ -32160,6 +32192,10 @@ var init_session_controller = __esm({
         __name(this, "SessionController");
       }
       current = null;
+      constructor() {
+        super();
+        this.setMaxListeners(20);
+      }
       getCurrent() {
         return this.current;
       }
@@ -51005,7 +51041,7 @@ import { readFileSync as readFileSync2, writeFileSync, existsSync as existsSync3
 import { homedir as homedir2 } from "node:os";
 import { join as join2, dirname } from "node:path";
 var FILE = join2(homedir2(), ".aicli", "history.json");
-var MAX_ITEMS = 200;
+var MAX_ITEMS2 = 200;
 var InputHistory = class {
   static {
     __name(this, "InputHistory");
@@ -51029,7 +51065,7 @@ var InputHistory = class {
   persist() {
     try {
       mkdirSync(dirname(FILE), { recursive: true });
-      writeFileSync(FILE, JSON.stringify(this.items.slice(-MAX_ITEMS)), {
+      writeFileSync(FILE, JSON.stringify(this.items.slice(-MAX_ITEMS2)), {
         mode: 384
       });
     } catch {
@@ -51045,8 +51081,8 @@ var InputHistory = class {
       return;
     }
     this.items.push(trimmed);
-    if (this.items.length > MAX_ITEMS) {
-      this.items.splice(0, this.items.length - MAX_ITEMS);
+    if (this.items.length > MAX_ITEMS2) {
+      this.items.splice(0, this.items.length - MAX_ITEMS2);
     }
     this.cursor = -1;
     this.persist();
@@ -52007,6 +52043,10 @@ var PermissionController = class extends EventEmitter7 {
   }
   current = null;
   queue = [];
+  constructor() {
+    super();
+    this.setMaxListeners(20);
+  }
   getCurrent() {
     return this.current;
   }
@@ -52252,6 +52292,10 @@ var AskController = class extends EventEmitter9 {
     __name(this, "AskController");
   }
   current = null;
+  constructor() {
+    super();
+    this.setMaxListeners(20);
+  }
   getCurrent() {
     return this.current;
   }
@@ -53981,6 +54025,7 @@ var HttpProvider = class {
     const decoder = new TextDecoder();
     let buf = "";
     const reader = res.body.getReader();
+    const MAX_SSE_BUFFER_BYTES = 5e6;
     let streamError = null;
     while (true) {
       let readResult;
@@ -53993,6 +54038,16 @@ var HttpProvider = class {
       const { value, done } = readResult;
       if (done) break;
       buf += decoder.decode(value, { stream: true });
+      if (buf.length > MAX_SSE_BUFFER_BYTES) {
+        try {
+          await reader.cancel();
+        } catch {
+        }
+        streamError = new Error(
+          `SSE buffer overflow (>${MAX_SSE_BUFFER_BYTES} bytes sans s\xE9parateur)`
+        );
+        break;
+      }
       let sep5;
       while ((sep5 = buf.indexOf("\n\n")) !== -1) {
         const chunk = buf.slice(0, sep5);

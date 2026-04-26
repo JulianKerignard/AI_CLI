@@ -229,6 +229,13 @@ export class HttpProvider implements Provider {
     let buf = "";
     const reader = res.body.getReader();
 
+    // Cap mémoire défensif sur le buffer SSE. Si le serveur émet une
+    // réponse anormalement large sans séparateur \n\n (bug bridge, ou
+    // modèle qui spit 100K tokens d'un coup sans flush), `buf` croîtrait
+    // sans frein. 5 MB couvre largement les cas légitimes (un message
+    // assistant complet, même très long, fait <500 KB en pratique).
+    const MAX_SSE_BUFFER_BYTES = 5_000_000;
+
     // Capture les erreurs mid-stream (undici "terminated" quand upstream coupe
     // la connexion, ex: Mistral 429 pendant le reasoning magistral). Si on a
     // déjà accumulé du text → return partial. Sinon throw retryable.
@@ -244,6 +251,20 @@ export class HttpProvider implements Provider {
       const { value, done } = readResult;
       if (done) break;
       buf += decoder.decode(value, { stream: true });
+
+      if (buf.length > MAX_SSE_BUFFER_BYTES) {
+        // Stream malformé — on libère le reader et on remonte une erreur
+        // retryable plutôt que de laisser la heap exploser.
+        try {
+          await reader.cancel();
+        } catch {
+          // ignore
+        }
+        streamError = new Error(
+          `SSE buffer overflow (>${MAX_SSE_BUFFER_BYTES} bytes sans séparateur)`,
+        );
+        break;
+      }
 
       // SSE : events séparés par \n\n. Chaque event a des lignes "field: value".
       // On ne se soucie que de "data:" ; on ignore "event:" qui est cosmétique.
