@@ -100,12 +100,13 @@ export class BetterModelWatcher {
     if (this.stopped) return;
     if (models.length === 0) return;
 
-    // Restreint aux 6 favoris : si l'user ne veut voir que sa shortlist
-    // dans /model, la suggestion "better model" doit aussi rester dans
-    // cette shortlist. Sinon on proposerait de switcher vers un modèle
+    // Restreint à la shortlist favoris : si l'user ne voit que cette
+    // shortlist dans /model, la suggestion "better model" doit aussi
+    // rester dedans. Sinon on proposerait de switcher vers un modèle
     // qui n'apparaît nulle part dans le picker.
-    const { FAVORITE_FULL_IDS } = await import("./favorites.js");
-    const favModels = models.filter((m) => FAVORITE_FULL_IDS.has(m.id));
+    const { resolveFavoritesFromCatalog } = await import("./favorites.js");
+    const favorites = resolveFavoritesFromCatalog(models);
+    const favModels = models.filter((m) => favorites.fullIds.has(m.id));
     if (favModels.length === 0) return;
 
     const scored = favModels

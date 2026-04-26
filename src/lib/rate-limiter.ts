@@ -1,7 +1,10 @@
-// Token bucket sliding window client-side pour respecter le rate limit
-// Mistral free plan (4 req/min). On cible 3 req/min (marge 25%) pour éviter
-// les 429 visibles. Honor Retry-After côté serveur pour resserrer le bucket
-// temporairement si on se fait quand même bloquer.
+// Token bucket sliding window client-side pour respecter le rate limit upstream.
+// Capacité par défaut = 3 req/min, mais surchargée par les call sites :
+// - Mistral via bridge : 60 req/min (cf. http-provider.ts MISTRAL_LIMITER)
+// - NVIDIA via bridge : 60 req/min (cf. http-provider.ts NVIDIA_LIMITER)
+// Le préventif évite la majorité des 429. Pour les 429 résiduels (concurrence
+// multi-clients sur la même clé, scope serveur), on honore Retry-After et on
+// passe le bucket en mode "cold" temporaire via markCold().
 
 export interface RateLimiterOpts {
   // Capacité = nombre max de requêtes dans la fenêtre.

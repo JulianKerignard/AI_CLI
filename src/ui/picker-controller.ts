@@ -16,6 +16,11 @@ interface PickerRequest {
 class PickerController extends EventEmitter {
   private current: PickerRequest | null = null;
 
+  constructor() {
+    super();
+    this.setMaxListeners(20);
+  }
+
   getCurrent(): PickerRequest | null {
     return this.current;
   }

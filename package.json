@@ -14,7 +14,8 @@
     "typecheck": "tsc -p . --noEmit"
   },
   "files": [
-    "dist",
+    "dist/index.js",
+    "dist/.version",
     "package.json",
     "README.md"
   ],

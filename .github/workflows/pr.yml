@@ -1,0 +1,51 @@
+name: PR checks
+
+on:
+  pull_request:
+    branches: [develop, main]
+    paths:
+      - "src/**"
+      - "scripts/**"
+      - "package.json"
+      - "package-lock.json"
+      - "tsconfig.json"
+      - ".github/workflows/pr.yml"
+
+# Annule les runs antérieurs sur la même PR si on push de nouveaux commits.
+concurrency:
+  group: pr-checks-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install deps
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Build
+        run: npm run build
+
+      # Garde-fou : alerte si le bundle dépasse 3 MB. Permet de détecter une
+      # dep lourde ajoutée par mégarde avant le merge sur develop.
+      - name: Bundle size check
+        run: |
+          set -e
+          MAX_BYTES=$((3 * 1024 * 1024))
+          BUNDLE_BYTES=$(stat -c%s dist/index.js)
+          echo "dist/index.js = ${BUNDLE_BYTES} bytes (max ${MAX_BYTES})"
+          if [ "$BUNDLE_BYTES" -gt "$MAX_BYTES" ]; then
+            echo "::error::Bundle dépasse 3 MB. Vérifie les nouvelles deps."
+            exit 1
+          fi

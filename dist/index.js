@@ -31097,10 +31097,11 @@ function installConsolePatch() {
   console.warn = (...args2) => pushLine(args2, "warn");
   console.error = (...args2) => pushLine(args2, "error");
 }
-var HistoryStore, historyStore, installed;
+var MAX_ITEMS, HistoryStore, historyStore, installed;
 var init_history_store = __esm({
   "src/ui/history-store.ts"() {
     "use strict";
+    MAX_ITEMS = 500;
     HistoryStore = class extends EventEmitter3 {
       static {
         __name(this, "HistoryStore");
@@ -31108,11 +31109,30 @@ var init_history_store = __esm({
       items = [];
       streaming = null;
       nextId = 1;
+      evictedCount = 0;
+      constructor() {
+        super();
+        this.setMaxListeners(20);
+      }
       getItems() {
         return this.items;
       }
       getStreaming() {
         return this.streaming;
+      }
+      // Nombre d'items évincés depuis le début de la session (pour debug,
+      // affichage status bar, etc.).
+      getEvictedCount() {
+        return this.evictedCount;
+      }
+      // Trim head si on dépasse MAX_ITEMS. Appelé après chaque push. O(1) amortized
+      // (splice depuis le début est O(n) mais rare : on évince par batch d'1).
+      trimIfNeeded() {
+        if (this.items.length > MAX_ITEMS) {
+          const drop = this.items.length - MAX_ITEMS;
+          this.items.splice(0, drop);
+          this.evictedCount += drop;
+        }
       }
       // Push un item "figé". S'il y avait un streaming en cours, on le fige
       // d'abord puis on ajoute le nouvel item.
@@ -31124,6 +31144,7 @@ var init_history_store = __esm({
         }
         const id = this.nextId++;
         this.items.push({ ...item, id });
+        this.trimIfNeeded();
         this.emit("items-change");
         return id;
       }
@@ -31134,6 +31155,7 @@ var init_history_store = __esm({
         if (!this.streaming || this.streaming.type !== "assistant") {
           if (this.streaming) {
             this.items.push(this.streaming);
+            this.trimIfNeeded();
             this.emit("items-change");
           }
           this.streaming = {
@@ -31150,6 +31172,7 @@ var init_history_store = __esm({
         if (this.streaming) {
           this.items.push(this.streaming);
           this.streaming = null;
+          this.trimIfNeeded();
           this.emit("items-change");
           this.emit("streaming-change");
         }
@@ -31157,6 +31180,7 @@ var init_history_store = __esm({
       clear() {
         this.items = [];
         this.streaming = null;
+        this.evictedCount = 0;
         this.emit("items-change");
         this.emit("streaming-change");
       }
@@ -31876,6 +31900,10 @@ var init_input_controller = __esm({
       }
       pending = null;
       _disabled = false;
+      constructor() {
+        super();
+        this.setMaxListeners(20);
+      }
       get disabled() {
         return this._disabled;
       }
@@ -31931,6 +31959,10 @@ var init_picker_controller = __esm({
         __name(this, "PickerController");
       }
       current = null;
+      constructor() {
+        super();
+        this.setMaxListeners(20);
+      }
       getCurrent() {
         return this.current;
       }
@@ -32160,6 +32192,10 @@ var init_session_controller = __esm({
         __name(this, "SessionController");
       }
       current = null;
+      constructor() {
+        super();
+        this.setMaxListeners(20);
+      }
       getCurrent() {
         return this.current;
       }
@@ -32348,51 +32384,64 @@ var init_store = __esm({
 // src/lib/favorites.ts
 var favorites_exports = {};
 __export(favorites_exports, {
-  FAVORITE_ALIASES: () => FAVORITE_ALIASES,
-  FAVORITE_FULL_IDS: () => FAVORITE_FULL_IDS,
-  FAVORITE_ORDER: () => FAVORITE_ORDER,
-  resolveFavoriteAlias: () => resolveFavoriteAlias
+  resolveAlias: () => resolveAlias,
+  resolveFavoritesFromCatalog: () => resolveFavoritesFromCatalog
 });
-function resolveFavoriteAlias(input) {
-  const hit = FAVORITE_ALIASES[input.toLowerCase()];
-  return hit ?? null;
+function resolveFavoritesFromCatalog(catalog) {
+  const tagged = catalog.filter(
+    (m) => m.favorite === true && Array.isArray(m.aliases) && m.aliases.length > 0
+  );
+  if (tagged.length > 0) {
+    const aliases2 = {};
+    const order = [];
+    const fullIds = /* @__PURE__ */ new Set();
+    for (const m of tagged) {
+      const list = m.aliases ?? [];
+      const primary = list[0];
+      if (!primary) continue;
+      aliases2[primary.toLowerCase()] = m.id;
+      order.push(primary);
+      for (const alt of list.slice(1)) {
+        aliases2[alt.toLowerCase()] = m.id;
+      }
+      fullIds.add(m.id);
+    }
+    return { aliases: aliases2, order, fullIds, source: "catalog" };
+  }
+  const aliases = {};
+  for (const f of FALLBACK_FAVORITES) {
+    aliases[f.alias.toLowerCase()] = f.fullId;
+  }
+  return {
+    aliases,
+    order: FALLBACK_FAVORITES.map((f) => f.alias),
+    fullIds: new Set(FALLBACK_FAVORITES.map((f) => f.fullId)),
+    source: "fallback"
+  };
 }
-var FAVORITE_ALIASES, FAVORITE_ORDER, FAVORITE_FULL_IDS;
+function resolveAlias(favorites, input) {
+  return favorites.aliases[input.trim().toLowerCase()] ?? null;
+}
+var FALLBACK_FAVORITES;
 var init_favorites = __esm({
   "src/lib/favorites.ts"() {
     "use strict";
-    FAVORITE_ALIASES = {
-      hy3: "openrouter/tencent/hy3-preview:free",
-      "ling-1t": "openrouter/inclusionai/ling-2.6-1t:free",
-      flash: "google/gemini-flash-latest",
-      large: "mistral-large-latest",
-      codestral: "codestral-latest",
-      devstral: "devstral-latest",
-      nemotron: "nvidia/nvidia/llama-3.1-nemotron-ultra-253b-v1",
-      "gpt-oss": "nvidia/openai/gpt-oss-120b",
-      "qwen-coder": "nvidia/qwen/qwen2.5-coder-32b-instruct",
-      "kimi-k2": "nvidia/moonshotai/kimi-k2-instruct",
-      "kimi-thinking": "nvidia/moonshotai/kimi-k2-thinking",
-      "flash-lite": "google/gemini-flash-lite-latest"
-    };
-    FAVORITE_ORDER = [
-      "hy3",
-      "ling-1t",
-      "flash",
-      "large",
-      "codestral",
-      "devstral",
-      "nemotron",
-      "gpt-oss",
-      "qwen-coder",
-      "kimi-k2",
-      "kimi-thinking",
-      "flash-lite"
+    FALLBACK_FAVORITES = [
+      { alias: "hy3", fullId: "openrouter/tencent/hy3-preview:free" },
+      { alias: "ling-1t", fullId: "openrouter/inclusionai/ling-2.6-1t:free" },
+      { alias: "flash", fullId: "google/gemini-flash-latest" },
+      { alias: "large", fullId: "mistral-large-latest" },
+      { alias: "codestral", fullId: "codestral-latest" },
+      { alias: "devstral", fullId: "devstral-latest" },
+      { alias: "nemotron", fullId: "nvidia/nvidia/llama-3.1-nemotron-ultra-253b-v1" },
+      { alias: "gpt-oss", fullId: "nvidia/openai/gpt-oss-120b" },
+      { alias: "qwen-coder", fullId: "nvidia/qwen/qwen2.5-coder-32b-instruct" },
+      { alias: "kimi-k2", fullId: "nvidia/moonshotai/kimi-k2-instruct" },
+      { alias: "kimi-thinking", fullId: "nvidia/moonshotai/kimi-k2-thinking" },
+      { alias: "flash-lite", fullId: "google/gemini-flash-lite-latest" }
     ];
-    __name(resolveFavoriteAlias, "resolveFavoriteAlias");
-    FAVORITE_FULL_IDS = new Set(
-      Object.values(FAVORITE_ALIASES)
-    );
+    __name(resolveFavoritesFromCatalog, "resolveFavoritesFromCatalog");
+    __name(resolveAlias, "resolveAlias");
   }
 });
 
@@ -50992,7 +51041,7 @@ import { readFileSync as readFileSync2, writeFileSync, existsSync as existsSync3
 import { homedir as homedir2 } from "node:os";
 import { join as join2, dirname } from "node:path";
 var FILE = join2(homedir2(), ".aicli", "history.json");
-var MAX_ITEMS = 200;
+var MAX_ITEMS2 = 200;
 var InputHistory = class {
   static {
     __name(this, "InputHistory");
@@ -51016,7 +51065,7 @@ var InputHistory = class {
   persist() {
     try {
       mkdirSync(dirname(FILE), { recursive: true });
-      writeFileSync(FILE, JSON.stringify(this.items.slice(-MAX_ITEMS)), {
+      writeFileSync(FILE, JSON.stringify(this.items.slice(-MAX_ITEMS2)), {
         mode: 384
       });
     } catch {
@@ -51032,8 +51081,8 @@ var InputHistory = class {
       return;
     }
     this.items.push(trimmed);
-    if (this.items.length > MAX_ITEMS) {
-      this.items.splice(0, this.items.length - MAX_ITEMS);
+    if (this.items.length > MAX_ITEMS2) {
+      this.items.splice(0, this.items.length - MAX_ITEMS2);
     }
     this.cursor = -1;
     this.persist();
@@ -51994,6 +52043,10 @@ var PermissionController = class extends EventEmitter7 {
   }
   current = null;
   queue = [];
+  constructor() {
+    super();
+    this.setMaxListeners(20);
+  }
   getCurrent() {
     return this.current;
   }
@@ -52239,6 +52292,10 @@ var AskController = class extends EventEmitter9 {
     __name(this, "AskController");
   }
   current = null;
+  constructor() {
+    super();
+    this.setMaxListeners(20);
+  }
   getCurrent() {
     return this.current;
   }
@@ -52512,8 +52569,9 @@ var BetterModelWatcher = class {
     }
     if (this.stopped) return;
     if (models.length === 0) return;
-    const { FAVORITE_FULL_IDS: FAVORITE_FULL_IDS2 } = await Promise.resolve().then(() => (init_favorites(), favorites_exports));
-    const favModels = models.filter((m) => FAVORITE_FULL_IDS2.has(m.id));
+    const { resolveFavoritesFromCatalog: resolveFavoritesFromCatalog2 } = await Promise.resolve().then(() => (init_favorites(), favorites_exports));
+    const favorites = resolveFavoritesFromCatalog2(models);
+    const favModels = models.filter((m) => favorites.fullIds.has(m.id));
     if (favModels.length === 0) return;
     const scored = favModels.map((m) => scoreModel(m, this.mode)).sort((a, b) => b.score - a.score);
     const current = scored.find((s) => s.model.id === creds.model);
@@ -53821,6 +53879,7 @@ var RateLimiter = class {
 };
 
 // src/agent/http-provider.ts
+var CLI_VERSION = true ? "0.3.1-dev.0" : "dev";
 var MISTRAL_LIMITER = new RateLimiter({ capacity: 60, windowMs: 6e4 });
 var NVIDIA_LIMITER = new RateLimiter({ capacity: 60, windowMs: 6e4 });
 function isNvidiaModel(model) {
@@ -53925,7 +53984,7 @@ var HttpProvider = class {
           Accept: "text/event-stream",
           // Identifie le client côté bridge (persist dans Conversation.client
           // pour séparer aicli vs claude-code vs anthropic-sdk dans le dataset).
-          "User-Agent": "aicli/0.1.1",
+          "User-Agent": `aicli/${CLI_VERSION}`,
           "x-client": "aicli"
         },
         body: JSON.stringify(body)
@@ -53966,6 +54025,7 @@ var HttpProvider = class {
     const decoder = new TextDecoder();
     let buf = "";
     const reader = res.body.getReader();
+    const MAX_SSE_BUFFER_BYTES = 5e6;
     let streamError = null;
     while (true) {
       let readResult;
@@ -53978,6 +54038,16 @@ var HttpProvider = class {
       const { value, done } = readResult;
       if (done) break;
       buf += decoder.decode(value, { stream: true });
+      if (buf.length > MAX_SSE_BUFFER_BYTES) {
+        try {
+          await reader.cancel();
+        } catch {
+        }
+        streamError = new Error(
+          `SSE buffer overflow (>${MAX_SSE_BUFFER_BYTES} bytes sans s\xE9parateur)`
+        );
+        break;
+      }
       let sep5;
       while ((sep5 = buf.indexOf("\n\n")) !== -1) {
         const chunk = buf.slice(0, sep5);
@@ -54893,7 +54963,7 @@ function builtinCommands(allCommands) {
           return;
         }
         const targetId = args2.trim();
-        const { FAVORITE_ALIASES: FAVORITE_ALIASES2, FAVORITE_ORDER: FAVORITE_ORDER2, resolveFavoriteAlias: resolveFavoriteAlias2 } = await Promise.resolve().then(() => (init_favorites(), favorites_exports));
+        const { resolveFavoritesFromCatalog: resolveFavoritesFromCatalog2, resolveAlias: resolveAlias2 } = await Promise.resolve().then(() => (init_favorites(), favorites_exports));
         const { fetchCatalog: fetchCatalog2 } = await Promise.resolve().then(() => (init_model_catalog(), model_catalog_exports));
         let catalog = [];
         try {
@@ -54904,12 +54974,13 @@ function builtinCommands(allCommands) {
           );
           return;
         }
+        const favorites = resolveFavoritesFromCatalog2(catalog);
         if (targetId) {
-          const resolved = resolveFavoriteAlias2(targetId) ?? targetId;
+          const resolved = resolveAlias2(favorites, targetId) ?? targetId;
           const match = catalog.find((m) => m.id === resolved);
           if (!match) {
             log.error(
-              `Mod\xE8le inconnu : ${targetId}. Favoris dispos : ${FAVORITE_ORDER2.join(", ")}.`
+              `Mod\xE8le inconnu : ${targetId}. Favoris dispos : ${favorites.order.join(", ")}.`
             );
             return;
           }
@@ -54921,9 +54992,9 @@ function builtinCommands(allCommands) {
           return;
         }
         const byId = new Map(catalog.map((m) => [m.id, m]));
-        const favs = FAVORITE_ORDER2.map((alias) => {
-          const fullId = FAVORITE_ALIASES2[alias];
-          const m = byId.get(fullId);
+        const favs = favorites.order.map((alias) => {
+          const fullId = favorites.aliases[alias.toLowerCase()];
+          const m = fullId ? byId.get(fullId) : void 0;
           if (!m) return null;
           return { ...m, alias };
         }).filter((m) => m !== null);
@@ -54933,10 +55004,11 @@ function builtinCommands(allCommands) {
           );
           return;
         }
-        if (favs.length < FAVORITE_ORDER2.length) {
-          const missing = FAVORITE_ORDER2.filter(
-            (a) => !byId.has(FAVORITE_ALIASES2[a])
-          );
+        if (favs.length < favorites.order.length) {
+          const missing = favorites.order.filter((a) => {
+            const fullId = favorites.aliases[a.toLowerCase()];
+            return !fullId || !byId.has(fullId);
+          });
           log.dim(
             `(${missing.length} favori(s) indisponible(s) : ${missing.join(", ")})`
           );
@@ -54974,8 +55046,9 @@ function builtinCommands(allCommands) {
           );
           return;
         }
-        const { FAVORITE_FULL_IDS: FAVORITE_FULL_IDS2 } = await Promise.resolve().then(() => (init_favorites(), favorites_exports));
-        models = models.filter((m) => FAVORITE_FULL_IDS2.has(m.id));
+        const { resolveFavoritesFromCatalog: resolveFavoritesFromCatalog2 } = await Promise.resolve().then(() => (init_favorites(), favorites_exports));
+        const favorites = resolveFavoritesFromCatalog2(models);
+        models = models.filter((m) => favorites.fullIds.has(m.id));
         if (models.length === 0) {
           log.error("Aucun mod\xE8le favori disponible.");
           return;
@@ -55647,6 +55720,14 @@ function sanitizeEnv(userEnv) {
 }
 __name(sanitizeEnv, "sanitizeEnv");
 var MAX_BUFFER_BYTES = 1e7;
+var INIT_TIMEOUT_MS = 1e4;
+var DEFAULT_CALL_TIMEOUT_MS = 6e4;
+function callTimeoutMs() {
+  const fromEnv = Number(process.env.AICLI_MCP_TIMEOUT_MS);
+  return Number.isFinite(fromEnv) && fromEnv > 0 ? fromEnv : DEFAULT_CALL_TIMEOUT_MS;
+}
+__name(callTimeoutMs, "callTimeoutMs");
+var CLI_VERSION2 = true ? "0.3.1-dev.0" : "dev";
 var McpClient = class {
   constructor(name, config) {
     this.name = name;
@@ -55724,22 +55805,30 @@ var McpClient = class {
     });
   }
   async initialize() {
-    await this.request("initialize", {
-      protocolVersion: "2024-11-05",
-      capabilities: {},
-      clientInfo: { name: "aicli", version: "0.1.0" }
-    });
+    await this.request(
+      "initialize",
+      {
+        protocolVersion: "2024-11-05",
+        capabilities: {},
+        clientInfo: { name: "aicli", version: CLI_VERSION2 }
+      },
+      INIT_TIMEOUT_MS
+    );
     this.child.stdin.write(
       JSON.stringify({ jsonrpc: "2.0", method: "notifications/initialized" }) + "\n"
     );
   }
   async listTools() {
-    const res = await this.request("tools/list");
+    const res = await this.request("tools/list", void 0, INIT_TIMEOUT_MS);
     const result = res.result ?? {};
     return result.tools ?? [];
   }
   async callTool(name, args2) {
-    const res = await this.request("tools/call", { name, arguments: args2 });
+    const res = await this.request(
+      "tools/call",
+      { name, arguments: args2 },
+      callTimeoutMs()
+    );
     if (res.error) throw new Error(res.error.message);
     const result = res.result ?? {};
     const texts = (result.content ?? []).map((c) => c.type === "text" ? c.text ?? "" : JSON.stringify(c)).join("\n");

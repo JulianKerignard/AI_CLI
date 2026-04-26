@@ -16,6 +16,11 @@ class InputController extends EventEmitter {
     | null = null;
   private _disabled = false;
 
+  constructor() {
+    super();
+    this.setMaxListeners(20);
+  }
+
   get disabled(): boolean {
     return this._disabled;
   }

@@ -20,6 +20,11 @@ class PermissionController extends EventEmitter {
   private current: PermissionRequest | null = null;
   private queue: PermissionRequest[] = [];
 
+  constructor() {
+    super();
+    this.setMaxListeners(20);
+  }
+
   getCurrent(): PermissionRequest | null {
     return this.current;
   }

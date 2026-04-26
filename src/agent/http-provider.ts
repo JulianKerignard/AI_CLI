@@ -12,26 +12,30 @@ import { RateLimiter } from "../lib/rate-limiter.js";
 import { log, chalk } from "../utils/logger.js";
 import { updateStatus } from "../utils/status-bar.js";
 
+// Version injectée au build par esbuild (--define:__AICLI_VERSION__).
+// Fallback "dev" pour le runtime tsx (où esbuild ne tourne pas).
+declare const __AICLI_VERSION__: string | undefined;
+const CLI_VERSION =
+  typeof __AICLI_VERSION__ !== "undefined" && __AICLI_VERSION__ !== ""
+    ? __AICLI_VERSION__
+    : "dev";
+
 interface Opts {
   token: string;
   baseUrl: string; // ex: https://chat.juliankerignard.fr/api (sans /v1)
   model: string;
 }
 
-// Deux limiters côté CLI selon le provider du modèle actif :
-// - Mistral free : 4 req/min → on cible 3/min (marge 25%)
-// - NVIDIA NIM : 40 req/min par modèle sur free tier Developer → 30/min
-//   (marge 25% anti-burst, les 10 restants absorbent les cron latency +
-//   burst de tool calls parallèles)
-//
+// Deux limiters côté CLI selon le provider du modèle actif. On les laisse
+// volontairement à capacité haute (60/min) — i.e. désactivés de facto pour
+// l'usage courant — parce que :
+// - les vraies limites varient par modèle chez NVIDIA et sont opaques côté
+//   bridge, donc deviner localement crée des faux positifs ;
+// - en cas de 429 upstream, le retry réactif (15s → 30s → 60s) + markCold()
+//   pause automatiquement le bucket (cf. boucle retry plus bas).
 // Les modèles NVIDIA sont préfixés "nvidia/" (convention Chat-Mistral).
 // Les personas (maxime-latest, etc.) routent vers Mistral côté serveur,
 // donc bucket Mistral côté client.
-// Limiters désactivés de facto (capacité haute) : on laisse l'user taper
-// librement. En cas de 429 upstream, le wrapper retry dans loop.ts pause
-// automatiquement (15s → 30s → 60s) et retry. Plus simple et réactif
-// que de deviner la limite côté CLI (varie par modèle chez NVIDIA).
-// markCold(retryAfter) reste utilisé pour respecter un Retry-After explicite.
 const MISTRAL_LIMITER = new RateLimiter({ capacity: 60, windowMs: 60_000 });
 const NVIDIA_LIMITER = new RateLimiter({ capacity: 60, windowMs: 60_000 });
 
@@ -169,7 +173,7 @@ export class HttpProvider implements Provider {
           Accept: "text/event-stream",
           // Identifie le client côté bridge (persist dans Conversation.client
           // pour séparer aicli vs claude-code vs anthropic-sdk dans le dataset).
-          "User-Agent": "aicli/0.1.1",
+          "User-Agent": `aicli/${CLI_VERSION}`,
           "x-client": "aicli",
         },
         body: JSON.stringify(body),
@@ -225,6 +229,13 @@ export class HttpProvider implements Provider {
     let buf = "";
     const reader = res.body.getReader();
 
+    // Cap mémoire défensif sur le buffer SSE. Si le serveur émet une
+    // réponse anormalement large sans séparateur \n\n (bug bridge, ou
+    // modèle qui spit 100K tokens d'un coup sans flush), `buf` croîtrait
+    // sans frein. 5 MB couvre largement les cas légitimes (un message
+    // assistant complet, même très long, fait <500 KB en pratique).
+    const MAX_SSE_BUFFER_BYTES = 5_000_000;
+
     // Capture les erreurs mid-stream (undici "terminated" quand upstream coupe
     // la connexion, ex: Mistral 429 pendant le reasoning magistral). Si on a
     // déjà accumulé du text → return partial. Sinon throw retryable.
@@ -240,6 +251,20 @@ export class HttpProvider implements Provider {
       const { value, done } = readResult;
       if (done) break;
       buf += decoder.decode(value, { stream: true });
+
+      if (buf.length > MAX_SSE_BUFFER_BYTES) {
+        // Stream malformé — on libère le reader et on remonte une erreur
+        // retryable plutôt que de laisser la heap exploser.
+        try {
+          await reader.cancel();
+        } catch {
+          // ignore
+        }
+        streamError = new Error(
+          `SSE buffer overflow (>${MAX_SSE_BUFFER_BYTES} bytes sans séparateur)`,
+        );
+        break;
+      }
 
       // SSE : events séparés par \n\n. Chaque event a des lignes "field: value".
       // On ne se soucie que de "data:" ; on ignore "event:" qui est cosmétique.
