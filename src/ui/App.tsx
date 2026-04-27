@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Box, useStdout } from "ink";
+import { Box, useInput, useStdout } from "ink";
 import { HistoryView, StreamingView } from "./HistoryView.js";
 import { InputBox } from "./InputBox.js";
 import { StatusLine } from "./StatusLine.js";
@@ -13,6 +13,7 @@ import { sessionController } from "./session-controller.js";
 import { SessionPicker } from "./SessionPicker.js";
 import { askController } from "./ask-controller.js";
 import { AskPicker } from "./AskPicker.js";
+import { interruptController } from "./interrupt-controller.js";
 
 // Layout :
 // ┌───────────────────────────┐
@@ -94,6 +95,16 @@ export function App({ history }: AppProps = {}) {
       askController.off("change", update);
     };
   }, []);
+
+  // Esc → interrompt la génération en cours. Le controller route vers
+  // Loop.abort() (cf. loop.ts constructor). Si aucun tour actif, c'est
+  // un noop. Aucune interaction avec les pickers (qui ont leur propre
+  // gestion Esc via Ink Box raw).
+  useInput((_input, key) => {
+    if (key.escape) {
+      interruptController.request();
+    }
+  }, { isActive: !permissionActive && !askActive && !sessionActive && !pickerActive });
 
   return (
     <Box flexDirection="column">

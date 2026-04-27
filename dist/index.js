@@ -27378,7 +27378,7 @@ var require_extension = __commonJS({
 var require_websocket = __commonJS({
   "node_modules/ws/lib/websocket.js"(exports, module) {
     "use strict";
-    var EventEmitter10 = __require("events");
+    var EventEmitter11 = __require("events");
     var https = __require("https");
     var http = __require("http");
     var net = __require("net");
@@ -27410,7 +27410,7 @@ var require_websocket = __commonJS({
     var protocolVersions = [8, 13];
     var readyStates = ["CONNECTING", "OPEN", "CLOSING", "CLOSED"];
     var subprotocolRegex = /^[!#$%&'*+\-.0-9A-Z^_`|a-z~]+$/;
-    var WebSocket2 = class _WebSocket extends EventEmitter10 {
+    var WebSocket2 = class _WebSocket extends EventEmitter11 {
       static {
         __name(this, "WebSocket");
       }
@@ -28435,7 +28435,7 @@ var require_subprotocol = __commonJS({
 var require_websocket_server = __commonJS({
   "node_modules/ws/lib/websocket-server.js"(exports, module) {
     "use strict";
-    var EventEmitter10 = __require("events");
+    var EventEmitter11 = __require("events");
     var http = __require("http");
     var { Duplex } = __require("stream");
     var { createHash: createHash2 } = __require("crypto");
@@ -28448,7 +28448,7 @@ var require_websocket_server = __commonJS({
     var RUNNING = 0;
     var CLOSING = 1;
     var CLOSED = 2;
-    var WebSocketServer2 = class extends EventEmitter10 {
+    var WebSocketServer2 = class extends EventEmitter11 {
       static {
         __name(this, "WebSocketServer");
       }
@@ -31177,6 +31177,15 @@ var init_history_store = __esm({
           this.emit("streaming-change");
         }
       }
+      // Retourne le texte assistant en cours de stream (utilisé par la loop
+      // pour récupérer le partial au moment d'un abort user). Ne consomme pas
+      // le buffer, ne fige pas — endAssistant() reste responsable du flush.
+      getAssistantPartial() {
+        if (this.streaming?.type === "assistant") {
+          return this.streaming.text;
+        }
+        return "";
+      }
       clear() {
         this.items = [];
         this.streaming = null;
@@ -32644,6 +32653,31 @@ var init_session_controller = __esm({
       }
     };
     sessionController = new SessionController();
+  }
+});
+
+// src/ui/interrupt-controller.ts
+var interrupt_controller_exports = {};
+__export(interrupt_controller_exports, {
+  interruptController: () => interruptController
+});
+import { EventEmitter as EventEmitter10 } from "node:events";
+var InterruptController, interruptController;
+var init_interrupt_controller = __esm({
+  "src/ui/interrupt-controller.ts"() {
+    "use strict";
+    InterruptController = class extends EventEmitter10 {
+      static {
+        __name(this, "InterruptController");
+      }
+      // Demande d'interruption. La loop décide si elle est applicable (ignore
+      // si pas de tour en cours).
+      request() {
+        this.emit("interrupt");
+      }
+    };
+    interruptController = new InterruptController();
+    interruptController.setMaxListeners(20);
   }
 });
 
@@ -52473,6 +52507,7 @@ function AskPicker({ question, options, onAnswer }) {
 __name(AskPicker, "AskPicker");
 
 // src/ui/App.tsx
+init_interrupt_controller();
 var import_jsx_runtime8 = __toESM(require_jsx_runtime(), 1);
 function App2({ history } = {}) {
   const { stdout } = use_stdout_default();
@@ -52531,6 +52566,11 @@ function App2({ history } = {}) {
       askController.off("change", update);
     };
   }, []);
+  use_input_default((_input, key) => {
+    if (key.escape) {
+      interruptController.request();
+    }
+  }, { isActive: !permissionActive && !askActive && !sessionActive && !pickerActive });
   return /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)(Box_default, { flexDirection: "column", children: [
     /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(HistoryView, {}),
     /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(StreamingView, {}),
@@ -54077,7 +54117,11 @@ var HttpProvider = class {
           "User-Agent": `aicli/${CLI_VERSION}`,
           "x-client": "aicli"
         },
-        body: JSON.stringify(body)
+        body: JSON.stringify(body),
+        // Propage le signal d'annulation user (Esc dans le REPL Ink). Si
+        // déclenché, fetch throw AbortError immédiatement, ou le reader
+        // throw au prochain read().
+        signal: opts.signal
       });
       if (res.ok && res.body) break;
       lastErrText = await res.text().catch(() => "");
@@ -54117,12 +54161,26 @@ var HttpProvider = class {
     const reader = res.body.getReader();
     const MAX_SSE_BUFFER_BYTES = 5e6;
     let streamError = null;
+    let aborted = false;
     while (true) {
+      if (opts.signal?.aborted) {
+        aborted = true;
+        try {
+          await reader.cancel();
+        } catch {
+        }
+        break;
+      }
       let readResult;
       try {
         readResult = await reader.read();
       } catch (err) {
-        streamError = err instanceof Error ? err : new Error(String(err));
+        const e = err instanceof Error ? err : new Error(String(err));
+        if (e.name === "AbortError" || opts.signal?.aborted) {
+          aborted = true;
+          break;
+        }
+        streamError = e;
         break;
       }
       const { value, done } = readResult;
@@ -54262,6 +54320,11 @@ var HttpProvider = class {
       limiter.markCold(3e4);
       throw err;
     }
+    if (aborted) {
+      const err = new Error("G\xE9n\xE9ration interrompue par l'utilisateur (Esc)");
+      err.name = "AbortError";
+      throw err;
+    }
     const quota = parseQuotaHeaders(res.headers);
     return { content, stopReason, usage, quota };
   }
@@ -54382,6 +54445,13 @@ var AgentLoop = class {
     const envLimit = Number(process.env.AICLI_MAX_ITERATIONS);
     const defaultLimit = Number.isFinite(envLimit) && envLimit > 0 ? envLimit : 25;
     this.opts = { ...opts, maxIterations: opts.maxIterations ?? defaultLimit };
+    void Promise.resolve().then(() => (init_interrupt_controller(), interrupt_controller_exports)).then(
+      ({ interruptController: interruptController2 }) => {
+        interruptController2.on("interrupt", () => {
+          this.abort();
+        });
+      }
+    );
   }
   getStats() {
     return { ...this.stats };
@@ -54405,6 +54475,15 @@ var AgentLoop = class {
   }
   reset() {
     this.messages.length = 0;
+  }
+  // Controller actif pendant un tour send(). Permet à l'UI Ink de signaler
+  // un abort (Esc) qui propage jusqu'au fetch + reader SSE du provider.
+  // Reset à null entre les tours.
+  currentAbort = null;
+  abort() {
+    if (!this.currentAbort) return false;
+    this.currentAbort.abort();
+    return true;
   }
   appendSystemNote(note) {
     this.messages.push({
@@ -54498,11 +54577,13 @@ var AgentLoop = class {
       const callProviderWithRetry = /* @__PURE__ */ __name(async () => {
         const MAX_RETRIES = 3;
         for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+          this.currentAbort = new AbortController();
           try {
             return await this.opts.provider.chat({
               system: this.opts.system,
               messages: this.messages,
               tools: this.opts.tools.list(),
+              signal: this.currentAbort.signal,
               onTextDelta: /* @__PURE__ */ __name((delta) => {
                 startStream();
                 historyStore.appendAssistantDelta(delta);
@@ -54512,7 +54593,11 @@ var AgentLoop = class {
             });
           } catch (err) {
             const msg = err instanceof Error ? err.message : String(err);
-            const isRetryable = /rate limit|quota|interrompu|terminated|upstream|500|502|503|504/i.test(
+            const errName = err instanceof Error ? err.name : "";
+            if (errName === "AbortError" || /interrompue par l'utilisateur/i.test(msg)) {
+              throw err;
+            }
+            const isRetryable = /rate limit|quota|terminated|upstream|500|502|503|504/i.test(
               msg
             ) && attempt < MAX_RETRIES - 1;
             if (!isRetryable) throw err;
@@ -54538,7 +54623,30 @@ var AgentLoop = class {
         }
         throw new Error("Max retries atteint");
       }, "callProviderWithRetry");
-      const response = await callProviderWithRetry();
+      let response;
+      try {
+        response = await callProviderWithRetry();
+      } catch (err) {
+        const errName = err instanceof Error ? err.name : "";
+        const errMsg = err instanceof Error ? err.message : String(err);
+        if (errName === "AbortError" || /interrompue par l'utilisateur/i.test(errMsg)) {
+          if (streamStarted) historyStore.endAssistant();
+          this.currentAbort = null;
+          updateStatus({ phase: "idle" });
+          const partial = historyStore.getAssistantPartial();
+          if (partial) {
+            this.messages.push({
+              role: "assistant",
+              content: [{ type: "text", text: partial }]
+            });
+          }
+          log.faint("(g\xE9n\xE9ration interrompue par Esc)");
+          return partial;
+        }
+        this.currentAbort = null;
+        throw err;
+      }
+      this.currentAbort = null;
       if (streamStarted) {
         historyStore.endAssistant();
       }
@@ -56091,23 +56199,19 @@ Si doute : CONVERSATION.
 
 # Poser des questions \xE0 l'user (tool AskUser)
 
-Si la demande est **ambigu\xEB** ou **destructive sans contexte clair**, utilise le tool **AskUser** pour clarifier avant d'agir. Deux modes :
+**AskUser est un dernier recours en phase de planification**, pas un confort pendant l'ex\xE9cution. Tu l'utilises seulement quand une d\xE9cision **strictement bloquante** rend le travail impossible et que tu ne peux pas trancher seul de fa\xE7on raisonnable.
 
-- **Avec options** (2-6 choix) : affiche un picker. Ex: \`AskUser({ question: "Quelle granularit\xE9 ?", options: ["patch", "minor", "major"] })\`.
-- **Sans options** : input texte libre pour des r\xE9ponses ouvertes. Ex: \`AskUser({ question: "Quel motif chercher dans les logs ?" })\`.
+**Quand l'utiliser** (rare) :
+- Choix produit irr\xE9versible avec plusieurs interpr\xE9tations valides : "supprime les vieux fichiers" \u2192 ["tous", "> 7j", "> 30j", "annuler"].
+- D\xE9cision de design avec impact architectural fort qu'on ne peut pas inf\xE9rer (granularit\xE9 version, framework cible, langue d'un fichier).
 
-Exemples o\xF9 utiliser AskUser :
-- "supprime les vieux fichiers" \u2192 options ["tous", "> 7 jours", "> 30 jours", "annuler"]
-- "refactore cette fonction" \u2192 options ["lisibilit\xE9", "perf", "split en plusieurs"]
-- "update les deps" \u2192 options ["patch", "minor", "major"]
-- "\xE9cris un test" (pas de framework d\xE9tect\xE9) \u2192 texte libre "Quel framework ?"
+**Quand NE PAS l'utiliser** (cas par d\xE9faut) :
+- Pour proposer une action ("veux-tu que j'installe X ?", "je cr\xE9e le fichier ?", "je commit ?") \u2192 **agis directement** ou explique en texte ce que tu vas faire. Si l'user voulait un dialogue, il aurait pos\xE9 une question.
+- Pour confirmer une commande pr\xEAte \xE0 tourner \u2192 la couche permissions le fait d\xE9j\xE0 (modes default/accept-edits/bypass).
+- Pour pr\xE9ciser un d\xE9tail trivial \u2192 fais le choix le plus raisonnable et mentionne-le bri\xE8vement apr\xE8s coup.
+- Pendant l'ex\xE9cution d'une t\xE2che d\xE9j\xE0 cadr\xE9e par l'user \u2192 continue, ne re-demande pas.
 
-Exemples o\xF9 NE PAS utiliser AskUser (juste agir) :
-- "lis package.json" \u2192 lis.
-- "fix le typo dans README.md" \u2192 lis, trouve, corrige.
-- "lance les tests" \u2192 npm test (ou \xE9quivalent).
-
-R\xE8gle : AskUser > un fix au pif qui casse. Mais AskUser \xE9videmment inutile > fait perdre du temps.
+**R\xE8gle** : si tu peux faire un choix raisonnable et le justifier en une ligne apr\xE8s coup, fais-le. AskUser coupe le flow et frustre. Pr\xE9f\xE8re la conversation libre ("Je vais utiliser X car Y, dis-moi si tu pr\xE9f\xE8res Z") au picker forc\xE9.
 
 # Style
 - **Concis par d\xE9faut** (comme Claude) : r\xE9ponse courte, droit au but. Pas de pr\xE9ambule ("Bien s\xFBr", "Voici"), pas de r\xE9sum\xE9 final ("J'ai fini de...", "En r\xE9sum\xE9..."), pas d'emojis sauf si l'user en met.

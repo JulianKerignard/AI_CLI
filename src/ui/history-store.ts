@@ -110,6 +110,16 @@ class HistoryStore extends EventEmitter {
     }
   }
 
+  // Retourne le texte assistant en cours de stream (utilisé par la loop
+  // pour récupérer le partial au moment d'un abort user). Ne consomme pas
+  // le buffer, ne fige pas — endAssistant() reste responsable du flush.
+  getAssistantPartial(): string {
+    if (this.streaming?.type === "assistant") {
+      return (this.streaming as { text: string }).text;
+    }
+    return "";
+  }
+
   clear(): void {
     this.items = [];
     this.streaming = null;

@@ -177,6 +177,10 @@ export class HttpProvider implements Provider {
           "x-client": "aicli",
         },
         body: JSON.stringify(body),
+        // Propage le signal d'annulation user (Esc dans le REPL Ink). Si
+        // déclenché, fetch throw AbortError immédiatement, ou le reader
+        // throw au prochain read().
+        signal: opts.signal,
       });
 
       if (res.ok && res.body) break;
@@ -240,12 +244,30 @@ export class HttpProvider implements Provider {
     // la connexion, ex: Mistral 429 pendant le reasoning magistral). Si on a
     // déjà accumulé du text → return partial. Sinon throw retryable.
     let streamError: Error | null = null;
+    let aborted = false;
     while (true) {
+      // Check explicite de l'abort signal entre 2 reads — utile si l'user
+      // appuie sur Esc pendant un read() bloquant longtemps.
+      if (opts.signal?.aborted) {
+        aborted = true;
+        try {
+          await reader.cancel();
+        } catch {
+          // ignore
+        }
+        break;
+      }
       let readResult;
       try {
         readResult = await reader.read();
       } catch (err) {
-        streamError = err instanceof Error ? err : new Error(String(err));
+        const e = err instanceof Error ? err : new Error(String(err));
+        // AbortError → l'user a appuyé sur Esc. Pas une erreur retryable.
+        if (e.name === "AbortError" || opts.signal?.aborted) {
+          aborted = true;
+          break;
+        }
+        streamError = e;
         break;
       }
       const { value, done } = readResult;
@@ -412,6 +434,15 @@ export class HttpProvider implements Provider {
       );
       // Marque le bucket en cold pour que le prochain retry attende.
       limiter.markCold(30_000);
+      throw err;
+    }
+
+    // Abort par l'user (Esc) : on throw une erreur reconnaissable que la
+    // loop catche sans retry. On préserve le content déjà streamé pour
+    // l'historique (l'agent sait reprendre depuis là).
+    if (aborted) {
+      const err = new Error("Génération interrompue par l'utilisateur (Esc)");
+      err.name = "AbortError";
       throw err;
     }
 

@@ -77,6 +77,10 @@ export interface ChatOptions {
   // Callback pour signaler qu'un tool_use a été reçu (block complet, args parsés).
   // Utile pour afficher "◆ Read(…)" en live avant d'exécuter le tool.
   onToolUse?: (block: ToolUseBlock) => void;
+  // Signal d'annulation : si déclenché pendant la requête (fetch ou reader),
+  // le provider doit interrompre proprement et throw une AbortError. La loop
+  // l'attrape et stoppe le tour sans retry.
+  signal?: AbortSignal;
 }
 
 export interface Provider {
