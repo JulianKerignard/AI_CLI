@@ -33,7 +33,23 @@ export function builtinCommands(allCommands: () => SlashCommand[]): SlashCommand
       name: "clear",
       description: "Réinitialise l'historique de conversation.",
       async run({ agent }) {
+        // Clear complet : contexte conversationnel + stats agent + totaux
+        // affichés dans le status bar + images en attente. Sans ça, le ctx
+        // affiché reste à la valeur cumulée et donne l'impression que /clear
+        // n'a pas vraiment vidé la conv.
         agent.reset();
+        agent.resetStats();
+        const { setSessionTotals, updateStatus } = await import(
+          "../utils/status-bar.js"
+        );
+        setSessionTotals(0, 0);
+        updateStatus({
+          tokensIn: undefined,
+          tokensOut: undefined,
+          baselineTokens: undefined,
+        });
+        const { takeAllAndClear } = await import("../ui/pending-images.js");
+        takeAllAndClear();
         log.info("Historique effacé.");
       },
     },

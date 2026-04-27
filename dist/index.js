@@ -31884,6 +31884,436 @@ var init_model_catalog = __esm({
   }
 });
 
+// src/utils/git-info.ts
+import { readFileSync as readFileSync3, existsSync as existsSync4, statSync } from "node:fs";
+import { join as join3, dirname as dirname2 } from "node:path";
+import { spawnSync } from "node:child_process";
+function findGitDir(startDir) {
+  let dir = startDir;
+  for (let i = 0; i < 100; i++) {
+    const candidate = join3(dir, ".git");
+    if (existsSync4(candidate)) return candidate;
+    const parent = dirname2(dir);
+    if (parent === dir) return null;
+    dir = parent;
+  }
+  return null;
+}
+function getGitInfo(cwd2) {
+  const now = Date.now();
+  if (cached && cached.cwd === cwd2 && now - cached.at < CACHE_TTL_MS) {
+    return cached.info;
+  }
+  const info = {
+    branch: null,
+    repoRoot: null,
+    additions: 0,
+    deletions: 0,
+    dirty: false
+  };
+  const gitDir = findGitDir(cwd2);
+  if (!gitDir) {
+    cached = { at: now, cwd: cwd2, info };
+    return info;
+  }
+  info.repoRoot = dirname2(gitDir);
+  try {
+    const headPath = join3(gitDir, "HEAD");
+    if (existsSync4(headPath) && statSync(headPath).isFile()) {
+      const head = readFileSync3(headPath, "utf8").trim();
+      const m = /^ref:\s+refs\/heads\/(.+)$/.exec(head);
+      info.branch = m ? m[1] : head.slice(0, 7);
+    }
+  } catch {
+  }
+  try {
+    const proc = spawnSync("git", ["diff", "--numstat", "HEAD"], {
+      cwd: info.repoRoot,
+      // Windows : git.exe peut être lent au premier call (Defender scan).
+      // 300ms suffit si warm, cache à 60s absorbe les premiers spawns.
+      timeout: process.platform === "win32" ? 300 : 500,
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "pipe"]
+    });
+    if (proc.error) {
+      return info;
+    }
+    if (proc.status === 0 && proc.stdout) {
+      const lines = proc.stdout.trim().split("\n").filter(Boolean);
+      for (const l of lines) {
+        const parts = l.split(/\s+/);
+        const add = Number(parts[0]);
+        const del = Number(parts[1]);
+        if (Number.isFinite(add)) info.additions += add;
+        if (Number.isFinite(del)) info.deletions += del;
+      }
+      info.dirty = lines.length > 0;
+    }
+  } catch {
+  }
+  cached = { at: now, cwd: cwd2, info };
+  return info;
+}
+var CACHE_TTL_MS, cached;
+var init_git_info = __esm({
+  "src/utils/git-info.ts"() {
+    "use strict";
+    __name(findGitDir, "findGitDir");
+    CACHE_TTL_MS = process.platform === "win32" ? 6e4 : 1e4;
+    cached = null;
+    __name(getGitInfo, "getGitInfo");
+  }
+});
+
+// src/lib/context-window.ts
+function cleanProvider(name) {
+  const httpMatch = /^http\((.+)\)$/.exec(name);
+  const inner = httpMatch ? httpMatch[1] : name;
+  return inner.startsWith("nvidia/") ? inner.slice("nvidia/".length) : inner;
+}
+function estimateBaselineTokens(system, tools) {
+  let chars = system.length;
+  for (const t of tools) {
+    chars += t.name.length;
+    chars += t.description.length;
+    chars += JSON.stringify(t.schema).length;
+  }
+  return Math.ceil(chars / 4);
+}
+function contextWindowFor(model) {
+  const m = cleanProvider(model).toLowerCase();
+  if (m.includes("kimi-k2")) return 256e3;
+  if (m.includes("qwen3-coder")) return 256e3;
+  if (m.includes("qwen3-next")) return 256e3;
+  if (m.includes("qwen2.5-coder")) return 32e3;
+  if (m.includes("nemotron-ultra")) return 128e3;
+  if (m.includes("nemotron-super")) return 128e3;
+  if (m.includes("gpt-oss")) return 131e3;
+  if (m.includes("llama-3.3-70b")) return 128e3;
+  if (m.includes("llama-3.1-405b")) return 128e3;
+  if (m.includes("llama-3.1-8b")) return 128e3;
+  if (m.includes("phi-4")) return 16e3;
+  if (m.includes("glm-5") || m.includes("glm5")) return 2e5;
+  if (m.includes("glm4")) return 128e3;
+  if (m.includes("minimax-m")) return 1e6;
+  if (m.includes("codestral") || m.includes("devstral")) return 256e3;
+  if (m.includes("small")) return 32e3;
+  if (m.includes("large") || m.includes("medium")) return 128e3;
+  if (m.includes("magistral")) return 4e4;
+  return 128e3;
+}
+var init_context_window = __esm({
+  "src/lib/context-window.ts"() {
+    "use strict";
+    __name(cleanProvider, "cleanProvider");
+    __name(estimateBaselineTokens, "estimateBaselineTokens");
+    __name(contextWindowFor, "contextWindowFor");
+  }
+});
+
+// src/utils/status-bar.ts
+var status_bar_exports = {};
+__export(status_bar_exports, {
+  initStatusBar: () => initStatusBar,
+  renderStatusLines: () => renderStatusLines,
+  resetTurn: () => resetTurn,
+  setSessionTotals: () => setSessionTotals,
+  subscribeStatus: () => subscribeStatus,
+  teardownStatusBar: () => teardownStatusBar,
+  updateStatus: () => updateStatus
+});
+import { EventEmitter as EventEmitter4 } from "node:events";
+import { sep } from "node:path";
+function subscribeStatus(cb) {
+  emitter.on("change", cb);
+  return () => {
+    emitter.off("change", cb);
+  };
+}
+function startTick() {
+  if (tickTimer) return;
+  if (!ANIMATED_PHASES.has(state.phase)) return;
+  tickTimer = setInterval(() => {
+    frame = (frame + 1) % 1e6;
+    emitter.emit("change");
+  }, TICK_INTERVAL_MS);
+  tickTimer.unref?.();
+}
+function stopTick() {
+  if (!tickTimer) return;
+  clearInterval(tickTimer);
+  tickTimer = null;
+}
+function phaseSymbol(phase) {
+  const frames = ANIM_FRAMES[phase];
+  if (!frames || frames.length === 0) return PHASE_SYM[phase];
+  return frames[frame % frames.length];
+}
+function starSymbol() {
+  return STAR_FRAMES[Math.floor(frame / 3) % STAR_FRAMES.length];
+}
+function compact2(n) {
+  if (n < 1e3) return String(n);
+  if (n < 1e4) return (n / 1e3).toFixed(1) + "k";
+  if (n < 1e6) return Math.round(n / 1e3) + "k";
+  return (n / 1e6).toFixed(1) + "M";
+}
+function renderBar(pct, width, color = ACCENT) {
+  const filled = Math.max(0, Math.min(width, Math.round(pct * width)));
+  return color("\u2588".repeat(filled)) + FAINT("\u2591".repeat(width - filled));
+}
+function shortCwd(cwd2) {
+  const max = 35;
+  if (cwd2.length <= max) return cwd2;
+  const parts = cwd2.split(sep).filter(Boolean);
+  if (parts.length <= 2) return "..." + sep + parts.slice(-2).join(sep);
+  return "..." + sep + parts.slice(-2).join(sep);
+}
+function formatResetShort(iso) {
+  const ts = Date.parse(iso);
+  if (!Number.isFinite(ts)) return "?";
+  const ms = ts - Date.now();
+  if (ms <= 0) return "soon";
+  const mins = Math.round(ms / 6e4);
+  if (mins < 60) return `${mins}m`;
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
+  return m === 0 ? `${h}h` : `${h}h${m}m`;
+}
+function visibleLen(s) {
+  return s.replace(/\x1b\[[0-9;]*m/g, "").length;
+}
+function renderStatusLines(cols) {
+  const tag = state.sessionTag ?? cleanProvider2(state.provider ?? "");
+  const tagBox = tag ? import_chalk4.default.bgHex("#245454").hex("#f6f1e8")(` ${tag} `) : "";
+  const ruleLen = Math.max(0, cols - visibleLen(tagBox) - 2);
+  const rule = TEAL(GLYPH.sepLine.repeat(ruleLen)) + (tagBox ? "  " + tagBox : "");
+  const parts1 = [];
+  if (state.provider) {
+    const ctxWin = state.contextWindow ?? contextWindowFor2(state.provider);
+    const ctxStr = ctxWin >= 1e6 ? `${ctxWin / 1e6}M` : `${ctxWin / 1e3}k`;
+    const diamondColor = state.phase === "streaming" || state.phase === "executing-tool" ? frame % 2 === 0 ? ACCENT : ACCENT_SOFT : ACCENT;
+    let head = diamondColor(GLYPH.diamond + " ") + INK_BRIGHT.bold(cleanProvider2(state.provider)) + FAINT(` (${ctxStr} ctx)`);
+    if (state.currentQuality !== void 0 && state.currentSpeed !== void 0) {
+      head += FAINT("  ") + MUTED("Q") + INK(String(state.currentQuality)) + FAINT("/10 ") + MUTED("V") + INK(String(state.currentSpeed)) + FAINT("/10");
+    }
+    parts1.push(head);
+  }
+  if (state.cwd) parts1.push(MUTED(shortCwd(state.cwd)));
+  const git = state.cwd ? getGitInfo(state.cwd) : null;
+  if (git?.branch) parts1.push(INK("on ") + ACCENT_SOFT.italic(git.branch));
+  const tokenSegs = [];
+  if ((state.tokensIn ?? 0) > 0)
+    tokenSegs.push(MUTED(GLYPH.arrowUp) + INK(compact2(state.tokensIn)));
+  if ((state.tokensOut ?? 0) > 0)
+    tokenSegs.push(MUTED(GLYPH.arrowDown) + INK(compact2(state.tokensOut)));
+  if (tokenSegs.length > 0) parts1.push(tokenSegs.join(" "));
+  if (git && (git.additions > 0 || git.deletions > 0)) {
+    parts1.push(SUCCESS(`+${git.additions}`) + " " + DANGER(`-${git.deletions}`));
+  }
+  const sep5 = FAINT("  \u2502  ");
+  const softSep = FAINT("  \xB7  ");
+  const line1 = parts1.slice(0, 3).join(softSep) + (parts1.length > 3 ? sep5 + parts1.slice(3).join(sep5) : "");
+  const parts2 = [];
+  const sessionTotal = (state.sessionInTotal ?? 0) + (state.sessionOutTotal ?? 0);
+  const ctxWindow = state.contextWindow ?? contextWindowFor2(state.provider ?? "mistral-large-latest");
+  const baseline = state.baselineTokens ?? 0;
+  {
+    const effectiveMax = Math.max(1, ctxWindow - baseline);
+    const convUsed = Math.max(0, sessionTotal - baseline);
+    const pct = Math.min(1, convUsed / effectiveMax);
+    const pctNum = Math.round(pct * 100);
+    const bar = renderBar(pct, 10);
+    const baselineTag = baseline > 0 ? FAINT(` (+${compact2(baseline)} base)`) : "";
+    parts2.push(
+      INK_BRIGHT(compact2(convUsed)) + FAINT("/") + MUTED(compact2(effectiveMax)) + "  " + bar + "  " + ACCENT(`${pctNum}%`) + FAINT(" ctx") + baselineTag
+    );
+  }
+  if (state.quotaUsed !== void 0 && state.quotaLimit) {
+    const pct = state.quotaUsed / state.quotaLimit;
+    const pctNum = Math.round(pct * 100);
+    const color = pct >= 0.9 ? DANGER : pct >= 0.7 ? ACCENT_SOFT : ACCENT;
+    const bar = renderBar(pct, 6, color);
+    const resetPart = state.resetAt ? FAINT(" \u27F3") + MUTED(formatResetShort(state.resetAt)) : "";
+    parts2.push(
+      MUTED("5h ") + bar + " " + color(`${state.quotaUsed}/${state.quotaLimit}`) + FAINT(" ") + color(`${pctNum}%`) + resetPart
+    );
+  }
+  const line2 = parts2.join(FAINT("  \xB7  "));
+  let phaseStr = PHASE_COLOR[state.phase](
+    phaseSymbol(state.phase) + " " + PHASE_LABEL[state.phase]
+  );
+  if (state.phase === "executing-tool" && state.toolName) {
+    phaseStr += MUTED(" " + state.toolName);
+  }
+  if (state.phase === "waiting-quota" && state.waitingMsRemaining !== void 0) {
+    const s = Math.max(1, Math.ceil(state.waitingMsRemaining / 1e3));
+    phaseStr += MUTED(` ${s}s`);
+  }
+  if (state.suggestedBetter) {
+    const parts = state.suggestedBetter.id.split("/");
+    const shortId = parts[parts.length - 1] || state.suggestedBetter.id;
+    phaseStr += FAINT("  \xB7  ") + SUCCESS(starSymbol() + " ") + ACCENT_SOFT(shortId) + FAINT(" \xB7 ") + MUTED("Q") + INK(String(state.suggestedBetter.qualityOutOf10)) + FAINT("/10 ") + MUTED("V") + INK(String(state.suggestedBetter.speedOutOf10)) + FAINT("/10");
+  }
+  let modePart = "";
+  if (state.permissionMode && state.permissionMode !== "default") {
+    if (state.permissionMode === "bypass") {
+      modePart = import_chalk4.default.hex("#e26849").bold(
+        (IS_LEGACY_CONSOLE ? "! " : "\u26A0 ") + "bypass"
+      ) + "  ";
+    } else if (state.permissionMode === "plan") {
+      modePart = ACCENT_SOFT((IS_LEGACY_CONSOLE ? "[P] " : "\u2394 ") + "plan") + "  ";
+    } else if (state.permissionMode === "accept-edits") {
+      modePart = SUCCESS((IS_LEGACY_CONSOLE ? "[E] " : "\u2713 ") + "accept-edits") + "  ";
+    } else {
+      modePart = MUTED(state.permissionMode) + "  ";
+    }
+  }
+  const versionPart = FAINT(`v${VERSION}`);
+  const leftLen = visibleLen(phaseStr);
+  const rightPart = modePart + versionPart;
+  const rightLen = visibleLen(rightPart);
+  const padding = Math.max(2, cols - leftLen - rightLen);
+  const line3 = phaseStr + " ".repeat(padding) + rightPart;
+  return [rule, line1, line2, line3];
+}
+function scheduleRender() {
+  emitter.emit("change");
+  if (ANIMATED_PHASES.has(state.phase)) startTick();
+  else stopTick();
+}
+function initStatusBar() {
+  if (enabled) return;
+  enabled = true;
+  state.cwd = process.cwd();
+  process.on("exit", teardownStatusBar);
+}
+function teardownStatusBar() {
+  if (!enabled) return;
+  enabled = false;
+  stopTick();
+}
+function updateStatus(partial) {
+  Object.assign(state, partial);
+  scheduleRender();
+}
+function setSessionTotals(inTotal, outTotal) {
+  state.sessionInTotal = inTotal;
+  state.sessionOutTotal = outTotal;
+  scheduleRender();
+}
+function resetTurn() {
+  state.tokensIn = void 0;
+  state.tokensOut = void 0;
+  state.toolName = void 0;
+  state.waitingMsRemaining = void 0;
+  state.phase = "idle";
+  scheduleRender();
+}
+var emitter, state, enabled, VERSION, PHASE_LABEL, IS_LEGACY_CONSOLE, PHASE_SYM, ANIM_FRAMES, ANIMATED_PHASES, TICK_INTERVAL_MS, frame, tickTimer, STAR_FRAMES, GLYPH, PHASE_COLOR, FAINT, MUTED, INK, INK_BRIGHT, ACCENT, ACCENT_SOFT, DANGER, SUCCESS, TEAL, cleanProvider2, contextWindowFor2;
+var init_status_bar = __esm({
+  "src/utils/status-bar.ts"() {
+    "use strict";
+    init_logger();
+    init_git_info();
+    init_context_window();
+    emitter = new EventEmitter4();
+    emitter.setMaxListeners(20);
+    __name(subscribeStatus, "subscribeStatus");
+    state = { phase: "idle" };
+    enabled = false;
+    VERSION = "0.1.0";
+    PHASE_LABEL = {
+      idle: "idle",
+      loading: "chargement du mod\xE8le\u2026",
+      thinking: "thinking\u2026",
+      streaming: "streaming",
+      "waiting-quota": "waiting quota",
+      "executing-tool": "tool",
+      compacting: "compacting\u2026",
+      offline: "offline"
+    };
+    IS_LEGACY_CONSOLE = process.platform === "win32" && !process.env.WT_SESSION;
+    PHASE_SYM = IS_LEGACY_CONSOLE ? {
+      idle: ".",
+      loading: "~",
+      thinking: "*",
+      streaming: "*",
+      "waiting-quota": "...",
+      "executing-tool": "#",
+      compacting: "~",
+      offline: "o"
+    } : {
+      idle: "\xB7",
+      loading: "\u21BB",
+      thinking: "\u25CF",
+      streaming: "\u25CF",
+      "waiting-quota": "\u23F3",
+      "executing-tool": "\u25C6",
+      compacting: "\u21BB",
+      offline: "\u25CB"
+    };
+    ANIM_FRAMES = IS_LEGACY_CONSOLE ? {} : {
+      thinking: ["\u280B", "\u2819", "\u2839", "\u2838", "\u283C", "\u2834", "\u2826", "\u2827", "\u2807", "\u280F"],
+      streaming: ["\u25CF", "\u25D0", "\u25D1", "\u25D2", "\u25D3", "\u25D4", "\u25D5"],
+      loading: ["\u25DC", "\u25E0", "\u25DD", "\u25DE", "\u25E1", "\u25DF"],
+      "executing-tool": ["\u25C6", "\u25C8", "\u25C7", "\u25C8"],
+      compacting: ["\u2801", "\u2802", "\u2804", "\u2840", "\u2880", "\u2820", "\u2810", "\u2808"],
+      "waiting-quota": ["\u23F3", "\u231B"]
+    };
+    ANIMATED_PHASES = /* @__PURE__ */ new Set([
+      "thinking",
+      "streaming",
+      "loading",
+      "executing-tool",
+      "compacting",
+      "waiting-quota"
+    ]);
+    TICK_INTERVAL_MS = 100;
+    frame = 0;
+    tickTimer = null;
+    __name(startTick, "startTick");
+    __name(stopTick, "stopTick");
+    __name(phaseSymbol, "phaseSymbol");
+    STAR_FRAMES = IS_LEGACY_CONSOLE ? ["*"] : ["\u2605", "\u2726", "\u2727", "\u2726"];
+    __name(starSymbol, "starSymbol");
+    GLYPH = IS_LEGACY_CONSOLE ? { diamond: "#", sepLine: "-", midDot: ".", arrowUp: "^", arrowDown: "v", star: "*" } : { diamond: "\u25C6", sepLine: "\u2500", midDot: "\xB7", arrowUp: "\u2191", arrowDown: "\u2193", star: "\u2605" };
+    PHASE_COLOR = {
+      idle: import_chalk4.default.hex("#8a8270"),
+      loading: import_chalk4.default.hex("#7fa8a6"),
+      thinking: import_chalk4.default.hex("#ec9470"),
+      streaming: import_chalk4.default.hex("#e27649"),
+      "waiting-quota": import_chalk4.default.hex("#c76a5f"),
+      "executing-tool": import_chalk4.default.hex("#ec9470"),
+      compacting: import_chalk4.default.hex("#bdb3a1"),
+      offline: import_chalk4.default.hex("#8a8270")
+    };
+    FAINT = import_chalk4.default.hex("#4a4239");
+    MUTED = import_chalk4.default.hex("#8a8270");
+    INK = import_chalk4.default.hex("#bdb3a1");
+    INK_BRIGHT = import_chalk4.default.hex("#f6f1e8");
+    ACCENT = import_chalk4.default.hex("#e27649");
+    ACCENT_SOFT = import_chalk4.default.hex("#ec9470");
+    DANGER = import_chalk4.default.hex("#c76a5f");
+    SUCCESS = import_chalk4.default.hex("#7fa670");
+    TEAL = import_chalk4.default.hex("#7fa8a6");
+    __name(compact2, "compact");
+    cleanProvider2 = cleanProvider;
+    contextWindowFor2 = contextWindowFor;
+    __name(renderBar, "renderBar");
+    __name(shortCwd, "shortCwd");
+    __name(formatResetShort, "formatResetShort");
+    __name(visibleLen, "visibleLen");
+    __name(renderStatusLines, "renderStatusLines");
+    __name(scheduleRender, "scheduleRender");
+    __name(initStatusBar, "initStatusBar");
+    __name(teardownStatusBar, "teardownStatusBar");
+    __name(updateStatus, "updateStatus");
+    __name(setSessionTotals, "setSessionTotals");
+    __name(resetTurn, "resetTurn");
+  }
+});
+
 // src/ui/input-controller.ts
 var input_controller_exports = {};
 __export(input_controller_exports, {
@@ -51556,402 +51986,7 @@ __name(InputBox, "InputBox");
 
 // src/ui/StatusLine.tsx
 var import_react36 = __toESM(require_react(), 1);
-
-// src/utils/status-bar.ts
-init_logger();
-import { EventEmitter as EventEmitter4 } from "node:events";
-import { sep } from "node:path";
-
-// src/utils/git-info.ts
-import { readFileSync as readFileSync3, existsSync as existsSync4, statSync } from "node:fs";
-import { join as join3, dirname as dirname2 } from "node:path";
-import { spawnSync } from "node:child_process";
-function findGitDir(startDir) {
-  let dir = startDir;
-  for (let i = 0; i < 100; i++) {
-    const candidate = join3(dir, ".git");
-    if (existsSync4(candidate)) return candidate;
-    const parent = dirname2(dir);
-    if (parent === dir) return null;
-    dir = parent;
-  }
-  return null;
-}
-__name(findGitDir, "findGitDir");
-var CACHE_TTL_MS = process.platform === "win32" ? 6e4 : 1e4;
-var cached = null;
-function getGitInfo(cwd2) {
-  const now = Date.now();
-  if (cached && cached.cwd === cwd2 && now - cached.at < CACHE_TTL_MS) {
-    return cached.info;
-  }
-  const info = {
-    branch: null,
-    repoRoot: null,
-    additions: 0,
-    deletions: 0,
-    dirty: false
-  };
-  const gitDir = findGitDir(cwd2);
-  if (!gitDir) {
-    cached = { at: now, cwd: cwd2, info };
-    return info;
-  }
-  info.repoRoot = dirname2(gitDir);
-  try {
-    const headPath = join3(gitDir, "HEAD");
-    if (existsSync4(headPath) && statSync(headPath).isFile()) {
-      const head = readFileSync3(headPath, "utf8").trim();
-      const m = /^ref:\s+refs\/heads\/(.+)$/.exec(head);
-      info.branch = m ? m[1] : head.slice(0, 7);
-    }
-  } catch {
-  }
-  try {
-    const proc = spawnSync("git", ["diff", "--numstat", "HEAD"], {
-      cwd: info.repoRoot,
-      // Windows : git.exe peut être lent au premier call (Defender scan).
-      // 300ms suffit si warm, cache à 60s absorbe les premiers spawns.
-      timeout: process.platform === "win32" ? 300 : 500,
-      encoding: "utf8",
-      stdio: ["ignore", "pipe", "pipe"]
-    });
-    if (proc.error) {
-      return info;
-    }
-    if (proc.status === 0 && proc.stdout) {
-      const lines = proc.stdout.trim().split("\n").filter(Boolean);
-      for (const l of lines) {
-        const parts = l.split(/\s+/);
-        const add = Number(parts[0]);
-        const del = Number(parts[1]);
-        if (Number.isFinite(add)) info.additions += add;
-        if (Number.isFinite(del)) info.deletions += del;
-      }
-      info.dirty = lines.length > 0;
-    }
-  } catch {
-  }
-  cached = { at: now, cwd: cwd2, info };
-  return info;
-}
-__name(getGitInfo, "getGitInfo");
-
-// src/lib/context-window.ts
-function cleanProvider(name) {
-  const httpMatch = /^http\((.+)\)$/.exec(name);
-  const inner = httpMatch ? httpMatch[1] : name;
-  return inner.startsWith("nvidia/") ? inner.slice("nvidia/".length) : inner;
-}
-__name(cleanProvider, "cleanProvider");
-function estimateBaselineTokens(system, tools) {
-  let chars = system.length;
-  for (const t of tools) {
-    chars += t.name.length;
-    chars += t.description.length;
-    chars += JSON.stringify(t.schema).length;
-  }
-  return Math.ceil(chars / 4);
-}
-__name(estimateBaselineTokens, "estimateBaselineTokens");
-function contextWindowFor(model) {
-  const m = cleanProvider(model).toLowerCase();
-  if (m.includes("kimi-k2")) return 256e3;
-  if (m.includes("qwen3-coder")) return 256e3;
-  if (m.includes("qwen3-next")) return 256e3;
-  if (m.includes("qwen2.5-coder")) return 32e3;
-  if (m.includes("nemotron-ultra")) return 128e3;
-  if (m.includes("nemotron-super")) return 128e3;
-  if (m.includes("gpt-oss")) return 131e3;
-  if (m.includes("llama-3.3-70b")) return 128e3;
-  if (m.includes("llama-3.1-405b")) return 128e3;
-  if (m.includes("llama-3.1-8b")) return 128e3;
-  if (m.includes("phi-4")) return 16e3;
-  if (m.includes("glm-5") || m.includes("glm5")) return 2e5;
-  if (m.includes("glm4")) return 128e3;
-  if (m.includes("minimax-m")) return 1e6;
-  if (m.includes("codestral") || m.includes("devstral")) return 256e3;
-  if (m.includes("small")) return 32e3;
-  if (m.includes("large") || m.includes("medium")) return 128e3;
-  if (m.includes("magistral")) return 4e4;
-  return 128e3;
-}
-__name(contextWindowFor, "contextWindowFor");
-
-// src/utils/status-bar.ts
-var emitter = new EventEmitter4();
-emitter.setMaxListeners(20);
-function subscribeStatus(cb) {
-  emitter.on("change", cb);
-  return () => {
-    emitter.off("change", cb);
-  };
-}
-__name(subscribeStatus, "subscribeStatus");
-var state = { phase: "idle" };
-var enabled = false;
-var VERSION = "0.1.0";
-var PHASE_LABEL = {
-  idle: "idle",
-  loading: "chargement du mod\xE8le\u2026",
-  thinking: "thinking\u2026",
-  streaming: "streaming",
-  "waiting-quota": "waiting quota",
-  "executing-tool": "tool",
-  compacting: "compacting\u2026",
-  offline: "offline"
-};
-var IS_LEGACY_CONSOLE = process.platform === "win32" && !process.env.WT_SESSION;
-var PHASE_SYM = IS_LEGACY_CONSOLE ? {
-  idle: ".",
-  loading: "~",
-  thinking: "*",
-  streaming: "*",
-  "waiting-quota": "...",
-  "executing-tool": "#",
-  compacting: "~",
-  offline: "o"
-} : {
-  idle: "\xB7",
-  loading: "\u21BB",
-  thinking: "\u25CF",
-  streaming: "\u25CF",
-  "waiting-quota": "\u23F3",
-  "executing-tool": "\u25C6",
-  compacting: "\u21BB",
-  offline: "\u25CB"
-};
-var ANIM_FRAMES = IS_LEGACY_CONSOLE ? {} : {
-  thinking: ["\u280B", "\u2819", "\u2839", "\u2838", "\u283C", "\u2834", "\u2826", "\u2827", "\u2807", "\u280F"],
-  streaming: ["\u25CF", "\u25D0", "\u25D1", "\u25D2", "\u25D3", "\u25D4", "\u25D5"],
-  loading: ["\u25DC", "\u25E0", "\u25DD", "\u25DE", "\u25E1", "\u25DF"],
-  "executing-tool": ["\u25C6", "\u25C8", "\u25C7", "\u25C8"],
-  compacting: ["\u2801", "\u2802", "\u2804", "\u2840", "\u2880", "\u2820", "\u2810", "\u2808"],
-  "waiting-quota": ["\u23F3", "\u231B"]
-};
-var ANIMATED_PHASES = /* @__PURE__ */ new Set([
-  "thinking",
-  "streaming",
-  "loading",
-  "executing-tool",
-  "compacting",
-  "waiting-quota"
-]);
-var TICK_INTERVAL_MS = 100;
-var frame = 0;
-var tickTimer = null;
-function startTick() {
-  if (tickTimer) return;
-  if (!ANIMATED_PHASES.has(state.phase)) return;
-  tickTimer = setInterval(() => {
-    frame = (frame + 1) % 1e6;
-    emitter.emit("change");
-  }, TICK_INTERVAL_MS);
-  tickTimer.unref?.();
-}
-__name(startTick, "startTick");
-function stopTick() {
-  if (!tickTimer) return;
-  clearInterval(tickTimer);
-  tickTimer = null;
-}
-__name(stopTick, "stopTick");
-function phaseSymbol(phase) {
-  const frames = ANIM_FRAMES[phase];
-  if (!frames || frames.length === 0) return PHASE_SYM[phase];
-  return frames[frame % frames.length];
-}
-__name(phaseSymbol, "phaseSymbol");
-var STAR_FRAMES = IS_LEGACY_CONSOLE ? ["*"] : ["\u2605", "\u2726", "\u2727", "\u2726"];
-function starSymbol() {
-  return STAR_FRAMES[Math.floor(frame / 3) % STAR_FRAMES.length];
-}
-__name(starSymbol, "starSymbol");
-var GLYPH = IS_LEGACY_CONSOLE ? { diamond: "#", sepLine: "-", midDot: ".", arrowUp: "^", arrowDown: "v", star: "*" } : { diamond: "\u25C6", sepLine: "\u2500", midDot: "\xB7", arrowUp: "\u2191", arrowDown: "\u2193", star: "\u2605" };
-var PHASE_COLOR = {
-  idle: import_chalk4.default.hex("#8a8270"),
-  loading: import_chalk4.default.hex("#7fa8a6"),
-  thinking: import_chalk4.default.hex("#ec9470"),
-  streaming: import_chalk4.default.hex("#e27649"),
-  "waiting-quota": import_chalk4.default.hex("#c76a5f"),
-  "executing-tool": import_chalk4.default.hex("#ec9470"),
-  compacting: import_chalk4.default.hex("#bdb3a1"),
-  offline: import_chalk4.default.hex("#8a8270")
-};
-var FAINT = import_chalk4.default.hex("#4a4239");
-var MUTED = import_chalk4.default.hex("#8a8270");
-var INK = import_chalk4.default.hex("#bdb3a1");
-var INK_BRIGHT = import_chalk4.default.hex("#f6f1e8");
-var ACCENT = import_chalk4.default.hex("#e27649");
-var ACCENT_SOFT = import_chalk4.default.hex("#ec9470");
-var DANGER = import_chalk4.default.hex("#c76a5f");
-var SUCCESS = import_chalk4.default.hex("#7fa670");
-var TEAL = import_chalk4.default.hex("#7fa8a6");
-function compact2(n) {
-  if (n < 1e3) return String(n);
-  if (n < 1e4) return (n / 1e3).toFixed(1) + "k";
-  if (n < 1e6) return Math.round(n / 1e3) + "k";
-  return (n / 1e6).toFixed(1) + "M";
-}
-__name(compact2, "compact");
-var cleanProvider2 = cleanProvider;
-var contextWindowFor2 = contextWindowFor;
-function renderBar(pct, width, color = ACCENT) {
-  const filled = Math.max(0, Math.min(width, Math.round(pct * width)));
-  return color("\u2588".repeat(filled)) + FAINT("\u2591".repeat(width - filled));
-}
-__name(renderBar, "renderBar");
-function shortCwd(cwd2) {
-  const max = 35;
-  if (cwd2.length <= max) return cwd2;
-  const parts = cwd2.split(sep).filter(Boolean);
-  if (parts.length <= 2) return "..." + sep + parts.slice(-2).join(sep);
-  return "..." + sep + parts.slice(-2).join(sep);
-}
-__name(shortCwd, "shortCwd");
-function formatResetShort(iso) {
-  const ts = Date.parse(iso);
-  if (!Number.isFinite(ts)) return "?";
-  const ms = ts - Date.now();
-  if (ms <= 0) return "soon";
-  const mins = Math.round(ms / 6e4);
-  if (mins < 60) return `${mins}m`;
-  const h = Math.floor(mins / 60);
-  const m = mins % 60;
-  return m === 0 ? `${h}h` : `${h}h${m}m`;
-}
-__name(formatResetShort, "formatResetShort");
-function visibleLen(s) {
-  return s.replace(/\x1b\[[0-9;]*m/g, "").length;
-}
-__name(visibleLen, "visibleLen");
-function renderStatusLines(cols) {
-  const tag = state.sessionTag ?? cleanProvider2(state.provider ?? "");
-  const tagBox = tag ? import_chalk4.default.bgHex("#245454").hex("#f6f1e8")(` ${tag} `) : "";
-  const ruleLen = Math.max(0, cols - visibleLen(tagBox) - 2);
-  const rule = TEAL(GLYPH.sepLine.repeat(ruleLen)) + (tagBox ? "  " + tagBox : "");
-  const parts1 = [];
-  if (state.provider) {
-    const ctxWin = state.contextWindow ?? contextWindowFor2(state.provider);
-    const ctxStr = ctxWin >= 1e6 ? `${ctxWin / 1e6}M` : `${ctxWin / 1e3}k`;
-    const diamondColor = state.phase === "streaming" || state.phase === "executing-tool" ? frame % 2 === 0 ? ACCENT : ACCENT_SOFT : ACCENT;
-    let head = diamondColor(GLYPH.diamond + " ") + INK_BRIGHT.bold(cleanProvider2(state.provider)) + FAINT(` (${ctxStr} ctx)`);
-    if (state.currentQuality !== void 0 && state.currentSpeed !== void 0) {
-      head += FAINT("  ") + MUTED("Q") + INK(String(state.currentQuality)) + FAINT("/10 ") + MUTED("V") + INK(String(state.currentSpeed)) + FAINT("/10");
-    }
-    parts1.push(head);
-  }
-  if (state.cwd) parts1.push(MUTED(shortCwd(state.cwd)));
-  const git = state.cwd ? getGitInfo(state.cwd) : null;
-  if (git?.branch) parts1.push(INK("on ") + ACCENT_SOFT.italic(git.branch));
-  const tokenSegs = [];
-  if ((state.tokensIn ?? 0) > 0)
-    tokenSegs.push(MUTED(GLYPH.arrowUp) + INK(compact2(state.tokensIn)));
-  if ((state.tokensOut ?? 0) > 0)
-    tokenSegs.push(MUTED(GLYPH.arrowDown) + INK(compact2(state.tokensOut)));
-  if (tokenSegs.length > 0) parts1.push(tokenSegs.join(" "));
-  if (git && (git.additions > 0 || git.deletions > 0)) {
-    parts1.push(SUCCESS(`+${git.additions}`) + " " + DANGER(`-${git.deletions}`));
-  }
-  const sep5 = FAINT("  \u2502  ");
-  const softSep = FAINT("  \xB7  ");
-  const line1 = parts1.slice(0, 3).join(softSep) + (parts1.length > 3 ? sep5 + parts1.slice(3).join(sep5) : "");
-  const parts2 = [];
-  const sessionTotal = (state.sessionInTotal ?? 0) + (state.sessionOutTotal ?? 0);
-  const ctxWindow = state.contextWindow ?? contextWindowFor2(state.provider ?? "mistral-large-latest");
-  const baseline = state.baselineTokens ?? 0;
-  {
-    const effectiveMax = Math.max(1, ctxWindow - baseline);
-    const convUsed = Math.max(0, sessionTotal - baseline);
-    const pct = Math.min(1, convUsed / effectiveMax);
-    const pctNum = Math.round(pct * 100);
-    const bar = renderBar(pct, 10);
-    const baselineTag = baseline > 0 ? FAINT(` (+${compact2(baseline)} base)`) : "";
-    parts2.push(
-      INK_BRIGHT(compact2(convUsed)) + FAINT("/") + MUTED(compact2(effectiveMax)) + "  " + bar + "  " + ACCENT(`${pctNum}%`) + FAINT(" ctx") + baselineTag
-    );
-  }
-  if (state.quotaUsed !== void 0 && state.quotaLimit) {
-    const pct = state.quotaUsed / state.quotaLimit;
-    const pctNum = Math.round(pct * 100);
-    const color = pct >= 0.9 ? DANGER : pct >= 0.7 ? ACCENT_SOFT : ACCENT;
-    const bar = renderBar(pct, 6, color);
-    const resetPart = state.resetAt ? FAINT(" \u27F3") + MUTED(formatResetShort(state.resetAt)) : "";
-    parts2.push(
-      MUTED("5h ") + bar + " " + color(`${state.quotaUsed}/${state.quotaLimit}`) + FAINT(" ") + color(`${pctNum}%`) + resetPart
-    );
-  }
-  const line2 = parts2.join(FAINT("  \xB7  "));
-  let phaseStr = PHASE_COLOR[state.phase](
-    phaseSymbol(state.phase) + " " + PHASE_LABEL[state.phase]
-  );
-  if (state.phase === "executing-tool" && state.toolName) {
-    phaseStr += MUTED(" " + state.toolName);
-  }
-  if (state.phase === "waiting-quota" && state.waitingMsRemaining !== void 0) {
-    const s = Math.max(1, Math.ceil(state.waitingMsRemaining / 1e3));
-    phaseStr += MUTED(` ${s}s`);
-  }
-  if (state.suggestedBetter) {
-    const parts = state.suggestedBetter.id.split("/");
-    const shortId = parts[parts.length - 1] || state.suggestedBetter.id;
-    phaseStr += FAINT("  \xB7  ") + SUCCESS(starSymbol() + " ") + ACCENT_SOFT(shortId) + FAINT(" \xB7 ") + MUTED("Q") + INK(String(state.suggestedBetter.qualityOutOf10)) + FAINT("/10 ") + MUTED("V") + INK(String(state.suggestedBetter.speedOutOf10)) + FAINT("/10");
-  }
-  let modePart = "";
-  if (state.permissionMode && state.permissionMode !== "default") {
-    if (state.permissionMode === "bypass") {
-      modePart = import_chalk4.default.hex("#e26849").bold(
-        (IS_LEGACY_CONSOLE ? "! " : "\u26A0 ") + "bypass"
-      ) + "  ";
-    } else if (state.permissionMode === "plan") {
-      modePart = ACCENT_SOFT((IS_LEGACY_CONSOLE ? "[P] " : "\u2394 ") + "plan") + "  ";
-    } else if (state.permissionMode === "accept-edits") {
-      modePart = SUCCESS((IS_LEGACY_CONSOLE ? "[E] " : "\u2713 ") + "accept-edits") + "  ";
-    } else {
-      modePart = MUTED(state.permissionMode) + "  ";
-    }
-  }
-  const versionPart = FAINT(`v${VERSION}`);
-  const leftLen = visibleLen(phaseStr);
-  const rightPart = modePart + versionPart;
-  const rightLen = visibleLen(rightPart);
-  const padding = Math.max(2, cols - leftLen - rightLen);
-  const line3 = phaseStr + " ".repeat(padding) + rightPart;
-  return [rule, line1, line2, line3];
-}
-__name(renderStatusLines, "renderStatusLines");
-function scheduleRender() {
-  emitter.emit("change");
-  if (ANIMATED_PHASES.has(state.phase)) startTick();
-  else stopTick();
-}
-__name(scheduleRender, "scheduleRender");
-function initStatusBar() {
-  if (enabled) return;
-  enabled = true;
-  state.cwd = process.cwd();
-  process.on("exit", teardownStatusBar);
-}
-__name(initStatusBar, "initStatusBar");
-function teardownStatusBar() {
-  if (!enabled) return;
-  enabled = false;
-  stopTick();
-}
-__name(teardownStatusBar, "teardownStatusBar");
-function updateStatus(partial) {
-  Object.assign(state, partial);
-  scheduleRender();
-}
-__name(updateStatus, "updateStatus");
-function setSessionTotals(inTotal, outTotal) {
-  state.sessionInTotal = inTotal;
-  state.sessionOutTotal = outTotal;
-  scheduleRender();
-}
-__name(setSessionTotals, "setSessionTotals");
-
-// src/ui/StatusLine.tsx
+init_status_bar();
 var import_jsx_runtime3 = __toESM(require_jsx_runtime(), 1);
 function StatusLine({ columns }) {
   const [lines, setLines] = (0, import_react36.useState)(
@@ -52550,6 +52585,7 @@ init_store();
 
 // src/lib/better-model-watcher.ts
 init_model_selector();
+init_status_bar();
 var POLL_INTERVAL_MS = 60 * 1e3;
 var MIN_SCORE_DELTA = 1.5;
 var BetterModelWatcher = class {
@@ -52650,6 +52686,9 @@ var BetterModelWatcher = class {
     });
   }
 };
+
+// src/repl.ts
+init_context_window();
 
 // src/tools/shell-detect.ts
 import { execSync } from "node:child_process";
@@ -53929,6 +53968,7 @@ var RateLimiter = class {
 };
 
 // src/agent/http-provider.ts
+init_status_bar();
 var CLI_VERSION = true ? "0.3.1-dev.2" : "dev";
 var MISTRAL_LIMITER = new RateLimiter({ capacity: 60, windowMs: 6e4 });
 var NVIDIA_LIMITER = new RateLimiter({ capacity: 60, windowMs: 6e4 });
@@ -54323,7 +54363,9 @@ __name(logDenied, "logDenied");
 
 // src/agent/loop.ts
 init_compactor();
+init_context_window();
 init_history_store();
+init_status_bar();
 var AgentLoop = class {
   static {
     __name(this, "AgentLoop");
@@ -54883,6 +54925,16 @@ function builtinCommands(allCommands) {
       description: "R\xE9initialise l'historique de conversation.",
       async run({ agent }) {
         agent.reset();
+        agent.resetStats();
+        const { setSessionTotals: setSessionTotals2, updateStatus: updateStatus2 } = await Promise.resolve().then(() => (init_status_bar(), status_bar_exports));
+        setSessionTotals2(0, 0);
+        updateStatus2({
+          tokensIn: void 0,
+          tokensOut: void 0,
+          baselineTokens: void 0
+        });
+        const { takeAllAndClear: takeAllAndClear2 } = await Promise.resolve().then(() => (init_pending_images(), pending_images_exports));
+        takeAllAndClear2();
         log.info("Historique effac\xE9.");
       }
     },
@@ -55997,6 +56049,7 @@ function savePermissions(cfg) {
 __name(savePermissions, "savePermissions");
 
 // src/repl.ts
+init_status_bar();
 function readPkgVersion() {
   try {
     const here = dirname5(fileURLToPath2(import.meta.url));
