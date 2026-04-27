@@ -2833,9 +2833,9 @@ var require_react_reconciler_production = __commonJS({
                 if (1 !== RunInRootFrame || 1 !== namePropDescriptor) {
                   do
                     if (RunInRootFrame--, namePropDescriptor--, 0 > namePropDescriptor || sampleLines[RunInRootFrame] !== controlLines[namePropDescriptor]) {
-                      var frame = "\n" + sampleLines[RunInRootFrame].replace(" at new ", " at ");
-                      fn.displayName && frame.includes("<anonymous>") && (frame = frame.replace("<anonymous>", fn.displayName));
-                      return frame;
+                      var frame2 = "\n" + sampleLines[RunInRootFrame].replace(" at new ", " at ");
+                      fn.displayName && frame2.includes("<anonymous>") && (frame2 = frame2.replace("<anonymous>", fn.displayName));
+                      return frame2;
                     }
                   while (1 <= RunInRootFrame && 0 <= namePropDescriptor);
                 }
@@ -12130,10 +12130,10 @@ var require_react_reconciler_development = __commonJS({
       __name(describeBuiltInComponentFrame, "describeBuiltInComponentFrame");
       function describeNativeComponentFrame(fn, construct) {
         if (!fn || reentry) return "";
-        var frame = componentFrameCache.get(fn);
-        if (void 0 !== frame) return frame;
+        var frame2 = componentFrameCache.get(fn);
+        if (void 0 !== frame2) return frame2;
         reentry = true;
-        frame = Error.prepareStackTrace;
+        frame2 = Error.prepareStackTrace;
         Error.prepareStackTrace = void 0;
         var previousDispatcher = null;
         previousDispatcher = ReactSharedInternals.H;
@@ -12226,7 +12226,7 @@ var require_react_reconciler_development = __commonJS({
               }
           }
         } finally {
-          reentry = false, ReactSharedInternals.H = previousDispatcher, reenableLogs(), Error.prepareStackTrace = frame;
+          reentry = false, ReactSharedInternals.H = previousDispatcher, reenableLogs(), Error.prepareStackTrace = frame2;
         }
         sampleLines = (sampleLines = fn ? fn.displayName || fn.name : "") ? describeBuiltInComponentFrame(sampleLines) : "";
         "function" === typeof fn && componentFrameCache.set(fn, sampleLines);
@@ -33141,7 +33141,7 @@ var init_theme = __esm({
       },
       spinner: {
         interval: 80,
-        frames: ["\u280B", "\u2819", "\u2839", "\u2838", "\u283C", "\u2834", "\u2826", "\u2827", "\u2807", "\u280F"].map((frame) => styleText("yellow", frame))
+        frames: ["\u280B", "\u2819", "\u2839", "\u2838", "\u283C", "\u2834", "\u2826", "\u2827", "\u2807", "\u280F"].map((frame2) => styleText("yellow", frame2))
       },
       style: {
         answer: /* @__PURE__ */ __name((text) => styleText("cyan", text), "answer"),
@@ -51721,6 +51721,52 @@ var PHASE_SYM = IS_LEGACY_CONSOLE ? {
   compacting: "\u21BB",
   offline: "\u25CB"
 };
+var ANIM_FRAMES = IS_LEGACY_CONSOLE ? {} : {
+  thinking: ["\u280B", "\u2819", "\u2839", "\u2838", "\u283C", "\u2834", "\u2826", "\u2827", "\u2807", "\u280F"],
+  streaming: ["\u25CF", "\u25D0", "\u25D1", "\u25D2", "\u25D3", "\u25D4", "\u25D5"],
+  loading: ["\u25DC", "\u25E0", "\u25DD", "\u25DE", "\u25E1", "\u25DF"],
+  "executing-tool": ["\u25C6", "\u25C8", "\u25C7", "\u25C8"],
+  compacting: ["\u2801", "\u2802", "\u2804", "\u2840", "\u2880", "\u2820", "\u2810", "\u2808"],
+  "waiting-quota": ["\u23F3", "\u231B"]
+};
+var ANIMATED_PHASES = /* @__PURE__ */ new Set([
+  "thinking",
+  "streaming",
+  "loading",
+  "executing-tool",
+  "compacting",
+  "waiting-quota"
+]);
+var TICK_INTERVAL_MS = 100;
+var frame = 0;
+var tickTimer = null;
+function startTick() {
+  if (tickTimer) return;
+  if (!ANIMATED_PHASES.has(state.phase)) return;
+  tickTimer = setInterval(() => {
+    frame = (frame + 1) % 1e6;
+    emitter.emit("change");
+  }, TICK_INTERVAL_MS);
+  tickTimer.unref?.();
+}
+__name(startTick, "startTick");
+function stopTick() {
+  if (!tickTimer) return;
+  clearInterval(tickTimer);
+  tickTimer = null;
+}
+__name(stopTick, "stopTick");
+function phaseSymbol(phase) {
+  const frames = ANIM_FRAMES[phase];
+  if (!frames || frames.length === 0) return PHASE_SYM[phase];
+  return frames[frame % frames.length];
+}
+__name(phaseSymbol, "phaseSymbol");
+var STAR_FRAMES = IS_LEGACY_CONSOLE ? ["*"] : ["\u2605", "\u2726", "\u2727", "\u2726"];
+function starSymbol() {
+  return STAR_FRAMES[Math.floor(frame / 3) % STAR_FRAMES.length];
+}
+__name(starSymbol, "starSymbol");
 var GLYPH = IS_LEGACY_CONSOLE ? { diamond: "#", sepLine: "-", midDot: ".", arrowUp: "^", arrowDown: "v", star: "*" } : { diamond: "\u25C6", sepLine: "\u2500", midDot: "\xB7", arrowUp: "\u2191", arrowDown: "\u2193", star: "\u2605" };
 var PHASE_COLOR = {
   idle: import_chalk4.default.hex("#8a8270"),
@@ -51788,7 +51834,8 @@ function renderStatusLines(cols) {
   if (state.provider) {
     const ctxWin = state.contextWindow ?? contextWindowFor2(state.provider);
     const ctxStr = ctxWin >= 1e6 ? `${ctxWin / 1e6}M` : `${ctxWin / 1e3}k`;
-    let head = ACCENT(GLYPH.diamond + " ") + INK_BRIGHT.bold(cleanProvider2(state.provider)) + FAINT(` (${ctxStr} ctx)`);
+    const diamondColor = state.phase === "streaming" || state.phase === "executing-tool" ? frame % 2 === 0 ? ACCENT : ACCENT_SOFT : ACCENT;
+    let head = diamondColor(GLYPH.diamond + " ") + INK_BRIGHT.bold(cleanProvider2(state.provider)) + FAINT(` (${ctxStr} ctx)`);
     if (state.currentQuality !== void 0 && state.currentSpeed !== void 0) {
       head += FAINT("  ") + MUTED("Q") + INK(String(state.currentQuality)) + FAINT("/10 ") + MUTED("V") + INK(String(state.currentSpeed)) + FAINT("/10");
     }
@@ -51836,7 +51883,7 @@ function renderStatusLines(cols) {
   }
   const line2 = parts2.join(FAINT("  \xB7  "));
   let phaseStr = PHASE_COLOR[state.phase](
-    PHASE_SYM[state.phase] + " " + PHASE_LABEL[state.phase]
+    phaseSymbol(state.phase) + " " + PHASE_LABEL[state.phase]
   );
   if (state.phase === "executing-tool" && state.toolName) {
     phaseStr += MUTED(" " + state.toolName);
@@ -51848,7 +51895,7 @@ function renderStatusLines(cols) {
   if (state.suggestedBetter) {
     const parts = state.suggestedBetter.id.split("/");
     const shortId = parts[parts.length - 1] || state.suggestedBetter.id;
-    phaseStr += FAINT("  \xB7  ") + SUCCESS(GLYPH.star + " ") + ACCENT_SOFT(shortId) + FAINT(" \xB7 ") + MUTED("Q") + INK(String(state.suggestedBetter.qualityOutOf10)) + FAINT("/10 ") + MUTED("V") + INK(String(state.suggestedBetter.speedOutOf10)) + FAINT("/10");
+    phaseStr += FAINT("  \xB7  ") + SUCCESS(starSymbol() + " ") + ACCENT_SOFT(shortId) + FAINT(" \xB7 ") + MUTED("Q") + INK(String(state.suggestedBetter.qualityOutOf10)) + FAINT("/10 ") + MUTED("V") + INK(String(state.suggestedBetter.speedOutOf10)) + FAINT("/10");
   }
   let modePart = "";
   if (state.permissionMode && state.permissionMode !== "default") {
@@ -51875,6 +51922,8 @@ function renderStatusLines(cols) {
 __name(renderStatusLines, "renderStatusLines");
 function scheduleRender() {
   emitter.emit("change");
+  if (ANIMATED_PHASES.has(state.phase)) startTick();
+  else stopTick();
 }
 __name(scheduleRender, "scheduleRender");
 function initStatusBar() {
@@ -51887,6 +51936,7 @@ __name(initStatusBar, "initStatusBar");
 function teardownStatusBar() {
   if (!enabled) return;
   enabled = false;
+  stopTick();
 }
 __name(teardownStatusBar, "teardownStatusBar");
 function updateStatus(partial) {

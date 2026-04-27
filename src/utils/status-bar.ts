@@ -125,6 +125,62 @@ const PHASE_SYM: Record<Phase, string> = IS_LEGACY_CONSOLE
       offline: "○",
     };
 
+// Frames d'animation par phase. Tickées à TICK_INTERVAL_MS quand l'agent
+// travaille (cf. ANIMATED_PHASES). Désactivées sur conhost legacy (pas de
+// support Unicode) — fallback sur PHASE_SYM statique.
+const ANIM_FRAMES: Partial<Record<Phase, string[]>> = IS_LEGACY_CONSOLE
+  ? {}
+  : {
+      thinking: ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"],
+      streaming: ["●", "◐", "◑", "◒", "◓", "◔", "◕"],
+      loading: ["◜", "◠", "◝", "◞", "◡", "◟"],
+      "executing-tool": ["◆", "◈", "◇", "◈"],
+      compacting: ["⠁", "⠂", "⠄", "⡀", "⢀", "⠠", "⠐", "⠈"],
+      "waiting-quota": ["⏳", "⌛"],
+    };
+
+const ANIMATED_PHASES = new Set<Phase>([
+  "thinking",
+  "streaming",
+  "loading",
+  "executing-tool",
+  "compacting",
+  "waiting-quota",
+]);
+
+const TICK_INTERVAL_MS = 100;
+let frame = 0;
+let tickTimer: NodeJS.Timeout | null = null;
+
+function startTick(): void {
+  if (tickTimer) return;
+  if (!ANIMATED_PHASES.has(state.phase)) return;
+  tickTimer = setInterval(() => {
+    frame = (frame + 1) % 1_000_000;
+    emitter.emit("change");
+  }, TICK_INTERVAL_MS);
+  // unref : laisse process.exit terminer même si le timer est encore actif.
+  tickTimer.unref?.();
+}
+
+function stopTick(): void {
+  if (!tickTimer) return;
+  clearInterval(tickTimer);
+  tickTimer = null;
+}
+
+function phaseSymbol(phase: Phase): string {
+  const frames = ANIM_FRAMES[phase];
+  if (!frames || frames.length === 0) return PHASE_SYM[phase];
+  return frames[frame % frames.length];
+}
+
+// Étoile clignotante pour la suggestion "meilleur modèle". 3 frames, cycle lent.
+const STAR_FRAMES = IS_LEGACY_CONSOLE ? ["*"] : ["★", "✦", "✧", "✦"];
+function starSymbol(): string {
+  return STAR_FRAMES[Math.floor(frame / 3) % STAR_FRAMES.length];
+}
+
 // Glyphes utilisés dans le rendu (◆, ┤├, etc.) — versions ASCII pour conhost.
 const GLYPH = IS_LEGACY_CONSOLE
   ? { diamond: "#", sepLine: "-", midDot: ".", arrowUp: "^", arrowDown: "v", star: "*" }
@@ -209,8 +265,17 @@ export function renderStatusLines(cols: number): string[] {
     const ctxWin = state.contextWindow ?? contextWindowFor(state.provider);
     const ctxStr =
       ctxWin >= 1_000_000 ? `${ctxWin / 1_000_000}M` : `${ctxWin / 1_000}k`;
+    // Le diamant pulse en cadence avec le tick global quand l'agent
+    // streame ou exécute un tool — donne un signe de vie discret sans
+    // ajouter de bruit visuel ailleurs.
+    const diamondColor =
+      state.phase === "streaming" || state.phase === "executing-tool"
+        ? frame % 2 === 0
+          ? ACCENT
+          : ACCENT_SOFT
+        : ACCENT;
     let head =
-      ACCENT(GLYPH.diamond + " ") +
+      diamondColor(GLYPH.diamond + " ") +
       INK_BRIGHT.bold(cleanProvider(state.provider)) +
       FAINT(` (${ctxStr} ctx)`);
     // Indices Q/V du modèle actif — pushés par le watcher à chaque check.
@@ -305,7 +370,7 @@ export function renderStatusLines(cols: number): string[] {
   const line2 = parts2.join(FAINT("  ·  "));
 
   let phaseStr = PHASE_COLOR[state.phase](
-    PHASE_SYM[state.phase] + " " + PHASE_LABEL[state.phase],
+    phaseSymbol(state.phase) + " " + PHASE_LABEL[state.phase],
   );
   if (state.phase === "executing-tool" && state.toolName) {
     phaseStr += MUTED(" " + state.toolName);
@@ -320,7 +385,7 @@ export function renderStatusLines(cols: number): string[] {
     const shortId = parts[parts.length - 1] || state.suggestedBetter.id;
     phaseStr +=
       FAINT("  ·  ") +
-      SUCCESS(GLYPH.star + " ") +
+      SUCCESS(starSymbol() + " ") +
       ACCENT_SOFT(shortId) +
       FAINT(" · ") +
       MUTED("Q") +
@@ -360,6 +425,10 @@ export function renderStatusLines(cols: number): string[] {
 function scheduleRender(): void {
   // Émet un 'change' — StatusLine component re-render.
   emitter.emit("change");
+  // Synchronise le tick d'animation avec la phase courante : on ne paie
+  // 100 ms de re-render qu'aux moments où l'agent travaille.
+  if (ANIMATED_PHASES.has(state.phase)) startTick();
+  else stopTick();
 }
 
 export function initStatusBar(): void {
@@ -380,6 +449,7 @@ export function initStatusBar(): void {
 export function teardownStatusBar(): void {
   if (!enabled) return;
   enabled = false;
+  stopTick();
 }
 
 export function updateStatus(partial: Partial<Segments>): void {
