@@ -31311,12 +31311,29 @@ var init_logger = __esm({
           ui(ATH.inkFaint(SYM.toolOut + " ") + ATH.inkMuted(line));
         }
       }, "toolResult"),
-      banner: /* @__PURE__ */ __name((title) => {
+      // Banner moderne : bande accent verticale + nom proéminent + version en
+      // faint à droite + tagline italique. Look éditorial Athenaeum, pas de
+      // boîte ASCII (qui fait dépassé). Tu peux passer un sous-titre.
+      banner: /* @__PURE__ */ __name((title, version, tagline) => {
+        const cols = Math.min(process.stdout.columns || 80, 100);
+        const bar = ATH.accent("\u2503");
+        const titleLine = bar + "  " + ATH.ink.bold(title) + (version ? "  " + ATH.inkFaint("\xB7") + "  " + ATH.inkFaint("v" + version) : "");
+        const taglineLine = tagline ? bar + "  " + ATH.inkFaint.italic(tagline) : null;
         ui("");
-        ui(
-          ATH.accent(SYM.kicker + " ") + ATH.inkMuted.bold(title.toUpperCase()) + "  " + ATH.inkFaint(SYM.kicker.repeat(Math.max(4, 40 - title.length)))
-        );
+        ui(titleLine);
+        if (taglineLine) ui(taglineLine);
+        ui(ATH.inkFaint("\u2500".repeat(Math.min(40, cols - 4))));
       }, "banner"),
+      // Bloc specs aligné : chaque item = { icon, label, value, status }.
+      // status colore le dot/icône (success vert, warn orange, error rouge).
+      specs: /* @__PURE__ */ __name((items) => {
+        const labelWidth = Math.max(...items.map((i) => i.label.length)) + 2;
+        for (const item of items) {
+          const dot = item.status === "warn" ? ATH.accent("\u25CF") : item.status === "error" ? ATH.danger("\u25CF") : item.status === "muted" ? ATH.inkFaint("\u25CB") : ATH.success("\u25CF");
+          const label = ATH.inkFaint(item.label.padEnd(labelWidth));
+          ui("  " + dot + "  " + label + ATH.ink(item.value));
+        }
+      }, "specs"),
       status: /* @__PURE__ */ __name((line) => {
         if (!line) return;
         const width = Math.min(process.stdout.columns || 80, 100);
@@ -56350,21 +56367,38 @@ async function startRepl() {
       patchConsole: false
     }
   );
-  log.banner(`AI_CLI v${APP_VERSION}`);
-  log.info(
-    `${log.kicker("provider")}  ${log.ink(cleanProvider(provider.name))}   ${log.kicker("cwd")}  ${log.inkMuted(CWD)}`
-  );
-  log.info(
-    `${log.kicker("loaded")}  ${log.inkMuted(
-      `${tools.list().length} tools \xB7 ${skills.length} skills \xB7 ${subAgents.length} agents \xB7 ${mcpServers.length} MCP`
-    )}`
-  );
-  const modeDisplay = permConfig.mode === "bypass" ? log.danger("\u26A0 " + permConfig.mode) : permConfig.mode === "plan" ? log.accentSoft(permConfig.mode) : log.ink(permConfig.mode);
-  log.info(`${log.kicker("mode")}      ${modeDisplay}`);
+  log.banner("AI_CLI", APP_VERSION, "agent code \xB7 terminal \xB7 tools");
   const detectedShell = detectShell();
-  log.info(
-    `${log.kicker("shell")}     ${log.inkMuted(detectedShell.label)}`
-  );
+  const home = process.env.HOME || process.env.USERPROFILE || "";
+  const cwdShort = home && CWD.startsWith(home) ? "~" + CWD.slice(home.length) : CWD;
+  const modeStatus = permConfig.mode === "bypass" ? "error" : permConfig.mode === "plan" ? "warn" : "ok";
+  log.specs([
+    {
+      label: "model",
+      value: cleanProvider(provider.name),
+      status: "ok"
+    },
+    {
+      label: "tools",
+      value: `${tools.list().length} tools \xB7 ${skills.length} skills \xB7 ${subAgents.length} agents \xB7 ${mcpServers.length} MCP`,
+      status: "muted"
+    },
+    {
+      label: "mode",
+      value: permConfig.mode === "bypass" ? "\u26A0 bypass" : permConfig.mode === "plan" ? "\u2394 plan" : permConfig.mode,
+      status: modeStatus
+    },
+    {
+      label: "shell",
+      value: detectedShell.label,
+      status: "muted"
+    },
+    {
+      label: "cwd",
+      value: cwdShort,
+      status: "muted"
+    }
+  ]);
   if (!currentCreds) {
     log.info(
       `${log.accentSoft("\u2192")} tape ${log.accent.bold("/login")} ${log.inkMuted(
