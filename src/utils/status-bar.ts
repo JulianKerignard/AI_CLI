@@ -84,7 +84,7 @@ interface Segments {
 const state: Segments = { phase: "idle" };
 let enabled = false;
 
-const STATUS_LINES = 4; // rule + 3 info lines
+const STATUS_LINES = 2; // densité Claude Code/OpenCode : tout en 2 lignes
 const VERSION = "0.1.0";
 
 const PHASE_LABEL: Record<Phase, string> = {
@@ -261,123 +261,97 @@ function visibleLen(s: string): number {
 }
 
 export function renderStatusLines(cols: number): string[] {
-  const tag = state.sessionTag ?? cleanProvider(state.provider ?? "");
-  const tagBox = tag
-    ? chalk.bgHex(c.bgTag).hex(c.ink)(` ${tag} `)
-    : "";
-  const ruleLen = Math.max(0, cols - visibleLen(tagBox) - 2);
-  const rule = TEAL(GLYPH.sepLine.repeat(ruleLen)) + (tagBox ? "  " + tagBox : "");
+  // Refonte façon Claude Code / OpenCode : 2 lignes denses, pas de rule
+  // décorative ni de tag de session permanent (les deux étaient bruyants
+  // et redondants — le model+mode suffisent à identifier la session).
+  // Q/V scoring retiré (info de niche, pas critique au quotidien — reste
+  // accessible via /best). Bucket retiré (info trompeuse hardcodée).
+  //
+  // Layout cible :
+  //   ◆ mistral-large 128k · ~/proj on develop · ↑1.2k ↓456 · 2% ctx · 12/500
+  //   · idle                                                 ⎔ plan  v0.1.0
 
   const parts1: string[] = [];
+
   if (state.provider) {
     const ctxWin = state.contextWindow ?? contextWindowFor(state.provider);
     const ctxStr =
       ctxWin >= 1_000_000 ? `${ctxWin / 1_000_000}M` : `${ctxWin / 1_000}k`;
     // Le diamant pulse en cadence avec le tick global quand l'agent
-    // streame ou exécute un tool — donne un signe de vie discret sans
-    // ajouter de bruit visuel ailleurs.
+    // streame ou exécute un tool — signe de vie discret.
     const diamondColor =
       state.phase === "streaming" || state.phase === "executing-tool"
         ? frame % 2 === 0
           ? ACCENT
           : ACCENT_SOFT
         : ACCENT;
-    let head =
+    parts1.push(
       diamondColor(GLYPH.diamond + " ") +
-      INK_BRIGHT.bold(cleanProvider(state.provider)) +
-      FAINT(` (${ctxStr} ctx)`);
-    // Indices Q/V du modèle actif — pushés par le watcher à chaque check.
-    if (
-      state.currentQuality !== undefined &&
-      state.currentSpeed !== undefined
-    ) {
-      head +=
-        FAINT("  ") +
-        MUTED("Q") +
-        INK(String(state.currentQuality)) +
-        FAINT("/10 ") +
-        MUTED("V") +
-        INK(String(state.currentSpeed)) +
-        FAINT("/10");
+        INK_BRIGHT.bold(cleanProvider(state.provider)) +
+        FAINT(" " + ctxStr),
+    );
+  }
+
+  // cwd + branch combinés en un seul segment (avant : 2 segments avec
+  // séparateur — verbeux pour info de localisation simple).
+  if (state.cwd) {
+    const git = getGitInfo(state.cwd);
+    let loc = MUTED(shortCwd(state.cwd));
+    if (git?.branch) {
+      loc += FAINT(" on ") + ACCENT_SOFT.italic(git.branch);
     }
-    parts1.push(head);
-  }
-  if (state.cwd) parts1.push(MUTED(shortCwd(state.cwd)));
-  const git = state.cwd ? getGitInfo(state.cwd) : null;
-  if (git?.branch) parts1.push(INK("on ") + ACCENT_SOFT.italic(git.branch));
-
-  const tokenSegs: string[] = [];
-  if ((state.tokensIn ?? 0) > 0)
-    tokenSegs.push(MUTED(GLYPH.arrowUp) + INK(compact(state.tokensIn!)));
-  if ((state.tokensOut ?? 0) > 0)
-    tokenSegs.push(MUTED(GLYPH.arrowDown) + INK(compact(state.tokensOut!)));
-  if (tokenSegs.length > 0) parts1.push(tokenSegs.join(" "));
-
-  if (git && (git.additions > 0 || git.deletions > 0)) {
-    parts1.push(SUCCESS(`+${git.additions}`) + " " + DANGER(`-${git.deletions}`));
+    if (git && (git.additions > 0 || git.deletions > 0)) {
+      loc +=
+        " " +
+        SUCCESS(`+${git.additions}`) +
+        FAINT("/") +
+        DANGER(`-${git.deletions}`);
+    }
+    parts1.push(loc);
   }
 
-  const sep = FAINT("  │  ");
-  const softSep = FAINT("  ·  ");
-  const line1 =
-    parts1.slice(0, 3).join(softSep) +
-    (parts1.length > 3 ? sep + parts1.slice(3).join(sep) : "");
+  // Tokens ↑↓ : 1 segment compact si présent.
+  const inK = state.tokensIn ?? 0;
+  const outK = state.tokensOut ?? 0;
+  if (inK > 0 || outK > 0) {
+    parts1.push(
+      MUTED(GLYPH.arrowUp) +
+        INK(compact(inK)) +
+        " " +
+        MUTED(GLYPH.arrowDown) +
+        INK(compact(outK)),
+    );
+  }
 
-  const parts2: string[] = [];
-  // Taille réelle du context = input du DERNIER tour (l'API Anthropic
-  // renvoie input_tokens = totalité de la conv envoyée à chaque appel,
-  // historique inclus) + output streamé en cours. Avant on additionnait
-  // sessionInTotal cumulé sur tous les tours, ce qui comptait plusieurs
-  // fois le même historique → on arrivait à 750k affichés alors que le
-  // ctx réel tenait sous 50k.
-  const currentCtx = (state.tokensIn ?? 0) + (state.tokensOut ?? 0);
+  // Ctx % : compact, sans micro-bar (qui ne tenait pas sur petits
+  // terminaux). Couleur selon seuil : >80% danger, >60% warn, sinon dim.
+  const currentCtx = inK + outK;
   const ctxWindow =
     state.contextWindow ??
     contextWindowFor(state.provider ?? "mistral-large-latest");
   const baseline = state.baselineTokens ?? 0;
-  {
+  if (currentCtx > 0) {
     const effectiveMax = Math.max(1, ctxWindow - baseline);
     const convUsed = Math.max(0, currentCtx - baseline);
     const pct = Math.min(1, convUsed / effectiveMax);
     const pctNum = Math.round(pct * 100);
-    const bar = renderBar(pct, 10);
-    const baselineTag =
-      baseline > 0 ? FAINT(` (+${compact(baseline)} base)`) : "";
-    parts2.push(
-      INK_BRIGHT(compact(convUsed)) +
-        FAINT("/") +
-        MUTED(compact(effectiveMax)) +
-        "  " +
-        bar +
-        "  " +
-        ACCENT(`${pctNum}%`) +
-        FAINT(" ctx") +
-        baselineTag,
-    );
+    const ctxColor = pct >= 0.8 ? DANGER : pct >= 0.6 ? ACCENT_SOFT : MUTED;
+    parts1.push(ctxColor(`${pctNum}%`) + FAINT(" ctx"));
   }
+
+  // Quota crédits 5h : compact `12/500 · 3h` quand reset visible.
   if (state.quotaUsed !== undefined && state.quotaLimit) {
     const pct = state.quotaUsed / state.quotaLimit;
-    const pctNum = Math.round(pct * 100);
-    const color = pct >= 0.9 ? DANGER : pct >= 0.7 ? ACCENT_SOFT : ACCENT;
-    const bar = renderBar(pct, 6, color);
-    const resetPart = state.resetAt
-      ? FAINT(" ⟳") + MUTED(formatResetShort(state.resetAt))
-      : "";
-    parts2.push(
-      MUTED("5h ") +
-        bar +
-        " " +
-        color(`${state.quotaUsed}/${state.quotaLimit}`) +
-        FAINT(" ") +
-        color(`${pctNum}%`) +
-        resetPart,
-    );
+    const color = pct >= 0.9 ? DANGER : pct >= 0.7 ? ACCENT_SOFT : MUTED;
+    let q = color(`${state.quotaUsed}/${state.quotaLimit}`);
+    if (state.resetAt) q += FAINT(" ⟳") + FAINT(formatResetShort(state.resetAt));
+    parts1.push(q);
   }
-  // Bucket caché de la status line : le retry upstream gère les 429
-  // automatiquement, l'info bucket est trompeuse (hardcoded, pas précise
-  // par modèle côté NVIDIA). On garde la variable d'état pour debug futur.
-  const line2 = parts2.join(FAINT("  ·  "));
 
+  const softSep = FAINT("  ·  ");
+  const line1 = parts1.join(softSep);
+
+  // Ligne 2 : phase à gauche, mode + version à droite, justifié.
   let phaseStr = PHASE_COLOR[state.phase](
     phaseSymbol(state.phase) + " " + PHASE_LABEL[state.phase],
   );
@@ -388,47 +362,39 @@ export function renderStatusLines(cols: number): string[] {
     const s = Math.max(1, Math.ceil(state.waitingMsRemaining / 1000));
     phaseStr += MUTED(` ${s}s`);
   }
-  // Suggestion "meilleur modèle dispo" détectée par le poller background.
+  // Suggestion "meilleur modèle" — affichée discrètement à droite du
+  // phase label si présente.
   if (state.suggestedBetter) {
     const parts = state.suggestedBetter.id.split("/");
     const shortId = parts[parts.length - 1] || state.suggestedBetter.id;
-    phaseStr +=
-      FAINT("  ·  ") +
-      SUCCESS(starSymbol() + " ") +
-      ACCENT_SOFT(shortId) +
-      FAINT(" · ") +
-      MUTED("Q") +
-      INK(String(state.suggestedBetter.qualityOutOf10)) +
-      FAINT("/10 ") +
-      MUTED("V") +
-      INK(String(state.suggestedBetter.speedOutOf10)) +
-      FAINT("/10");
+    phaseStr += FAINT("  ·  ") + SUCCESS(starSymbol() + " ") + ACCENT_SOFT(shortId);
   }
-  // Permission mode — TOUJOURS visible (avant : caché si default). Comme
-  // Shift+Tab cycle sans printer dans l'historique, c'est ici la SEULE
-  // source de vérité pour savoir dans quel mode on est. Couleur : bypass
-  // = danger (rouge), plan = accent-soft (orange), accept-edits = success
-  // (vert), default = muted neutre.
+
+  // Permission mode — toujours visible (default inclus) avec puce de couleur.
   let modePart = "";
   if (state.permissionMode === "bypass") {
-    modePart = chalk.hex(c.danger).bold(
-      (IS_LEGACY_CONSOLE ? "! " : "⚠ ") + "bypass",
-    ) + "  ";
+    modePart =
+      chalk.hex(c.danger).bold((IS_LEGACY_CONSOLE ? "! " : "⚠ ") + "bypass") +
+      "  ";
   } else if (state.permissionMode === "plan") {
-    modePart = ACCENT_SOFT((IS_LEGACY_CONSOLE ? "[P] " : "⎔ ") + "plan") + "  ";
+    modePart =
+      ACCENT_SOFT((IS_LEGACY_CONSOLE ? "[P] " : "⎔ ") + "plan") + "  ";
   } else if (state.permissionMode === "accept-edits") {
-    modePart = SUCCESS((IS_LEGACY_CONSOLE ? "[E] " : "✓ ") + "accept-edits") + "  ";
+    modePart =
+      SUCCESS((IS_LEGACY_CONSOLE ? "[E] " : "✓ ") + "accept-edits") + "  ";
   } else if (state.permissionMode) {
-    modePart = MUTED((IS_LEGACY_CONSOLE ? "[D] " : "○ ") + state.permissionMode) + "  ";
+    modePart =
+      MUTED((IS_LEGACY_CONSOLE ? "[D] " : "○ ") + state.permissionMode) +
+      "  ";
   }
   const versionPart = FAINT(`v${VERSION}`);
   const leftLen = visibleLen(phaseStr);
   const rightPart = modePart + versionPart;
   const rightLen = visibleLen(rightPart);
   const padding = Math.max(2, cols - leftLen - rightLen);
-  const line3 = phaseStr + " ".repeat(padding) + rightPart;
+  const line2 = phaseStr + " ".repeat(padding) + rightPart;
 
-  return [rule, line1, line2, line3];
+  return [line1, line2];
 }
 
 function scheduleRender(): void {

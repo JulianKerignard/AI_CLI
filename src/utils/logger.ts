@@ -202,22 +202,30 @@ export const log = {
       ATH.accent(SYM.assistant + " ") +
         ATH.ink(msg.replace(/\n/g, "\n  ")),
     ),
+  // Format tool style Claude Code : puce success (vert) + nom en
+  // ink.bold + arguments entre parenthèses dim. Avant on avait tout en
+  // accentSoft orange (puce + nom + parenthèses) — trop lourd visuellement.
+  // Maintenant le name "respire" sur fond ink, et la puce verte = "tool
+  // call going through OK".
   tool: (name: string, detail: string) =>
     ui(
-      ATH.accentSoft(SYM.tool + " ") +
-        ATH.accentSoft.bold(name) +
-        " " +
-        ATH.inkFaint(detail),
+      ATH.success(SYM.tool + " ") +
+        ATH.ink.bold(name) +
+        (detail ? " " + ATH.inkMuted(detail) : ""),
     ),
   toolCompact: (name: string, label: string) => {
     ui(
-      ATH.accentSoft(SYM.tool + " ") +
-        ATH.accentSoft.bold(name) +
-        (label ? ATH.accentSoft("(") + ATH.inkMuted(label) + ATH.accentSoft(")") : ""),
+      ATH.success(SYM.tool + " ") +
+        ATH.ink.bold(name) +
+        (label
+          ? ATH.inkFaint("(") + ATH.inkMuted(label) + ATH.inkFaint(")")
+          : ""),
     );
   },
   toolResultCompact: (summary: string, isError = false) => {
-    const arrow = "  ⎿ ";
+    // Indent 2 espaces + ⎿ (style Claude Code). Erreur = danger, sinon
+    // arrow faint + summary muted.
+    const arrow = "  " + (symbols.toolReturn || "⎿") + " ";
     if (isError) ui(ATH.danger(arrow) + ATH.danger(summary), "error");
     else ui(ATH.inkFaint(arrow) + ATH.inkMuted(summary));
   },

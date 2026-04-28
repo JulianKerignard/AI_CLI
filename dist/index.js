@@ -31386,16 +31386,21 @@ var init_logger = __esm({
       assistant: /* @__PURE__ */ __name((msg) => ui(
         ATH.accent(SYM.assistant + " ") + ATH.ink(msg.replace(/\n/g, "\n  "))
       ), "assistant"),
+      // Format tool style Claude Code : puce success (vert) + nom en
+      // ink.bold + arguments entre parenthèses dim. Avant on avait tout en
+      // accentSoft orange (puce + nom + parenthèses) — trop lourd visuellement.
+      // Maintenant le name "respire" sur fond ink, et la puce verte = "tool
+      // call going through OK".
       tool: /* @__PURE__ */ __name((name, detail) => ui(
-        ATH.accentSoft(SYM.tool + " ") + ATH.accentSoft.bold(name) + " " + ATH.inkFaint(detail)
+        ATH.success(SYM.tool + " ") + ATH.ink.bold(name) + (detail ? " " + ATH.inkMuted(detail) : "")
       ), "tool"),
       toolCompact: /* @__PURE__ */ __name((name, label) => {
         ui(
-          ATH.accentSoft(SYM.tool + " ") + ATH.accentSoft.bold(name) + (label ? ATH.accentSoft("(") + ATH.inkMuted(label) + ATH.accentSoft(")") : "")
+          ATH.success(SYM.tool + " ") + ATH.ink.bold(name) + (label ? ATH.inkFaint("(") + ATH.inkMuted(label) + ATH.inkFaint(")") : "")
         );
       }, "toolCompact"),
       toolResultCompact: /* @__PURE__ */ __name((summary, isError = false) => {
-        const arrow = "  \u23BF ";
+        const arrow = "  " + (symbols.toolReturn || "\u23BF") + " ";
         if (isError) ui(ATH.danger(arrow) + ATH.danger(summary), "error");
         else ui(ATH.inkFaint(arrow) + ATH.inkMuted(summary));
       }, "toolResultCompact"),
@@ -32187,10 +32192,6 @@ function compact2(n) {
   if (n < 1e6) return Math.round(n / 1e3) + "k";
   return (n / 1e6).toFixed(1) + "M";
 }
-function renderBar(pct, width, color = ACCENT) {
-  const filled = Math.max(0, Math.min(width, Math.round(pct * width)));
-  return color("\u2588".repeat(filled)) + FAINT("\u2591".repeat(width - filled));
-}
 function shortCwd(cwd2) {
   const max = 35;
   if (cwd2.length <= max) return cwd2;
@@ -32213,62 +32214,53 @@ function visibleLen(s) {
   return s.replace(/\x1b\[[0-9;]*m/g, "").length;
 }
 function renderStatusLines(cols) {
-  const tag = state.sessionTag ?? cleanProvider2(state.provider ?? "");
-  const tagBox = tag ? import_chalk4.default.bgHex(c.bgTag).hex(c.ink)(` ${tag} `) : "";
-  const ruleLen = Math.max(0, cols - visibleLen(tagBox) - 2);
-  const rule = TEAL(GLYPH.sepLine.repeat(ruleLen)) + (tagBox ? "  " + tagBox : "");
   const parts1 = [];
   if (state.provider) {
     const ctxWin = state.contextWindow ?? contextWindowFor2(state.provider);
     const ctxStr = ctxWin >= 1e6 ? `${ctxWin / 1e6}M` : `${ctxWin / 1e3}k`;
     const diamondColor = state.phase === "streaming" || state.phase === "executing-tool" ? frame % 2 === 0 ? ACCENT : ACCENT_SOFT : ACCENT;
-    let head = diamondColor(GLYPH.diamond + " ") + INK_BRIGHT.bold(cleanProvider2(state.provider)) + FAINT(` (${ctxStr} ctx)`);
-    if (state.currentQuality !== void 0 && state.currentSpeed !== void 0) {
-      head += FAINT("  ") + MUTED("Q") + INK(String(state.currentQuality)) + FAINT("/10 ") + MUTED("V") + INK(String(state.currentSpeed)) + FAINT("/10");
+    parts1.push(
+      diamondColor(GLYPH.diamond + " ") + INK_BRIGHT.bold(cleanProvider2(state.provider)) + FAINT(" " + ctxStr)
+    );
+  }
+  if (state.cwd) {
+    const git = getGitInfo(state.cwd);
+    let loc = MUTED(shortCwd(state.cwd));
+    if (git?.branch) {
+      loc += FAINT(" on ") + ACCENT_SOFT.italic(git.branch);
     }
-    parts1.push(head);
+    if (git && (git.additions > 0 || git.deletions > 0)) {
+      loc += " " + SUCCESS(`+${git.additions}`) + FAINT("/") + DANGER(`-${git.deletions}`);
+    }
+    parts1.push(loc);
   }
-  if (state.cwd) parts1.push(MUTED(shortCwd(state.cwd)));
-  const git = state.cwd ? getGitInfo(state.cwd) : null;
-  if (git?.branch) parts1.push(INK("on ") + ACCENT_SOFT.italic(git.branch));
-  const tokenSegs = [];
-  if ((state.tokensIn ?? 0) > 0)
-    tokenSegs.push(MUTED(GLYPH.arrowUp) + INK(compact2(state.tokensIn)));
-  if ((state.tokensOut ?? 0) > 0)
-    tokenSegs.push(MUTED(GLYPH.arrowDown) + INK(compact2(state.tokensOut)));
-  if (tokenSegs.length > 0) parts1.push(tokenSegs.join(" "));
-  if (git && (git.additions > 0 || git.deletions > 0)) {
-    parts1.push(SUCCESS(`+${git.additions}`) + " " + DANGER(`-${git.deletions}`));
+  const inK = state.tokensIn ?? 0;
+  const outK = state.tokensOut ?? 0;
+  if (inK > 0 || outK > 0) {
+    parts1.push(
+      MUTED(GLYPH.arrowUp) + INK(compact2(inK)) + " " + MUTED(GLYPH.arrowDown) + INK(compact2(outK))
+    );
   }
-  const sep5 = FAINT("  \u2502  ");
-  const softSep = FAINT("  \xB7  ");
-  const line1 = parts1.slice(0, 3).join(softSep) + (parts1.length > 3 ? sep5 + parts1.slice(3).join(sep5) : "");
-  const parts2 = [];
-  const currentCtx = (state.tokensIn ?? 0) + (state.tokensOut ?? 0);
+  const currentCtx = inK + outK;
   const ctxWindow = state.contextWindow ?? contextWindowFor2(state.provider ?? "mistral-large-latest");
   const baseline = state.baselineTokens ?? 0;
-  {
+  if (currentCtx > 0) {
     const effectiveMax = Math.max(1, ctxWindow - baseline);
     const convUsed = Math.max(0, currentCtx - baseline);
     const pct = Math.min(1, convUsed / effectiveMax);
     const pctNum = Math.round(pct * 100);
-    const bar = renderBar(pct, 10);
-    const baselineTag = baseline > 0 ? FAINT(` (+${compact2(baseline)} base)`) : "";
-    parts2.push(
-      INK_BRIGHT(compact2(convUsed)) + FAINT("/") + MUTED(compact2(effectiveMax)) + "  " + bar + "  " + ACCENT(`${pctNum}%`) + FAINT(" ctx") + baselineTag
-    );
+    const ctxColor = pct >= 0.8 ? DANGER : pct >= 0.6 ? ACCENT_SOFT : MUTED;
+    parts1.push(ctxColor(`${pctNum}%`) + FAINT(" ctx"));
   }
   if (state.quotaUsed !== void 0 && state.quotaLimit) {
     const pct = state.quotaUsed / state.quotaLimit;
-    const pctNum = Math.round(pct * 100);
-    const color = pct >= 0.9 ? DANGER : pct >= 0.7 ? ACCENT_SOFT : ACCENT;
-    const bar = renderBar(pct, 6, color);
-    const resetPart = state.resetAt ? FAINT(" \u27F3") + MUTED(formatResetShort(state.resetAt)) : "";
-    parts2.push(
-      MUTED("5h ") + bar + " " + color(`${state.quotaUsed}/${state.quotaLimit}`) + FAINT(" ") + color(`${pctNum}%`) + resetPart
-    );
+    const color = pct >= 0.9 ? DANGER : pct >= 0.7 ? ACCENT_SOFT : MUTED;
+    let q = color(`${state.quotaUsed}/${state.quotaLimit}`);
+    if (state.resetAt) q += FAINT(" \u27F3") + FAINT(formatResetShort(state.resetAt));
+    parts1.push(q);
   }
-  const line2 = parts2.join(FAINT("  \xB7  "));
+  const softSep = FAINT("  \xB7  ");
+  const line1 = parts1.join(softSep);
   let phaseStr = PHASE_COLOR[state.phase](
     phaseSymbol(state.phase) + " " + PHASE_LABEL[state.phase]
   );
@@ -32282,13 +32274,11 @@ function renderStatusLines(cols) {
   if (state.suggestedBetter) {
     const parts = state.suggestedBetter.id.split("/");
     const shortId = parts[parts.length - 1] || state.suggestedBetter.id;
-    phaseStr += FAINT("  \xB7  ") + SUCCESS(starSymbol() + " ") + ACCENT_SOFT(shortId) + FAINT(" \xB7 ") + MUTED("Q") + INK(String(state.suggestedBetter.qualityOutOf10)) + FAINT("/10 ") + MUTED("V") + INK(String(state.suggestedBetter.speedOutOf10)) + FAINT("/10");
+    phaseStr += FAINT("  \xB7  ") + SUCCESS(starSymbol() + " ") + ACCENT_SOFT(shortId);
   }
   let modePart = "";
   if (state.permissionMode === "bypass") {
-    modePart = import_chalk4.default.hex(c.danger).bold(
-      (IS_LEGACY_CONSOLE2 ? "! " : "\u26A0 ") + "bypass"
-    ) + "  ";
+    modePart = import_chalk4.default.hex(c.danger).bold((IS_LEGACY_CONSOLE2 ? "! " : "\u26A0 ") + "bypass") + "  ";
   } else if (state.permissionMode === "plan") {
     modePart = ACCENT_SOFT((IS_LEGACY_CONSOLE2 ? "[P] " : "\u2394 ") + "plan") + "  ";
   } else if (state.permissionMode === "accept-edits") {
@@ -32301,8 +32291,8 @@ function renderStatusLines(cols) {
   const rightPart = modePart + versionPart;
   const rightLen = visibleLen(rightPart);
   const padding = Math.max(2, cols - leftLen - rightLen);
-  const line3 = phaseStr + " ".repeat(padding) + rightPart;
-  return [rule, line1, line2, line3];
+  const line2 = phaseStr + " ".repeat(padding) + rightPart;
+  return [line1, line2];
 }
 function scheduleRender() {
   emitter.emit("change");
@@ -32428,7 +32418,6 @@ var init_status_bar = __esm({
     __name(compact2, "compact");
     cleanProvider2 = cleanProvider;
     contextWindowFor2 = contextWindowFor;
-    __name(renderBar, "renderBar");
     __name(shortCwd, "shortCwd");
     __name(formatResetShort, "formatResetShort");
     __name(visibleLen, "visibleLen");
@@ -52153,21 +52142,12 @@ function InputBox({
         ]
       }
     ),
-    /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
-      Box_default,
-      {
-        borderStyle: "round",
-        borderColor: disabled ? colors.borderDim : colors.border,
-        paddingX: 1,
-        flexDirection: "column",
-        children: renderInputContent({
-          disabled: !!disabled,
-          hasValue: value.length > 0,
-          placeholder,
-          rendered
-        })
-      }
-    )
+    /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Box_default, { flexDirection: "column", children: renderInputContent({
+      disabled: !!disabled,
+      hasValue: value.length > 0,
+      placeholder,
+      rendered
+    }) })
   ] });
 }
 __name(InputBox, "InputBox");
