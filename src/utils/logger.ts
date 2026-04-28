@@ -1,5 +1,6 @@
 import chalk from "chalk";
 import { historyStore } from "../ui/history-store.js";
+import { c, symbols } from "../ui/theme.js";
 
 // Pousse une ligne déjà colorisée dans l'UI. Remplace les console.log
 // de l'ancien logger — l'UI Ink affiche le texte via Static.
@@ -7,38 +8,33 @@ function ui(text: string, level: "info" | "warn" | "error" | "raw" = "raw"): voi
   historyStore.push({ type: level, text });
 }
 
-// Palette Athenaeum portée en terminal :
-// - accent orange cuivré   #e27649 → chalk.hex("#e27649") (utilisateur/prompt/hero)
-// - accent-soft            #ec9470 → highlights secondaires
-// - ink                    #f6f1e8 → texte principal (chalk default)
-// - ink-muted              #bdb3a1 → commentaires, hints, dim
-// - ink-faint              #8a8270 → meta très discret
-// - success                #7fa670 → confirmations
-// - danger                 #c76a5f → erreurs
-// chalk.hex() fallback true-color ; dégradé auto en 256 colors sinon.
-
+// Wrappers chalk autour de la palette `theme.ts`. Avant : 8 hex
+// hardcodés en double dans cet objet ATH. Maintenant : single source of
+// truth, juste un mapping chalk.hex(c.x).
 const ATH = {
-  accent: chalk.hex("#e27649"),
-  accentSoft: chalk.hex("#ec9470"),
-  accentDeep: chalk.hex("#b85a31"),
-  ink: chalk.hex("#f6f1e8"),
-  inkMuted: chalk.hex("#bdb3a1"),
-  inkFaint: chalk.hex("#8a8270"),
-  success: chalk.hex("#7fa670"),
-  danger: chalk.hex("#c76a5f"),
+  accent: chalk.hex(c.accent),
+  accentSoft: chalk.hex(c.accentSoft),
+  accentDeep: chalk.hex(c.accentDeep),
+  ink: chalk.hex(c.ink),
+  inkMuted: chalk.hex(c.inkMuted),
+  inkFaint: chalk.hex(c.inkDim),
+  success: chalk.hex(c.success),
+  danger: chalk.hex(c.danger),
 };
 
-// Symboles discrets, cohérents avec le look éditorial Athenaeum (pas d'emojis,
-// glyphes ASCII/Unicode sobres). Cadré pour lisibilité en mono 14px terminal.
+// Symboles disambigués (cf. ui/theme.ts). info=• (avant ›, qui collisionnait
+// avec le prompt InputBox). user=» et assistant=● restent inchangés
+// (mono-sens). tool=◆ (mono-sens depuis la disambig — la status bar utilise
+// désormais ▲ pour la phase executing-tool).
 const SYM = {
-  info: "›",
-  warn: "!",
-  error: "✗",
-  user: "»",
-  assistant: "●",
-  tool: "◆",
-  toolOut: "│",
-  kicker: "─",
+  info: symbols.info,
+  warn: symbols.warn,
+  error: symbols.error,
+  user: symbols.user,
+  assistant: symbols.assistant,
+  tool: symbols.tool,
+  toolOut: symbols.toolOut,
+  kicker: symbols.rule,
 };
 
 // Compactage de nombres type 1234 → "1.2k", 15678 → "15.7k".

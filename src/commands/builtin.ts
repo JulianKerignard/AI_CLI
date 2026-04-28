@@ -8,6 +8,9 @@ import {
   categorize,
   type PermissionMode,
 } from "../permissions/policy.js";
+import { CWD, getAppVersion } from "../utils/paths.js";
+import { cleanProvider } from "../lib/context-window.js";
+import { detectShell } from "../tools/shell-detect.js";
 
 export function builtinCommands(allCommands: () => SlashCommand[]): SlashCommand[] {
   return [
@@ -31,6 +34,42 @@ export function builtinCommands(allCommands: () => SlashCommand[]): SlashCommand
         log.faint(
           "Tape du texte libre pour parler à l'agent. Ctrl-D ou /exit pour quitter.",
         );
+      },
+    },
+    {
+      name: "about",
+      description: "Affiche le détail de la session (model, tools, mode, shell, cwd).",
+      async run({ agent, tools, skills, subAgents, mcpServers, permissions }) {
+        const home = process.env.HOME || process.env.USERPROFILE || "";
+        const cwdShort =
+          home && CWD.startsWith(home) ? "~" + CWD.slice(home.length) : CWD;
+        const mode = permissions.getMode();
+        const modeStatus: "ok" | "warn" | "error" =
+          mode === "bypass" ? "error" : mode === "plan" ? "warn" : "ok";
+        const modeValue =
+          mode === "bypass"
+            ? "⚠ bypass"
+            : mode === "plan"
+              ? "⎔ plan"
+              : mode === "accept-edits"
+                ? "✓ accept-edits"
+                : mode;
+        log.banner("AI_CLI", getAppVersion(), "agent code · terminal · tools");
+        log.specs([
+          {
+            label: "model",
+            value: cleanProvider(agent.provider.name),
+            status: "ok",
+          },
+          {
+            label: "tools",
+            value: `${tools.list().length} tools · ${skills.length} skills · ${subAgents.length} agents · ${mcpServers.length} MCP`,
+            status: "muted",
+          },
+          { label: "mode", value: modeValue, status: modeStatus },
+          { label: "shell", value: detectShell().label, status: "muted" },
+          { label: "cwd", value: cwdShort, status: "muted" },
+        ]);
       },
     },
     {

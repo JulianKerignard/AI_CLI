@@ -6,6 +6,7 @@ import {
   cleanProvider as sharedCleanProvider,
   contextWindowFor as sharedContextWindowFor,
 } from "../lib/context-window.js";
+import { c, symbols } from "../ui/theme.js";
 
 // Émetteur pour que le composant React StatusLine (Ink) se re-rende
 // quand l'état change. Les callers continuent d'utiliser updateStatus,
@@ -103,6 +104,10 @@ const PHASE_LABEL: Record<Phase, string> = {
 const IS_LEGACY_CONSOLE =
   process.platform === "win32" && !process.env.WT_SESSION;
 
+// Phase symbols : `executing-tool` utilise `▲` (symbols.phaseTool) pour
+// éviter la collision avec le `◆` du logger qui marque maintenant
+// uniquement les appels d'outils dans l'historique. `streaming` et
+// `thinking` restent `●` (le rendu animé est géré par ANIM_FRAMES).
 const PHASE_SYM: Record<Phase, string> = IS_LEGACY_CONSOLE
   ? {
       idle: ".",
@@ -110,7 +115,7 @@ const PHASE_SYM: Record<Phase, string> = IS_LEGACY_CONSOLE
       thinking: "*",
       streaming: "*",
       "waiting-quota": "...",
-      "executing-tool": "#",
+      "executing-tool": symbols.phaseTool,
       compacting: "~",
       offline: "o",
     }
@@ -120,7 +125,7 @@ const PHASE_SYM: Record<Phase, string> = IS_LEGACY_CONSOLE
       thinking: "●",
       streaming: "●",
       "waiting-quota": "⏳",
-      "executing-tool": "◆",
+      "executing-tool": symbols.phaseTool,
       compacting: "↻",
       offline: "○",
     };
@@ -128,13 +133,16 @@ const PHASE_SYM: Record<Phase, string> = IS_LEGACY_CONSOLE
 // Frames d'animation par phase. Tickées à TICK_INTERVAL_MS quand l'agent
 // travaille (cf. ANIMATED_PHASES). Désactivées sur conhost legacy (pas de
 // support Unicode) — fallback sur PHASE_SYM statique.
+// `executing-tool` anime sur ▲▼ pour rester sur la sémantique "phase"
+// disambiguée du logger ◆. Le ◆ du logger reste mono-sens "appel d'outil
+// dans l'historique".
 const ANIM_FRAMES: Partial<Record<Phase, string[]>> = IS_LEGACY_CONSOLE
   ? {}
   : {
       thinking: ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"],
       streaming: ["●", "◐", "◑", "◒", "◓", "◔", "◕"],
       loading: ["◜", "◠", "◝", "◞", "◡", "◟"],
-      "executing-tool": ["◆", "◈", "◇", "◈"],
+      "executing-tool": ["▲", "▴", "△", "▴"],
       compacting: ["⠁", "⠂", "⠄", "⡀", "⢀", "⠠", "⠐", "⠈"],
       "waiting-quota": ["⏳", "⌛"],
     };
@@ -187,25 +195,25 @@ const GLYPH = IS_LEGACY_CONSOLE
   : { diamond: "◆", sepLine: "─", midDot: "·", arrowUp: "↑", arrowDown: "↓", star: "★" };
 
 const PHASE_COLOR: Record<Phase, (s: string) => string> = {
-  idle: chalk.hex("#8a8270"),
-  loading: chalk.hex("#7fa8a6"),
-  thinking: chalk.hex("#ec9470"),
-  streaming: chalk.hex("#e27649"),
-  "waiting-quota": chalk.hex("#c76a5f"),
-  "executing-tool": chalk.hex("#ec9470"),
-  compacting: chalk.hex("#bdb3a1"),
-  offline: chalk.hex("#8a8270"),
+  idle: chalk.hex(c.inkDim),
+  loading: chalk.hex(c.info),
+  thinking: chalk.hex(c.accentSoft),
+  streaming: chalk.hex(c.accent),
+  "waiting-quota": chalk.hex(c.danger),
+  "executing-tool": chalk.hex(c.accentSoft),
+  compacting: chalk.hex(c.inkMuted),
+  offline: chalk.hex(c.inkDim),
 };
 
-const FAINT = chalk.hex("#4a4239");
-const MUTED = chalk.hex("#8a8270");
-const INK = chalk.hex("#bdb3a1");
-const INK_BRIGHT = chalk.hex("#f6f1e8");
-const ACCENT = chalk.hex("#e27649");
-const ACCENT_SOFT = chalk.hex("#ec9470");
-const DANGER = chalk.hex("#c76a5f");
-const SUCCESS = chalk.hex("#7fa670");
-const TEAL = chalk.hex("#7fa8a6");
+const FAINT = chalk.hex(c.inkFaint);
+const MUTED = chalk.hex(c.inkDim);
+const INK = chalk.hex(c.inkMuted);
+const INK_BRIGHT = chalk.hex(c.ink);
+const ACCENT = chalk.hex(c.accent);
+const ACCENT_SOFT = chalk.hex(c.accentSoft);
+const DANGER = chalk.hex(c.danger);
+const SUCCESS = chalk.hex(c.success);
+const TEAL = chalk.hex(c.info);
 
 function compact(n: number): string {
   if (n < 1000) return String(n);
@@ -255,7 +263,7 @@ function visibleLen(s: string): number {
 export function renderStatusLines(cols: number): string[] {
   const tag = state.sessionTag ?? cleanProvider(state.provider ?? "");
   const tagBox = tag
-    ? chalk.bgHex("#245454").hex("#f6f1e8")(` ${tag} `)
+    ? chalk.bgHex(c.bgTag).hex(c.ink)(` ${tag} `)
     : "";
   const ruleLen = Math.max(0, cols - visibleLen(tagBox) - 2);
   const rule = TEAL(GLYPH.sepLine.repeat(ruleLen)) + (tagBox ? "  " + tagBox : "");
@@ -403,7 +411,7 @@ export function renderStatusLines(cols: number): string[] {
   // (vert), default = muted neutre.
   let modePart = "";
   if (state.permissionMode === "bypass") {
-    modePart = chalk.hex("#e26849").bold(
+    modePart = chalk.hex(c.danger).bold(
       (IS_LEGACY_CONSOLE ? "! " : "⚠ ") + "bypass",
     ) + "  ";
   } else if (state.permissionMode === "plan") {

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Box, Static, Text } from "ink";
 import { historyStore, type HistoryItem } from "./history-store.js";
+import { c, symbols } from "./theme.js";
 
 // Affiche les items FIGÉS via <Static> : chaque item rendu une seule
 // fois quand ajouté, puis laissé scroller par le terminal. Pattern
@@ -15,10 +16,10 @@ function formatItem(item: HistoryItem): React.ReactNode {
     case "user":
       return (
         <Text>
-          <Text color="#e27649" bold>
-            »{" "}
+          <Text color={c.accent} bold>
+            {symbols.user}{" "}
           </Text>
-          <Text color="#bdb3a1">{item.text}</Text>
+          <Text color={c.inkMuted}>{item.text}</Text>
         </Text>
       );
     case "assistant":
@@ -29,14 +30,14 @@ function formatItem(item: HistoryItem): React.ReactNode {
     case "info":
       return (
         <Text>
-          <Text color="#7fa8a6">ℹ </Text>
+          <Text color={c.info}>{symbols.info} </Text>
           {item.text}
         </Text>
       );
     case "warn":
-      return <Text color="#ec9470">⚠ {item.text}</Text>;
+      return <Text color={c.accentSoft}>{symbols.warn} {item.text}</Text>;
     case "error":
-      return <Text color="#c76a5f">✗ {item.text}</Text>;
+      return <Text color={c.danger}>{symbols.error} {item.text}</Text>;
   }
 }
 

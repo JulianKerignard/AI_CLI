@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect } from "react";
 import { Box, Text, useInput } from "ink";
 import { displayModelId } from "../lib/model-selector.js";
+import { c, symbols } from "./theme.js";
 
 // Picker natif Ink — remplace @inquirer/search qui créait un readline
 // parallèle et laissait des artefacts visuels. Flèches ↑↓ pour naviguer,
@@ -87,9 +88,9 @@ export function ModelPicker({ items, initial, pageSize = 10, onChoose }: Props) 
   // rapide = vert, moyen = orange, lent = rouge.
   const speedBadge = (desc?: string): { label: string; color: string } | null => {
     if (!desc) return null;
-    if (/\brapide\b/i.test(desc)) return { label: "rapide", color: "#7fa670" };
-    if (/\bmoyen\b/i.test(desc)) return { label: "moyen", color: "#ec9470" };
-    if (/\blent\b/i.test(desc)) return { label: "lent", color: "#c76a5f" };
+    if (/\brapide\b/i.test(desc)) return { label: "rapide", color: c.success };
+    if (/\bmoyen\b/i.test(desc)) return { label: "moyen", color: c.accentSoft };
+    if (/\blent\b/i.test(desc)) return { label: "lent", color: c.danger };
     return null;
   };
 
@@ -97,18 +98,18 @@ export function ModelPicker({ items, initial, pageSize = 10, onChoose }: Props) 
     <Box
       flexDirection="column"
       borderStyle="round"
-      borderColor="#e27649"
+      borderColor={c.accent}
       paddingX={1}
     >
       <Box>
-        <Text color="#bdb3a1">model </Text>
-        <Text color="#8a8270">› </Text>
+        <Text color={c.inkMuted}>model </Text>
+        <Text color={c.inkDim}>{symbols.prompt} </Text>
         <Text>{query}</Text>
         <Text inverse> </Text>
       </Box>
       <Box flexDirection="column" marginTop={1}>
         {visible.length === 0 && (
-          <Text color="#8a8270">aucun match pour "{query}"</Text>
+          <Text color={c.inkDim}>aucun match pour "{query}"</Text>
         )}
         {visible.map((m, i) => {
           const realIdx = start + i;
@@ -117,31 +118,31 @@ export function ModelPicker({ items, initial, pageSize = 10, onChoose }: Props) 
           // Couleur TTFT : <1.5s vert, <10s orange, >=10s rouge.
           const ttftColor =
             m.ttftMs == null
-              ? "#4a4239"
+              ? c.inkFaint
               : m.ttftMs < 1500
-                ? "#7fa670"
+                ? c.success
                 : m.ttftMs < 10_000
-                  ? "#ec9470"
-                  : "#c76a5f";
+                  ? c.accentSoft
+                  : c.danger;
           // Couleur tok/s : >=100 vert, >=50 orange, sinon rouge.
           const tpsColor =
             m.tokPerSec == null
-              ? "#4a4239"
+              ? c.inkFaint
               : m.tokPerSec >= 100
-                ? "#7fa670"
+                ? c.success
                 : m.tokPerSec >= 50
-                  ? "#ec9470"
-                  : "#c76a5f";
+                  ? c.accentSoft
+                  : c.danger;
           return (
             <Box key={m.id}>
-              <Text color={active ? "#e27649" : "#4a4239"}>
-                {active ? "›" : " "}
+              <Text color={active ? c.accent : c.inkFaint}>
+                {active ? symbols.cursor : " "}
               </Text>
-              <Text color={active ? "#f6f1e8" : "#bdb3a1"}>
+              <Text color={active ? c.ink : c.inkMuted}>
                 {" "}
                 {displayModelId(m.id).padEnd(40)}
               </Text>
-              <Text color="#8a8270">{m.category.padEnd(10)}</Text>
+              <Text color={c.inkDim}>{m.category.padEnd(10)}</Text>
               {speed && (
                 <Text color={speed.color}>{speed.label.padEnd(8)}</Text>
               )}
@@ -158,7 +159,7 @@ export function ModelPicker({ items, initial, pageSize = 10, onChoose }: Props) 
         })}
       </Box>
       <Box marginTop={1}>
-        <Text color="#8a8270">
+        <Text color={c.inkDim}>
           {filtered.length} match · ↑↓ naviguer · Enter valider · Esc annuler
         </Text>
       </Box>

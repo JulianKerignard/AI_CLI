@@ -201,8 +201,8 @@ var require_react_production = __commonJS({
             }
         }
       if (invokeCallback)
-        return callback = callback(children), invokeCallback = "" === nameSoFar ? "." + getElementKey(children, 0) : nameSoFar, isArrayImpl(callback) ? (escapedPrefix = "", null != invokeCallback && (escapedPrefix = invokeCallback.replace(userProvidedKeyEscapeRegex, "$&/") + "/"), mapIntoArray(callback, array, escapedPrefix, "", function(c) {
-          return c;
+        return callback = callback(children), invokeCallback = "" === nameSoFar ? "." + getElementKey(children, 0) : nameSoFar, isArrayImpl(callback) ? (escapedPrefix = "", null != invokeCallback && (escapedPrefix = invokeCallback.replace(userProvidedKeyEscapeRegex, "$&/") + "/"), mapIntoArray(callback, array, escapedPrefix, "", function(c2) {
+          return c2;
         })) : null != callback && (isValidElement(callback) && (callback = cloneAndReplaceKey(
           callback,
           escapedPrefix + (null == callback.key || children && children.key === callback.key ? "" : ("" + callback.key).replace(
@@ -805,8 +805,8 @@ var require_react_development = __commonJS({
           invokeCallback = children;
           callback = callback(invokeCallback);
           var childKey = "" === nameSoFar ? "." + getElementKey(invokeCallback, 0) : nameSoFar;
-          isArrayImpl(callback) ? (escapedPrefix = "", null != childKey && (escapedPrefix = childKey.replace(userProvidedKeyEscapeRegex, "$&/") + "/"), mapIntoArray(callback, array, escapedPrefix, "", function(c) {
-            return c;
+          isArrayImpl(callback) ? (escapedPrefix = "", null != childKey && (escapedPrefix = childKey.replace(userProvidedKeyEscapeRegex, "$&/") + "/"), mapIntoArray(callback, array, escapedPrefix, "", function(c2) {
+            return c2;
           })) : null != callback && (isValidElement(callback) && (null != callback.key && (invokeCallback && invokeCallback.key === callback.key || checkKeyStringCoercion(callback.key)), escapedPrefix = cloneAndReplaceKey(
             callback,
             escapedPrefix + (null == callback.key || invokeCallback && invokeCallback.key === callback.key ? "" : ("" + callback.key).replace(
@@ -10637,10 +10637,10 @@ var require_react_reconciler_production = __commonJS({
           setCurrentUpdatePriority(previousPriority), ReactSharedInternals.T = prevTransition;
         }
       };
-      exports2.discreteUpdates = function(fn, a, b, c, d) {
+      exports2.discreteUpdates = function(fn, a, b, c2, d) {
         var prevTransition = ReactSharedInternals.T, previousPriority = getCurrentUpdatePriority();
         try {
-          return setCurrentUpdatePriority(2), ReactSharedInternals.T = null, fn(a, b, c, d);
+          return setCurrentUpdatePriority(2), ReactSharedInternals.T = null, fn(a, b, c2, d);
         } finally {
           setCurrentUpdatePriority(previousPriority), ReactSharedInternals.T = prevTransition, 0 === executionContext && (workInProgressRootRenderTargetTime = now() + 500);
         }
@@ -12382,11 +12382,11 @@ var require_react_reconciler_development = __commonJS({
         );
       }
       __name(warnIfNotHydrating, "warnIfNotHydrating");
-      function requiredContext(c) {
-        null === c && console.error(
+      function requiredContext(c2) {
+        null === c2 && console.error(
           "Expected host context to exist. This error is likely caused by a bug in React. Please file an issue."
         );
-        return c;
+        return c2;
       }
       __name(requiredContext, "requiredContext");
       function pushHostContainer(fiber, nextRootInstance) {
@@ -24876,10 +24876,10 @@ var require_react_reconciler_development = __commonJS({
           setCurrentUpdatePriority(previousPriority), ReactSharedInternals.T = prevTransition;
         }
       };
-      exports2.discreteUpdates = function(fn, a, b, c, d) {
+      exports2.discreteUpdates = function(fn, a, b, c2, d) {
         var prevTransition = ReactSharedInternals.T, previousPriority = getCurrentUpdatePriority();
         try {
-          return setCurrentUpdatePriority(2), ReactSharedInternals.T = null, fn(a, b, c, d);
+          return setCurrentUpdatePriority(2), ReactSharedInternals.T = null, fn(a, b, c2, d);
         } finally {
           setCurrentUpdatePriority(previousPriority), ReactSharedInternals.T = prevTransition, executionContext === NoContext && (workInProgressRootRenderTargetTime = now$1() + RENDER_TIMEOUT_MS);
         }
@@ -29199,8 +29199,8 @@ var require_conversions = __commonJS({
       const b = rgb[2] / 255;
       const v = Math.max(r, g, b);
       const diff2 = v - Math.min(r, g, b);
-      const diffc = /* @__PURE__ */ __name(function(c) {
-        return (v - c) / 6 / diff2 + 1 / 2;
+      const diffc = /* @__PURE__ */ __name(function(c2) {
+        return (v - c2) / 6 / diff2 + 1 / 2;
       }, "diffc");
       if (diff2 === 0) {
         h = 0;
@@ -29243,10 +29243,10 @@ var require_conversions = __commonJS({
       const g = rgb[1] / 255;
       const b = rgb[2] / 255;
       const k = Math.min(1 - r, 1 - g, 1 - b);
-      const c = (1 - r - k) / (1 - k) || 0;
+      const c2 = (1 - r - k) / (1 - k) || 0;
       const m = (1 - g - k) / (1 - k) || 0;
       const y = (1 - b - k) / (1 - k) || 0;
-      return [c * 100, m * 100, y * 100, k * 100];
+      return [c2 * 100, m * 100, y * 100, k * 100];
     };
     function comparativeDistance(x, y) {
       return (x[0] - y[0]) ** 2 + (x[1] - y[1]) ** 2 + (x[2] - y[2]) ** 2;
@@ -29449,11 +29449,11 @@ var require_conversions = __commonJS({
       return [r * 255, g * 255, b * 255];
     };
     convert.cmyk.rgb = function(cmyk) {
-      const c = cmyk[0] / 100;
+      const c2 = cmyk[0] / 100;
       const m = cmyk[1] / 100;
       const y = cmyk[2] / 100;
       const k = cmyk[3] / 100;
-      const r = 1 - Math.min(1, c * (1 - k) + k);
+      const r = 1 - Math.min(1, c2 * (1 - k) + k);
       const g = 1 - Math.min(1, m * (1 - k) + k);
       const b = 1 - Math.min(1, y * (1 - k) + k);
       return [r * 255, g * 255, b * 255];
@@ -29522,16 +29522,16 @@ var require_conversions = __commonJS({
       if (h < 0) {
         h += 360;
       }
-      const c = Math.sqrt(a * a + b * b);
-      return [l, c, h];
+      const c2 = Math.sqrt(a * a + b * b);
+      return [l, c2, h];
     };
     convert.lch.lab = function(lch) {
       const l = lch[0];
-      const c = lch[1];
+      const c2 = lch[1];
       const h = lch[2];
       const hr = h / 360 * 2 * Math.PI;
-      const a = c * Math.cos(hr);
-      const b = c * Math.sin(hr);
+      const a = c2 * Math.cos(hr);
+      const b = c2 * Math.sin(hr);
       return [l, a, b];
     };
     convert.rgb.ansi16 = function(args2, saturation = null) {
@@ -29583,8 +29583,8 @@ var require_conversions = __commonJS({
     };
     convert.ansi256.rgb = function(args2) {
       if (args2 >= 232) {
-        const c = (args2 - 232) * 10 + 8;
-        return [c, c, c];
+        const c2 = (args2 - 232) * 10 + 8;
+        return [c2, c2, c2];
       }
       args2 -= 16;
       let rem;
@@ -29645,28 +29645,28 @@ var require_conversions = __commonJS({
     convert.hsl.hcg = function(hsl) {
       const s = hsl[1] / 100;
       const l = hsl[2] / 100;
-      const c = l < 0.5 ? 2 * s * l : 2 * s * (1 - l);
+      const c2 = l < 0.5 ? 2 * s * l : 2 * s * (1 - l);
       let f = 0;
-      if (c < 1) {
-        f = (l - 0.5 * c) / (1 - c);
+      if (c2 < 1) {
+        f = (l - 0.5 * c2) / (1 - c2);
       }
-      return [hsl[0], c * 100, f * 100];
+      return [hsl[0], c2 * 100, f * 100];
     };
     convert.hsv.hcg = function(hsv) {
       const s = hsv[1] / 100;
       const v = hsv[2] / 100;
-      const c = s * v;
+      const c2 = s * v;
       let f = 0;
-      if (c < 1) {
-        f = (v - c) / (1 - c);
+      if (c2 < 1) {
+        f = (v - c2) / (1 - c2);
       }
-      return [hsv[0], c * 100, f * 100];
+      return [hsv[0], c2 * 100, f * 100];
     };
     convert.hcg.rgb = function(hcg) {
       const h = hcg[0] / 360;
-      const c = hcg[1] / 100;
+      const c2 = hcg[1] / 100;
       const g = hcg[2] / 100;
-      if (c === 0) {
+      if (c2 === 0) {
         return [g * 255, g * 255, g * 255];
       }
       const pure = [0, 0, 0];
@@ -29705,51 +29705,51 @@ var require_conversions = __commonJS({
           pure[1] = 0;
           pure[2] = w;
       }
-      mg = (1 - c) * g;
+      mg = (1 - c2) * g;
       return [
-        (c * pure[0] + mg) * 255,
-        (c * pure[1] + mg) * 255,
-        (c * pure[2] + mg) * 255
+        (c2 * pure[0] + mg) * 255,
+        (c2 * pure[1] + mg) * 255,
+        (c2 * pure[2] + mg) * 255
       ];
     };
     convert.hcg.hsv = function(hcg) {
-      const c = hcg[1] / 100;
+      const c2 = hcg[1] / 100;
       const g = hcg[2] / 100;
-      const v = c + g * (1 - c);
+      const v = c2 + g * (1 - c2);
       let f = 0;
       if (v > 0) {
-        f = c / v;
+        f = c2 / v;
       }
       return [hcg[0], f * 100, v * 100];
     };
     convert.hcg.hsl = function(hcg) {
-      const c = hcg[1] / 100;
+      const c2 = hcg[1] / 100;
       const g = hcg[2] / 100;
-      const l = g * (1 - c) + 0.5 * c;
+      const l = g * (1 - c2) + 0.5 * c2;
       let s = 0;
       if (l > 0 && l < 0.5) {
-        s = c / (2 * l);
+        s = c2 / (2 * l);
       } else if (l >= 0.5 && l < 1) {
-        s = c / (2 * (1 - l));
+        s = c2 / (2 * (1 - l));
       }
       return [hcg[0], s * 100, l * 100];
     };
     convert.hcg.hwb = function(hcg) {
-      const c = hcg[1] / 100;
+      const c2 = hcg[1] / 100;
       const g = hcg[2] / 100;
-      const v = c + g * (1 - c);
-      return [hcg[0], (v - c) * 100, (1 - v) * 100];
+      const v = c2 + g * (1 - c2);
+      return [hcg[0], (v - c2) * 100, (1 - v) * 100];
     };
     convert.hwb.hcg = function(hwb) {
       const w = hwb[1] / 100;
       const b = hwb[2] / 100;
       const v = 1 - b;
-      const c = v - w;
+      const c2 = v - w;
       let g = 0;
-      if (c < 1) {
-        g = (v - c) / (1 - c);
+      if (c2 < 1) {
+        g = (v - c2) / (1 - c2);
       }
-      return [hwb[0], c * 100, g * 100];
+      return [hwb[0], c2 * 100, g * 100];
     };
     convert.apple.rgb = function(apple) {
       return [apple[0] / 65535 * 255, apple[1] / 65535 * 255, apple[2] / 65535 * 255];
@@ -30243,16 +30243,16 @@ var require_templates = __commonJS({
       ["e", "\x1B"],
       ["a", "\x07"]
     ]);
-    function unescape(c) {
-      const u = c[0] === "u";
-      const bracket = c[1] === "{";
-      if (u && !bracket && c.length === 5 || c[0] === "x" && c.length === 3) {
-        return String.fromCharCode(parseInt(c.slice(1), 16));
+    function unescape(c2) {
+      const u = c2[0] === "u";
+      const bracket = c2[1] === "{";
+      if (u && !bracket && c2.length === 5 || c2[0] === "x" && c2.length === 3) {
+        return String.fromCharCode(parseInt(c2.slice(1), 16));
       }
       if (u && bracket) {
-        return String.fromCodePoint(parseInt(c.slice(2, -1), 16));
+        return String.fromCodePoint(parseInt(c2.slice(2, -1), 16));
       }
-      return ESCAPES4.get(c) || c;
+      return ESCAPES4.get(c2) || c2;
     }
     __name(unescape, "unescape");
     function parseArguments(name, arguments_) {
@@ -31051,11 +31051,13 @@ __export(paths_exports, {
   PROJECT_AICLI: () => PROJECT_AICLI,
   USER_AICLI: () => USER_AICLI,
   aicliDirs: () => aicliDirs,
+  getAppVersion: () => getAppVersion,
   subdirs: () => subdirs
 });
 import { homedir } from "node:os";
-import { join } from "node:path";
-import { existsSync as existsSync2 } from "node:fs";
+import { dirname, join } from "node:path";
+import { existsSync as existsSync2, readFileSync as readFileSync2 } from "node:fs";
+import { fileURLToPath } from "node:url";
 function aicliDirs() {
   const dirs = [];
   if (existsSync2(PROJECT_AICLI)) dirs.push(PROJECT_AICLI);
@@ -31066,7 +31068,23 @@ function aicliDirs() {
 function subdirs(name) {
   return aicliDirs().map((d) => join(d, name)).filter(existsSync2);
 }
-var CWD, PROJECT_AICLI, USER_AICLI;
+function getAppVersion() {
+  if (cachedVersion !== void 0) return cachedVersion;
+  const here = dirname(fileURLToPath(import.meta.url));
+  for (const rel of ["../package.json", "../../package.json"]) {
+    try {
+      const pkg = JSON.parse(readFileSync2(join(here, rel), "utf8"));
+      if (typeof pkg.version === "string") {
+        cachedVersion = pkg.version;
+        return cachedVersion;
+      }
+    } catch {
+    }
+  }
+  cachedVersion = "?";
+  return cachedVersion;
+}
+var CWD, PROJECT_AICLI, USER_AICLI, cachedVersion;
 var init_paths = __esm({
   "src/utils/paths.ts"() {
     "use strict";
@@ -31075,6 +31093,7 @@ var init_paths = __esm({
     USER_AICLI = join(homedir(), ".aicli");
     __name(aicliDirs, "aicliDirs");
     __name(subdirs, "subdirs");
+    __name(getAppVersion, "getAppVersion");
   }
 });
 
@@ -31200,6 +31219,81 @@ var init_history_store = __esm({
   }
 });
 
+// src/ui/theme.ts
+var colors, c, IS_LEGACY_CONSOLE, SYMBOLS_UNICODE, SYMBOLS_ASCII, symbols;
+var init_theme = __esm({
+  "src/ui/theme.ts"() {
+    "use strict";
+    colors = {
+      // Accents
+      accent: "#e27649",
+      accentSoft: "#ec9470",
+      accentDeep: "#b85a31",
+      // Ink (text)
+      ink: "#f6f1e8",
+      inkBright: "#f6f1e8",
+      inkMuted: "#bdb3a1",
+      inkDim: "#8a8270",
+      inkFaint: "#4a4239",
+      // Semantic
+      success: "#7fa670",
+      danger: "#c76a5f",
+      info: "#7fa8a6",
+      // Structure
+      border: "#4a4239",
+      borderDim: "#2a2520",
+      bgTag: "#245454"
+    };
+    c = colors;
+    IS_LEGACY_CONSOLE = process.platform === "win32" && !process.env.WT_SESSION;
+    SYMBOLS_UNICODE = {
+      cursor: "\u25B8",
+      prompt: "\u203A",
+      info: "\u2022",
+      user: "\xBB",
+      assistant: "\u25CF",
+      tool: "\u25C6",
+      toolOut: "\u2502",
+      toolReturn: "\u23BF",
+      phaseTool: "\u25B2",
+      warn: "\u26A0",
+      error: "\u2717",
+      success: "\u2713",
+      question: "?",
+      bar: "\u2503",
+      rule: "\u2500",
+      ellipsis: "\u2026",
+      midDot: "\xB7",
+      arrowUp: "\u2191",
+      arrowDown: "\u2193",
+      arrowRight: "\u2192"
+    };
+    SYMBOLS_ASCII = {
+      cursor: ">",
+      prompt: ">",
+      info: "*",
+      user: ">>",
+      assistant: "*",
+      tool: "#",
+      toolOut: "|",
+      toolReturn: "L>",
+      phaseTool: "^",
+      warn: "!",
+      error: "x",
+      success: "+",
+      question: "?",
+      bar: "|",
+      rule: "-",
+      ellipsis: "...",
+      midDot: ".",
+      arrowUp: "^",
+      arrowDown: "v",
+      arrowRight: "->"
+    };
+    symbols = IS_LEGACY_CONSOLE ? SYMBOLS_ASCII : SYMBOLS_UNICODE;
+  }
+});
+
 // src/utils/logger.ts
 function ui(text, level = "raw") {
   historyStore.push({ type: level, text });
@@ -31256,26 +31350,27 @@ var init_logger = __esm({
     "use strict";
     import_chalk4 = __toESM(require_source(), 1);
     init_history_store();
+    init_theme();
     __name(ui, "ui");
     ATH = {
-      accent: import_chalk4.default.hex("#e27649"),
-      accentSoft: import_chalk4.default.hex("#ec9470"),
-      accentDeep: import_chalk4.default.hex("#b85a31"),
-      ink: import_chalk4.default.hex("#f6f1e8"),
-      inkMuted: import_chalk4.default.hex("#bdb3a1"),
-      inkFaint: import_chalk4.default.hex("#8a8270"),
-      success: import_chalk4.default.hex("#7fa670"),
-      danger: import_chalk4.default.hex("#c76a5f")
+      accent: import_chalk4.default.hex(c.accent),
+      accentSoft: import_chalk4.default.hex(c.accentSoft),
+      accentDeep: import_chalk4.default.hex(c.accentDeep),
+      ink: import_chalk4.default.hex(c.ink),
+      inkMuted: import_chalk4.default.hex(c.inkMuted),
+      inkFaint: import_chalk4.default.hex(c.inkDim),
+      success: import_chalk4.default.hex(c.success),
+      danger: import_chalk4.default.hex(c.danger)
     };
     SYM = {
-      info: "\u203A",
-      warn: "!",
-      error: "\u2717",
-      user: "\xBB",
-      assistant: "\u25CF",
-      tool: "\u25C6",
-      toolOut: "\u2502",
-      kicker: "\u2500"
+      info: symbols.info,
+      warn: symbols.warn,
+      error: symbols.error,
+      user: symbols.user,
+      assistant: symbols.assistant,
+      tool: symbols.tool,
+      toolOut: symbols.toolOut,
+      kicker: symbols.rule
     };
     __name(compact, "compact");
     __name(formatResetIn, "formatResetIn");
@@ -31911,15 +32006,15 @@ var init_model_catalog = __esm({
 });
 
 // src/utils/git-info.ts
-import { readFileSync as readFileSync3, existsSync as existsSync4, statSync } from "node:fs";
-import { join as join3, dirname as dirname2 } from "node:path";
+import { readFileSync as readFileSync4, existsSync as existsSync4, statSync } from "node:fs";
+import { join as join3, dirname as dirname3 } from "node:path";
 import { spawnSync } from "node:child_process";
 function findGitDir(startDir) {
   let dir = startDir;
   for (let i = 0; i < 100; i++) {
     const candidate = join3(dir, ".git");
     if (existsSync4(candidate)) return candidate;
-    const parent = dirname2(dir);
+    const parent = dirname3(dir);
     if (parent === dir) return null;
     dir = parent;
   }
@@ -31942,11 +32037,11 @@ function getGitInfo(cwd2) {
     cached = { at: now, cwd: cwd2, info };
     return info;
   }
-  info.repoRoot = dirname2(gitDir);
+  info.repoRoot = dirname3(gitDir);
   try {
     const headPath = join3(gitDir, "HEAD");
     if (existsSync4(headPath) && statSync(headPath).isFile()) {
-      const head = readFileSync3(headPath, "utf8").trim();
+      const head = readFileSync4(headPath, "utf8").trim();
       const m = /^ref:\s+refs\/heads\/(.+)$/.exec(head);
       info.branch = m ? m[1] : head.slice(0, 7);
     }
@@ -32119,7 +32214,7 @@ function visibleLen(s) {
 }
 function renderStatusLines(cols) {
   const tag = state.sessionTag ?? cleanProvider2(state.provider ?? "");
-  const tagBox = tag ? import_chalk4.default.bgHex("#245454").hex("#f6f1e8")(` ${tag} `) : "";
+  const tagBox = tag ? import_chalk4.default.bgHex(c.bgTag).hex(c.ink)(` ${tag} `) : "";
   const ruleLen = Math.max(0, cols - visibleLen(tagBox) - 2);
   const rule = TEAL(GLYPH.sepLine.repeat(ruleLen)) + (tagBox ? "  " + tagBox : "");
   const parts1 = [];
@@ -32191,15 +32286,15 @@ function renderStatusLines(cols) {
   }
   let modePart = "";
   if (state.permissionMode === "bypass") {
-    modePart = import_chalk4.default.hex("#e26849").bold(
-      (IS_LEGACY_CONSOLE ? "! " : "\u26A0 ") + "bypass"
+    modePart = import_chalk4.default.hex(c.danger).bold(
+      (IS_LEGACY_CONSOLE2 ? "! " : "\u26A0 ") + "bypass"
     ) + "  ";
   } else if (state.permissionMode === "plan") {
-    modePart = ACCENT_SOFT((IS_LEGACY_CONSOLE ? "[P] " : "\u2394 ") + "plan") + "  ";
+    modePart = ACCENT_SOFT((IS_LEGACY_CONSOLE2 ? "[P] " : "\u2394 ") + "plan") + "  ";
   } else if (state.permissionMode === "accept-edits") {
-    modePart = SUCCESS((IS_LEGACY_CONSOLE ? "[E] " : "\u2713 ") + "accept-edits") + "  ";
+    modePart = SUCCESS((IS_LEGACY_CONSOLE2 ? "[E] " : "\u2713 ") + "accept-edits") + "  ";
   } else if (state.permissionMode) {
-    modePart = MUTED((IS_LEGACY_CONSOLE ? "[D] " : "\u25CB ") + state.permissionMode) + "  ";
+    modePart = MUTED((IS_LEGACY_CONSOLE2 ? "[D] " : "\u25CB ") + state.permissionMode) + "  ";
   }
   const versionPart = FAINT(`v${VERSION}`);
   const leftLen = visibleLen(phaseStr);
@@ -32242,13 +32337,14 @@ function resetTurn() {
   state.phase = "idle";
   scheduleRender();
 }
-var emitter, state, enabled, VERSION, PHASE_LABEL, IS_LEGACY_CONSOLE, PHASE_SYM, ANIM_FRAMES, ANIMATED_PHASES, TICK_INTERVAL_MS, frame, tickTimer, STAR_FRAMES, GLYPH, PHASE_COLOR, FAINT, MUTED, INK, INK_BRIGHT, ACCENT, ACCENT_SOFT, DANGER, SUCCESS, TEAL, cleanProvider2, contextWindowFor2;
+var emitter, state, enabled, VERSION, PHASE_LABEL, IS_LEGACY_CONSOLE2, PHASE_SYM, ANIM_FRAMES, ANIMATED_PHASES, TICK_INTERVAL_MS, frame, tickTimer, STAR_FRAMES, GLYPH, PHASE_COLOR, FAINT, MUTED, INK, INK_BRIGHT, ACCENT, ACCENT_SOFT, DANGER, SUCCESS, TEAL, cleanProvider2, contextWindowFor2;
 var init_status_bar = __esm({
   "src/utils/status-bar.ts"() {
     "use strict";
     init_logger();
     init_git_info();
     init_context_window();
+    init_theme();
     emitter = new EventEmitter4();
     emitter.setMaxListeners(20);
     __name(subscribeStatus, "subscribeStatus");
@@ -32265,14 +32361,14 @@ var init_status_bar = __esm({
       compacting: "compacting\u2026",
       offline: "offline"
     };
-    IS_LEGACY_CONSOLE = process.platform === "win32" && !process.env.WT_SESSION;
-    PHASE_SYM = IS_LEGACY_CONSOLE ? {
+    IS_LEGACY_CONSOLE2 = process.platform === "win32" && !process.env.WT_SESSION;
+    PHASE_SYM = IS_LEGACY_CONSOLE2 ? {
       idle: ".",
       loading: "~",
       thinking: "*",
       streaming: "*",
       "waiting-quota": "...",
-      "executing-tool": "#",
+      "executing-tool": symbols.phaseTool,
       compacting: "~",
       offline: "o"
     } : {
@@ -32281,15 +32377,15 @@ var init_status_bar = __esm({
       thinking: "\u25CF",
       streaming: "\u25CF",
       "waiting-quota": "\u23F3",
-      "executing-tool": "\u25C6",
+      "executing-tool": symbols.phaseTool,
       compacting: "\u21BB",
       offline: "\u25CB"
     };
-    ANIM_FRAMES = IS_LEGACY_CONSOLE ? {} : {
+    ANIM_FRAMES = IS_LEGACY_CONSOLE2 ? {} : {
       thinking: ["\u280B", "\u2819", "\u2839", "\u2838", "\u283C", "\u2834", "\u2826", "\u2827", "\u2807", "\u280F"],
       streaming: ["\u25CF", "\u25D0", "\u25D1", "\u25D2", "\u25D3", "\u25D4", "\u25D5"],
       loading: ["\u25DC", "\u25E0", "\u25DD", "\u25DE", "\u25E1", "\u25DF"],
-      "executing-tool": ["\u25C6", "\u25C8", "\u25C7", "\u25C8"],
+      "executing-tool": ["\u25B2", "\u25B4", "\u25B3", "\u25B4"],
       compacting: ["\u2801", "\u2802", "\u2804", "\u2840", "\u2880", "\u2820", "\u2810", "\u2808"],
       "waiting-quota": ["\u23F3", "\u231B"]
     };
@@ -32307,28 +32403,28 @@ var init_status_bar = __esm({
     __name(startTick, "startTick");
     __name(stopTick, "stopTick");
     __name(phaseSymbol, "phaseSymbol");
-    STAR_FRAMES = IS_LEGACY_CONSOLE ? ["*"] : ["\u2605", "\u2726", "\u2727", "\u2726"];
+    STAR_FRAMES = IS_LEGACY_CONSOLE2 ? ["*"] : ["\u2605", "\u2726", "\u2727", "\u2726"];
     __name(starSymbol, "starSymbol");
-    GLYPH = IS_LEGACY_CONSOLE ? { diamond: "#", sepLine: "-", midDot: ".", arrowUp: "^", arrowDown: "v", star: "*" } : { diamond: "\u25C6", sepLine: "\u2500", midDot: "\xB7", arrowUp: "\u2191", arrowDown: "\u2193", star: "\u2605" };
+    GLYPH = IS_LEGACY_CONSOLE2 ? { diamond: "#", sepLine: "-", midDot: ".", arrowUp: "^", arrowDown: "v", star: "*" } : { diamond: "\u25C6", sepLine: "\u2500", midDot: "\xB7", arrowUp: "\u2191", arrowDown: "\u2193", star: "\u2605" };
     PHASE_COLOR = {
-      idle: import_chalk4.default.hex("#8a8270"),
-      loading: import_chalk4.default.hex("#7fa8a6"),
-      thinking: import_chalk4.default.hex("#ec9470"),
-      streaming: import_chalk4.default.hex("#e27649"),
-      "waiting-quota": import_chalk4.default.hex("#c76a5f"),
-      "executing-tool": import_chalk4.default.hex("#ec9470"),
-      compacting: import_chalk4.default.hex("#bdb3a1"),
-      offline: import_chalk4.default.hex("#8a8270")
+      idle: import_chalk4.default.hex(c.inkDim),
+      loading: import_chalk4.default.hex(c.info),
+      thinking: import_chalk4.default.hex(c.accentSoft),
+      streaming: import_chalk4.default.hex(c.accent),
+      "waiting-quota": import_chalk4.default.hex(c.danger),
+      "executing-tool": import_chalk4.default.hex(c.accentSoft),
+      compacting: import_chalk4.default.hex(c.inkMuted),
+      offline: import_chalk4.default.hex(c.inkDim)
     };
-    FAINT = import_chalk4.default.hex("#4a4239");
-    MUTED = import_chalk4.default.hex("#8a8270");
-    INK = import_chalk4.default.hex("#bdb3a1");
-    INK_BRIGHT = import_chalk4.default.hex("#f6f1e8");
-    ACCENT = import_chalk4.default.hex("#e27649");
-    ACCENT_SOFT = import_chalk4.default.hex("#ec9470");
-    DANGER = import_chalk4.default.hex("#c76a5f");
-    SUCCESS = import_chalk4.default.hex("#7fa670");
-    TEAL = import_chalk4.default.hex("#7fa8a6");
+    FAINT = import_chalk4.default.hex(c.inkFaint);
+    MUTED = import_chalk4.default.hex(c.inkDim);
+    INK = import_chalk4.default.hex(c.inkMuted);
+    INK_BRIGHT = import_chalk4.default.hex(c.ink);
+    ACCENT = import_chalk4.default.hex(c.accent);
+    ACCENT_SOFT = import_chalk4.default.hex(c.accentSoft);
+    DANGER = import_chalk4.default.hex(c.danger);
+    SUCCESS = import_chalk4.default.hex(c.success);
+    TEAL = import_chalk4.default.hex(c.info);
     __name(compact2, "compact");
     cleanProvider2 = cleanProvider;
     contextWindowFor2 = contextWindowFor;
@@ -32539,14 +32635,14 @@ function weightsFor(mode) {
         quality: 4,
         speed: 1,
         cost: 0,
-        categoryBonus: /* @__PURE__ */ __name((c) => c === "flagship" ? 2 : 0, "categoryBonus")
+        categoryBonus: /* @__PURE__ */ __name((c2) => c2 === "flagship" ? 2 : 0, "categoryBonus")
       };
     case "code":
       return {
         quality: 2,
         speed: 2,
         cost: 1,
-        categoryBonus: /* @__PURE__ */ __name((c) => c === "code" ? 5 : 0, "categoryBonus")
+        categoryBonus: /* @__PURE__ */ __name((c2) => c2 === "code" ? 5 : 0, "categoryBonus")
       };
     case "cheap":
       return {
@@ -32724,7 +32820,7 @@ __export(store_exports, {
   openSession: () => openSession
 });
 import {
-  readFileSync as readFileSync4,
+  readFileSync as readFileSync5,
   writeFileSync as writeFileSync2,
   appendFileSync,
   readdirSync,
@@ -32790,7 +32886,7 @@ function listSessions(cwd2, limit = 20) {
   return out.sort((a, b) => b.startedAt - a.startedAt).slice(0, limit);
 }
 function summarize(path2) {
-  const raw = readFileSync4(path2, "utf8");
+  const raw = readFileSync5(path2, "utf8");
   const lines = raw.split("\n").filter(Boolean);
   if (lines.length === 0) return null;
   const header = JSON.parse(lines[0]);
@@ -32846,7 +32942,7 @@ function listAllSessions(limit = 30) {
 }
 function loadSession(path2) {
   if (!existsSync5(path2)) return null;
-  const raw = readFileSync4(path2, "utf8");
+  const raw = readFileSync5(path2, "utf8");
   const lines = raw.split("\n").filter(Boolean);
   if (lines.length === 0) return null;
   const header = JSON.parse(lines[0]);
@@ -33627,7 +33723,7 @@ var init_dist = __esm({
 // node_modules/@inquirer/core/dist/lib/theme.js
 import { styleText } from "node:util";
 var defaultTheme;
-var init_theme = __esm({
+var init_theme2 = __esm({
   "node_modules/@inquirer/core/dist/lib/theme.js"() {
     init_dist();
     defaultTheme = {
@@ -33681,7 +33777,7 @@ function makeTheme(...themes) {
 }
 var init_make_theme = __esm({
   "node_modules/@inquirer/core/dist/lib/make-theme.js"() {
-    init_theme();
+    init_theme2();
     __name(isPlainObject, "isPlainObject");
     __name(deepMerge, "deepMerge");
     __name(makeTheme, "makeTheme");
@@ -34262,40 +34358,40 @@ var require_lib = __commonJS({
           return this._src.resume();
         }
       }
-      write(c) {
+      write(c2) {
         if (this.muted) {
           if (!this.replace) {
             return true;
           }
-          if (c.match(/^\u001b/)) {
-            if (c.indexOf(this._prompt) === 0) {
-              c = c.slice(this._prompt.length);
-              c = c.replace(/./g, this.replace);
-              c = this._prompt + c;
+          if (c2.match(/^\u001b/)) {
+            if (c2.indexOf(this._prompt) === 0) {
+              c2 = c2.slice(this._prompt.length);
+              c2 = c2.replace(/./g, this.replace);
+              c2 = this._prompt + c2;
             }
             this._hadControl = true;
-            return this.emit("data", c);
+            return this.emit("data", c2);
           } else {
-            if (this._prompt && this._hadControl && c.indexOf(this._prompt) === 0) {
+            if (this._prompt && this._hadControl && c2.indexOf(this._prompt) === 0) {
               this._hadControl = false;
               this.emit("data", this._prompt);
-              c = c.slice(this._prompt.length);
+              c2 = c2.slice(this._prompt.length);
             }
-            c = c.toString().replace(/./g, this.replace);
+            c2 = c2.toString().replace(/./g, this.replace);
           }
         }
-        this.emit("data", c);
+        this.emit("data", c2);
       }
-      end(c) {
+      end(c2) {
         if (this.muted) {
-          if (c && this.replace) {
-            c = c.toString().replace(/./g, this.replace);
+          if (c2 && this.replace) {
+            c2 = c2.toString().replace(/./g, this.replace);
           } else {
-            c = null;
+            c2 = null;
           }
         }
-        if (c) {
-          this.emit("data", c);
+        if (c2) {
+          this.emit("data", c2);
         }
         this.emit("end");
       }
@@ -34953,20 +35049,20 @@ __export(update_check_exports, {
   getLocalVersion: () => getLocalVersion,
   npmInfoUrl: () => npmInfoUrl
 });
-import { readFileSync as readFileSync6, writeFileSync as writeFileSync4, mkdirSync as mkdirSync4, existsSync as existsSync8 } from "node:fs";
-import { join as join9, dirname as dirname4 } from "node:path";
-import { fileURLToPath } from "node:url";
+import { readFileSync as readFileSync7, writeFileSync as writeFileSync4, mkdirSync as mkdirSync4, existsSync as existsSync8 } from "node:fs";
+import { join as join9, dirname as dirname5 } from "node:path";
+import { fileURLToPath as fileURLToPath2 } from "node:url";
 import { homedir as homedir6 } from "node:os";
 function getLocalVersion() {
   if (true) {
     return "0.3.1-dev.12";
   }
   try {
-    const here = dirname4(fileURLToPath(import.meta.url));
+    const here = dirname5(fileURLToPath2(import.meta.url));
     for (const rel of ["../../package.json", "../package.json"]) {
       const pkgFile = join9(here, rel);
       if (existsSync8(pkgFile)) {
-        const pkg = JSON.parse(readFileSync6(pkgFile, "utf8"));
+        const pkg = JSON.parse(readFileSync7(pkgFile, "utf8"));
         if (typeof pkg.version === "string") return pkg.version;
       }
     }
@@ -34980,7 +35076,7 @@ function detectChannel(version) {
 function readCache() {
   try {
     if (!existsSync8(CACHE_FILE)) return null;
-    const raw = readFileSync6(CACHE_FILE, "utf8");
+    const raw = readFileSync7(CACHE_FILE, "utf8");
     const parsed = JSON.parse(raw);
     if (Date.now() - parsed.checkedAt > CACHE_TTL_MS2) return null;
     return parsed;
@@ -34990,7 +35086,7 @@ function readCache() {
 }
 function writeCache(status) {
   try {
-    mkdirSync4(dirname4(CACHE_FILE), { recursive: true });
+    mkdirSync4(dirname5(CACHE_FILE), { recursive: true });
     writeFileSync4(CACHE_FILE, JSON.stringify(status, null, 2));
   } catch {
   }
@@ -35754,9 +35850,9 @@ var require_Alias = __commonJS({
       } else if (identity.isCollection(node)) {
         let count = 0;
         for (const item of node.items) {
-          const c = getAliasCount(doc, item, anchors2);
-          if (c > count)
-            count = c;
+          const c2 = getAliasCount(doc, item, anchors2);
+          if (c2 > count)
+            count = c2;
         }
         return count;
       } else if (identity.isPair(node)) {
@@ -42976,9 +43072,9 @@ var loadYoga = (() => {
     var noExitRuntime = h.noExitRuntime || true;
     "object" != typeof WebAssembly && x("no native wasm support detected");
     var fa, ha = false;
-    function z(a, b, c) {
-      c = b + c;
-      for (var d = ""; !(b >= c); ) {
+    function z(a, b, c2) {
+      c2 = b + c2;
+      for (var d = ""; !(b >= c2); ) {
         var e = a[b++];
         if (!e) break;
         if (e & 128) {
@@ -43040,9 +43136,9 @@ var loadYoga = (() => {
       try {
         if (a == H && w) return new Uint8Array(w);
         if (ua(a)) try {
-          var b = xa(a.slice(37)), c = new Uint8Array(b.length);
-          for (a = 0; a < b.length; ++a) c[a] = b.charCodeAt(a);
-          var d = c;
+          var b = xa(a.slice(37)), c2 = new Uint8Array(b.length);
+          for (a = 0; a < b.length; ++a) c2[a] = b.charCodeAt(a);
+          var d = c2;
         } catch (f) {
           throw Error("Converting base64 string to bytes failed.");
         }
@@ -43086,18 +43182,18 @@ var loadYoga = (() => {
     __name(Ba, "Ba");
     var J = [{}, { value: void 0 }, { value: null }, { value: true }, { value: false }], Ca = [];
     function Da(a) {
-      var b = Error, c = Ba(a, function(d) {
+      var b = Error, c2 = Ba(a, function(d) {
         this.name = a;
         this.message = d;
         d = Error(d).stack;
         void 0 !== d && (this.stack = this.toString() + "\n" + d.replace(/^Error(:[^\n]*)?\n/, ""));
       });
-      c.prototype = Object.create(b.prototype);
-      c.prototype.constructor = c;
-      c.prototype.toString = function() {
+      c2.prototype = Object.create(b.prototype);
+      c2.prototype.constructor = c2;
+      c2.prototype.toString = function() {
         return void 0 === this.message ? this.name : this.name + ": " + this.message;
       };
-      return c;
+      return c2;
     }
     __name(Da, "Da");
     var K = void 0;
@@ -43153,9 +43249,9 @@ var loadYoga = (() => {
     }
     __name(Ja, "Ja");
     function La(a, b) {
-      var c = R[a];
-      void 0 === c && L(b + " has unknown type " + Ja(a));
-      return c;
+      var c2 = R[a];
+      void 0 === c2 && L(b + " has unknown type " + Ja(a));
+      return c2;
     }
     __name(La, "La");
     function Ma() {
@@ -43167,11 +43263,11 @@ var loadYoga = (() => {
       0 === a.count.value && (a.T ? a.U.W(a.T) : a.P.N.W(a.O));
     }
     __name(Oa, "Oa");
-    function Pa(a, b, c) {
-      if (b === c) return a;
-      if (void 0 === c.R) return null;
-      a = Pa(a, b, c.R);
-      return null === a ? null : c.na(a);
+    function Pa(a, b, c2) {
+      if (b === c2) return a;
+      if (void 0 === c2.R) return null;
+      a = Pa(a, b, c2.R);
+      return null === a ? null : c2.na(a);
     }
     __name(Pa, "Pa");
     var Qa = {};
@@ -43198,8 +43294,8 @@ var loadYoga = (() => {
         Oa(b.M);
       });
       T = /* @__PURE__ */ __name((b) => {
-        var c = b.M;
-        c.T && Na.register(b, { M: c }, b);
+        var c2 = b.M;
+        c2.T && Na.register(b, { M: c2 }, b);
         return b;
       }, "T");
       Ma = /* @__PURE__ */ __name((b) => {
@@ -43221,9 +43317,9 @@ var loadYoga = (() => {
     }
     __name(Xa, "Xa");
     var U = {}, Ya = {};
-    function V(a, b, c) {
+    function V(a, b, c2) {
       function d(k) {
-        k = c(k);
+        k = c2(k);
         k.length !== a.length && Ta("Mismatched type converter count");
         for (var m = 0; m < a.length; ++m) W(a[m], k[m]);
       }
@@ -43257,12 +43353,12 @@ var loadYoga = (() => {
       }
     }
     __name(Za, "Za");
-    function W(a, b, c = {}) {
+    function W(a, b, c2 = {}) {
       if (!("argPackAdvance" in b)) throw new TypeError("registerType registeredInstance requires argPackAdvance");
       var d = b.name;
       a || L('type "' + d + '" must have a positive integer typeid pointer');
       if (R.hasOwnProperty(a)) {
-        if (c.ua) return;
+        if (c2.ua) return;
         L("Cannot register type '" + d + "' twice");
       }
       R[a] = b;
@@ -43277,11 +43373,11 @@ var loadYoga = (() => {
     function X() {
     }
     __name(X, "X");
-    function ab(a, b, c) {
+    function ab(a, b, c2) {
       if (void 0 === a[b].S) {
         var d = a[b];
         a[b] = function() {
-          a[b].S.hasOwnProperty(arguments.length) || L("Function '" + c + "' called with an invalid number of arguments (" + arguments.length + ") - expects one of (" + a[b].S + ")!");
+          a[b].S.hasOwnProperty(arguments.length) || L("Function '" + c2 + "' called with an invalid number of arguments (" + arguments.length + ") - expects one of (" + a[b].S + ")!");
           return a[b].S[arguments.length].apply(this, arguments);
         };
         a[b].S = [];
@@ -43293,10 +43389,10 @@ var loadYoga = (() => {
       h.hasOwnProperty(a) ? (L("Cannot register public name '" + a + "' twice"), ab(h, a, a), h.hasOwnProperty(void 0) && L("Cannot register multiple overloads of a function with the same number of arguments (undefined)!"), h[a].S[void 0] = b) : h[a] = b;
     }
     __name(bb, "bb");
-    function cb(a, b, c, d, e, f, g, k) {
+    function cb(a, b, c2, d, e, f, g, k) {
       this.name = a;
       this.constructor = b;
-      this.X = c;
+      this.X = c2;
       this.W = d;
       this.R = e;
       this.pa = f;
@@ -43305,8 +43401,8 @@ var loadYoga = (() => {
       this.ja = [];
     }
     __name(cb, "cb");
-    function db(a, b, c) {
-      for (; b !== c; ) b.ba || L("Expected null or instance of " + c.name + ", got an instance of " + b.name), a = b.ba(a), b = b.R;
+    function db(a, b, c2) {
+      for (; b !== c2; ) b.ba || L("Expected null or instance of " + c2.name + ", got an instance of " + b.name), a = b.ba(a), b = b.R;
       return a;
     }
     __name(db, "db");
@@ -43321,37 +43417,37 @@ var loadYoga = (() => {
       if (null === b) {
         this.ea && L("null is not a valid " + this.name);
         if (this.da) {
-          var c = this.fa();
-          null !== a && a.push(this.W, c);
-          return c;
+          var c2 = this.fa();
+          null !== a && a.push(this.W, c2);
+          return c2;
         }
         return 0;
       }
       b.M || L('Cannot pass "' + fb(b) + '" as a ' + this.name);
       b.M.O || L("Cannot pass deleted object as a pointer of type " + this.name);
       !this.ca && b.M.P.ca && L("Cannot convert argument of type " + (b.M.U ? b.M.U.name : b.M.P.name) + " to parameter type " + this.name);
-      c = db(b.M.O, b.M.P.N, this.N);
+      c2 = db(b.M.O, b.M.P.N, this.N);
       if (this.da) switch (void 0 === b.M.T && L("Passing raw pointer to smart pointer is illegal"), this.Ba) {
         case 0:
-          b.M.U === this ? c = b.M.T : L("Cannot convert argument of type " + (b.M.U ? b.M.U.name : b.M.P.name) + " to parameter type " + this.name);
+          b.M.U === this ? c2 = b.M.T : L("Cannot convert argument of type " + (b.M.U ? b.M.U.name : b.M.P.name) + " to parameter type " + this.name);
           break;
         case 1:
-          c = b.M.T;
+          c2 = b.M.T;
           break;
         case 2:
-          if (b.M.U === this) c = b.M.T;
+          if (b.M.U === this) c2 = b.M.T;
           else {
             var d = b.clone();
-            c = this.xa(c, Ea(function() {
+            c2 = this.xa(c2, Ea(function() {
               d["delete"]();
             }));
-            null !== a && a.push(this.W, c);
+            null !== a && a.push(this.W, c2);
           }
           break;
         default:
           L("Unsupporting sharing policy");
       }
-      return c;
+      return c2;
     }
     __name(gb, "gb");
     function hb(a, b) {
@@ -43362,10 +43458,10 @@ var loadYoga = (() => {
       return db(b.M.O, b.M.P.N, this.N);
     }
     __name(hb, "hb");
-    function Y(a, b, c, d) {
+    function Y(a, b, c2, d) {
       this.name = a;
       this.N = b;
-      this.ea = c;
+      this.ea = c2;
       this.ca = d;
       this.da = false;
       this.W = this.xa = this.fa = this.ka = this.Ba = this.wa = void 0;
@@ -43379,41 +43475,41 @@ var loadYoga = (() => {
     }
     __name(ib, "ib");
     function jb(a, b) {
-      var c = [];
+      var c2 = [];
       return function() {
-        c.length = 0;
-        Object.assign(c, arguments);
+        c2.length = 0;
+        Object.assign(c2, arguments);
         if (a.includes("j")) {
           var d = h["dynCall_" + a];
-          d = c && c.length ? d.apply(null, [b].concat(c)) : d.call(null, b);
-        } else d = oa.get(b).apply(null, c);
+          d = c2 && c2.length ? d.apply(null, [b].concat(c2)) : d.call(null, b);
+        } else d = oa.get(b).apply(null, c2);
         return d;
       };
     }
     __name(jb, "jb");
     function Z(a, b) {
       a = N(a);
-      var c = a.includes("j") ? jb(a, b) : oa.get(b);
-      "function" != typeof c && L("unknown function pointer with signature " + a + ": " + b);
-      return c;
+      var c2 = a.includes("j") ? jb(a, b) : oa.get(b);
+      "function" != typeof c2 && L("unknown function pointer with signature " + a + ": " + b);
+      return c2;
     }
     __name(Z, "Z");
     var mb = void 0;
     function nb(a, b) {
-      function c(f) {
-        e[f] || R[f] || (Ya[f] ? Ya[f].forEach(c) : (d.push(f), e[f] = true));
+      function c2(f) {
+        e[f] || R[f] || (Ya[f] ? Ya[f].forEach(c2) : (d.push(f), e[f] = true));
       }
-      __name(c, "c");
+      __name(c2, "c");
       var d = [], e = {};
-      b.forEach(c);
+      b.forEach(c2);
       throw new mb(a + ": " + d.map(Ja).join([", "]));
     }
     __name(nb, "nb");
-    function ob(a, b, c, d, e) {
+    function ob(a, b, c2, d, e) {
       var f = b.length;
       2 > f && L("argTypes array size mismatch! Must at least get return value and 'this' types!");
-      var g = null !== b[1] && null !== c, k = false;
-      for (c = 1; c < b.length; ++c) if (null !== b[c] && void 0 === b[c].V) {
+      var g = null !== b[1] && null !== c2, k = false;
+      for (c2 = 1; c2 < b.length; ++c2) if (null !== b[c2] && void 0 === b[c2].V) {
         k = true;
         break;
       }
@@ -43440,8 +43536,8 @@ var loadYoga = (() => {
     }
     __name(ob, "ob");
     function pb(a, b) {
-      for (var c = [], d = 0; d < a; d++) c.push(E[b + 4 * d >> 2]);
-      return c;
+      for (var c2 = [], d = 0; d < a; d++) c2.push(E[b + 4 * d >> 2]);
+      return c2;
     }
     __name(pb, "pb");
     function qb(a) {
@@ -43457,34 +43553,34 @@ var loadYoga = (() => {
     function rb(a, b) {
       switch (b) {
         case 2:
-          return function(c) {
-            return this.fromWireType(la[c >> 2]);
+          return function(c2) {
+            return this.fromWireType(la[c2 >> 2]);
           };
         case 3:
-          return function(c) {
-            return this.fromWireType(ma[c >> 3]);
+          return function(c2) {
+            return this.fromWireType(ma[c2 >> 3]);
           };
         default:
           throw new TypeError("Unknown float type: " + a);
       }
     }
     __name(rb, "rb");
-    function sb(a, b, c) {
+    function sb(a, b, c2) {
       switch (b) {
         case 0:
-          return c ? function(d) {
+          return c2 ? function(d) {
             return ja[d];
           } : function(d) {
             return A[d];
           };
         case 1:
-          return c ? function(d) {
+          return c2 ? function(d) {
             return C[d >> 1];
           } : function(d) {
             return ka[d >> 1];
           };
         case 2:
-          return c ? function(d) {
+          return c2 ? function(d) {
             return D[d >> 2];
           } : function(d) {
             return E[d >> 2];
@@ -43495,21 +43591,21 @@ var loadYoga = (() => {
     }
     __name(sb, "sb");
     function tb(a, b) {
-      for (var c = "", d = 0; !(d >= b / 2); ++d) {
+      for (var c2 = "", d = 0; !(d >= b / 2); ++d) {
         var e = C[a + 2 * d >> 1];
         if (0 == e) break;
-        c += String.fromCharCode(e);
+        c2 += String.fromCharCode(e);
       }
-      return c;
+      return c2;
     }
     __name(tb, "tb");
-    function ub(a, b, c) {
-      void 0 === c && (c = 2147483647);
-      if (2 > c) return 0;
-      c -= 2;
+    function ub(a, b, c2) {
+      void 0 === c2 && (c2 = 2147483647);
+      if (2 > c2) return 0;
+      c2 -= 2;
       var d = b;
-      c = c < 2 * a.length ? c / 2 : a.length;
-      for (var e = 0; e < c; ++e) C[b >> 1] = a.charCodeAt(e), b += 2;
+      c2 = c2 < 2 * a.length ? c2 / 2 : a.length;
+      for (var e = 0; e < c2; ++e) C[b >> 1] = a.charCodeAt(e), b += 2;
       C[b >> 1] = 0;
       return b - d;
     }
@@ -43519,20 +43615,20 @@ var loadYoga = (() => {
     }
     __name(vb, "vb");
     function wb(a, b) {
-      for (var c = 0, d = ""; !(c >= b / 4); ) {
-        var e = D[a + 4 * c >> 2];
+      for (var c2 = 0, d = ""; !(c2 >= b / 4); ) {
+        var e = D[a + 4 * c2 >> 2];
         if (0 == e) break;
-        ++c;
+        ++c2;
         65536 <= e ? (e -= 65536, d += String.fromCharCode(55296 | e >> 10, 56320 | e & 1023)) : d += String.fromCharCode(e);
       }
       return d;
     }
     __name(wb, "wb");
-    function xb(a, b, c) {
-      void 0 === c && (c = 2147483647);
-      if (4 > c) return 0;
+    function xb(a, b, c2) {
+      void 0 === c2 && (c2 = 2147483647);
+      if (4 > c2) return 0;
       var d = b;
-      c = d + c - 4;
+      c2 = d + c2 - 4;
       for (var e = 0; e < a.length; ++e) {
         var f = a.charCodeAt(e);
         if (55296 <= f && 57343 >= f) {
@@ -43541,16 +43637,16 @@ var loadYoga = (() => {
         }
         D[b >> 2] = f;
         b += 4;
-        if (b + 4 > c) break;
+        if (b + 4 > c2) break;
       }
       D[b >> 2] = 0;
       return b - d;
     }
     __name(xb, "xb");
     function yb(a) {
-      for (var b = 0, c = 0; c < a.length; ++c) {
-        var d = a.charCodeAt(c);
-        55296 <= d && 57343 >= d && ++c;
+      for (var b = 0, c2 = 0; c2 < a.length; ++c2) {
+        var d = a.charCodeAt(c2);
+        55296 <= d && 57343 >= d && ++c2;
         b += 4;
       }
       return b;
@@ -43570,8 +43666,8 @@ var loadYoga = (() => {
     }
     __name(Cb, "Cb");
     function Db(a, b) {
-      for (var c = Array(a), d = 0; d < a; ++d) c[d] = La(E[b + 4 * d >> 2], "parameter " + d);
-      return c;
+      for (var c2 = Array(a), d = 0; d < a; ++d) c2[d] = La(E[b + 4 * d >> 2], "parameter " + d);
+      return c2;
     }
     __name(Db, "Db");
     var Eb = [], Fb = [null, [], []];
@@ -43603,16 +43699,16 @@ var loadYoga = (() => {
     Sa = h.InternalError = Da("InternalError");
     X.prototype.isAliasOf = function(a) {
       if (!(this instanceof X && a instanceof X)) return false;
-      var b = this.M.P.N, c = this.M.O, d = a.M.P.N;
-      for (a = a.M.O; b.R; ) c = b.ba(c), b = b.R;
+      var b = this.M.P.N, c2 = this.M.O, d = a.M.P.N;
+      for (a = a.M.O; b.R; ) c2 = b.ba(c2), b = b.R;
       for (; d.R; ) a = d.ba(a), d = d.R;
-      return b === d && c === a;
+      return b === d && c2 === a;
     };
     X.prototype.clone = function() {
       this.M.O || $a(this);
       if (this.M.aa) return this.M.count.value += 1, this;
-      var a = T, b = Object, c = b.create, d = Object.getPrototypeOf(this), e = this.M;
-      a = a(c.call(b, d, { M: { value: { count: e.count, $: e.$, aa: e.aa, O: e.O, P: e.P, T: e.T, U: e.U } } }));
+      var a = T, b = Object, c2 = b.create, d = Object.getPrototypeOf(this), e = this.M;
+      a = a(c2.call(b, d, { M: { value: { count: e.count, $: e.$, aa: e.aa, O: e.O, P: e.P, T: e.T, U: e.U } } }));
       a.M.count.value += 1;
       a.M.$ = false;
       return a;
@@ -43649,50 +43745,50 @@ var loadYoga = (() => {
     };
     Y.prototype.fromWireType = function(a) {
       function b() {
-        return this.da ? Ua(this.N.X, { P: this.wa, O: c, U: this, T: a }) : Ua(this.N.X, { P: this, O: a });
+        return this.da ? Ua(this.N.X, { P: this.wa, O: c2, U: this, T: a }) : Ua(this.N.X, { P: this, O: a });
       }
       __name(b, "b");
-      var c = this.qa(a);
-      if (!c) return this.ha(a), null;
-      var d = Ra(this.N, c);
+      var c2 = this.qa(a);
+      if (!c2) return this.ha(a), null;
+      var d = Ra(this.N, c2);
       if (void 0 !== d) {
-        if (0 === d.M.count.value) return d.M.O = c, d.M.T = a, d.clone();
+        if (0 === d.M.count.value) return d.M.O = c2, d.M.T = a, d.clone();
         d = d.clone();
         this.ha(a);
         return d;
       }
-      d = this.N.pa(c);
+      d = this.N.pa(c2);
       d = Qa[d];
       if (!d) return b.call(this);
       d = this.ca ? d.la : d.pointerType;
-      var e = Pa(c, this.N, d.N);
+      var e = Pa(c2, this.N, d.N);
       return null === e ? b.call(this) : this.da ? Ua(d.N.X, { P: d, O: e, U: this, T: a }) : Ua(d.N.X, { P: d, O: e });
     };
     mb = h.UnboundTypeError = Da("UnboundTypeError");
     var xa = "function" == typeof atob ? atob : function(a) {
-      var b = "", c = 0;
+      var b = "", c2 = 0;
       a = a.replace(/[^A-Za-z0-9\+\/=]/g, "");
       do {
-        var d = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=".indexOf(a.charAt(c++));
-        var e = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=".indexOf(a.charAt(c++));
-        var f = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=".indexOf(a.charAt(c++));
-        var g = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=".indexOf(a.charAt(c++));
+        var d = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=".indexOf(a.charAt(c2++));
+        var e = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=".indexOf(a.charAt(c2++));
+        var f = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=".indexOf(a.charAt(c2++));
+        var g = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=".indexOf(a.charAt(c2++));
         d = d << 2 | e >> 4;
         e = (e & 15) << 4 | f >> 2;
         var k = (f & 3) << 6 | g;
         b += String.fromCharCode(d);
         64 !== f && (b += String.fromCharCode(e));
         64 !== g && (b += String.fromCharCode(k));
-      } while (c < a.length);
+      } while (c2 < a.length);
       return b;
     }, Jb = {
-      l: /* @__PURE__ */ __name(function(a, b, c, d) {
-        x("Assertion failed: " + (a ? z(A, a) : "") + ", at: " + [b ? b ? z(A, b) : "" : "unknown filename", c, d ? d ? z(A, d) : "" : "unknown function"]);
+      l: /* @__PURE__ */ __name(function(a, b, c2, d) {
+        x("Assertion failed: " + (a ? z(A, a) : "") + ", at: " + [b ? b ? z(A, b) : "" : "unknown filename", c2, d ? d ? z(A, d) : "" : "unknown function"]);
       }, "l"),
-      q: /* @__PURE__ */ __name(function(a, b, c) {
+      q: /* @__PURE__ */ __name(function(a, b, c2) {
         a = N(a);
         b = La(b, "wrapper");
-        c = M(c);
+        c2 = M(c2);
         var d = [].slice, e = b.N, f = e.X, g = e.R.X, k = e.R.constructor;
         a = Ba(a, function() {
           e.R.ja.forEach(function(l) {
@@ -43722,13 +43818,13 @@ var loadYoga = (() => {
           Q.hasOwnProperty(l) ? delete Q[l] : L("Tried to unregister unregistered instance: " + l);
         };
         a.prototype = Object.create(f);
-        for (var m in c) a.prototype[m] = c[m];
+        for (var m in c2) a.prototype[m] = c2[m];
         return Ea(a);
       }, "q"),
       j: /* @__PURE__ */ __name(function(a) {
         var b = Va[a];
         delete Va[a];
-        var c = b.fa, d = b.W, e = b.ia, f = e.map((g) => g.ta).concat(e.map((g) => g.za));
+        var c2 = b.fa, d = b.W, e = b.ia, f = e.map((g) => g.ta).concat(e.map((g) => g.za));
         V([a], f, (g) => {
           var k = {};
           e.forEach((m, l) => {
@@ -43750,7 +43846,7 @@ var loadYoga = (() => {
             return l;
           }, "fromWireType"), toWireType: /* @__PURE__ */ __name(function(m, l) {
             for (var n in k) if (!(n in l)) throw new TypeError('Missing field:  "' + n + '"');
-            var p = c();
+            var p = c2();
             for (n in k) k[n].write(p, l[n]);
             null !== m && m.push(d, p);
             return p;
@@ -43759,8 +43855,8 @@ var loadYoga = (() => {
       }, "j"),
       v: /* @__PURE__ */ __name(function() {
       }, "v"),
-      B: /* @__PURE__ */ __name(function(a, b, c, d, e) {
-        var f = Za(c);
+      B: /* @__PURE__ */ __name(function(a, b, c2, d, e) {
+        var f = Za(c2);
         b = N(b);
         W(a, {
           name: b,
@@ -43772,16 +43868,16 @@ var loadYoga = (() => {
           }, "toWireType"),
           argPackAdvance: 8,
           readValueFromPointer: /* @__PURE__ */ __name(function(g) {
-            if (1 === c) var k = ja;
-            else if (2 === c) k = C;
-            else if (4 === c) k = D;
+            if (1 === c2) var k = ja;
+            else if (2 === c2) k = C;
+            else if (4 === c2) k = D;
             else throw new TypeError("Unknown boolean type size: " + b);
             return this.fromWireType(k[g >> f]);
           }, "readValueFromPointer"),
           V: null
         });
       }, "B"),
-      f: /* @__PURE__ */ __name(function(a, b, c, d, e, f, g, k, m, l, n, p, r) {
+      f: /* @__PURE__ */ __name(function(a, b, c2, d, e, f, g, k, m, l, n, p, r) {
         n = N(n);
         f = Z(e, f);
         k && (k = Z(g, k));
@@ -43791,7 +43887,7 @@ var loadYoga = (() => {
         bb(u, function() {
           nb("Cannot construct " + n + " due to unbound types", [d]);
         });
-        V([a, b, c], d ? [d] : [], function(t) {
+        V([a, b, c2], d ? [d] : [], function(t) {
           t = t[0];
           if (d) {
             var y = t.N;
@@ -43818,8 +43914,8 @@ var loadYoga = (() => {
           return [y, B, lb];
         });
       }, "f"),
-      d: /* @__PURE__ */ __name(function(a, b, c, d, e, f, g) {
-        var k = pb(c, d);
+      d: /* @__PURE__ */ __name(function(a, b, c2, d, e, f, g) {
+        var k = pb(c2, d);
         b = N(b);
         f = Z(e, f);
         V([], [a], function(m) {
@@ -43831,20 +43927,20 @@ var loadYoga = (() => {
           var n = m.name + "." + b;
           b.startsWith("@@") && (b = Symbol[b.substring(2)]);
           var p = m.N.constructor;
-          void 0 === p[b] ? (l.Z = c - 1, p[b] = l) : (ab(p, b, n), p[b].S[c - 1] = l);
+          void 0 === p[b] ? (l.Z = c2 - 1, p[b] = l) : (ab(p, b, n), p[b].S[c2 - 1] = l);
           V([], k, function(r) {
             r = ob(n, [r[0], null].concat(r.slice(1)), null, f, g);
-            void 0 === p[b].S ? (r.Z = c - 1, p[b] = r) : p[b].S[c - 1] = r;
+            void 0 === p[b].S ? (r.Z = c2 - 1, p[b] = r) : p[b].S[c2 - 1] = r;
             return [];
           });
           return [];
         });
       }, "d"),
-      p: /* @__PURE__ */ __name(function(a, b, c, d, e, f) {
+      p: /* @__PURE__ */ __name(function(a, b, c2, d, e, f) {
         0 < b || x();
         var g = pb(
           b,
-          c
+          c2
         );
         e = Z(d, e);
         V([], [a], function(k) {
@@ -43863,8 +43959,8 @@ var loadYoga = (() => {
           return [];
         });
       }, "p"),
-      a: /* @__PURE__ */ __name(function(a, b, c, d, e, f, g, k) {
-        var m = pb(c, d);
+      a: /* @__PURE__ */ __name(function(a, b, c2, d, e, f, g, k) {
+        var m = pb(c2, d);
         b = N(b);
         f = Z(e, f);
         V([], [a], function(l) {
@@ -43877,10 +43973,10 @@ var loadYoga = (() => {
           b.startsWith("@@") && (b = Symbol[b.substring(2)]);
           k && l.N.ja.push(b);
           var r = l.N.X, u = r[b];
-          void 0 === u || void 0 === u.S && u.className !== l.name && u.Z === c - 2 ? (n.Z = c - 2, n.className = l.name, r[b] = n) : (ab(r, b, p), r[b].S[c - 2] = n);
+          void 0 === u || void 0 === u.S && u.className !== l.name && u.Z === c2 - 2 ? (n.Z = c2 - 2, n.className = l.name, r[b] = n) : (ab(r, b, p), r[b].S[c2 - 2] = n);
           V([], m, function(t) {
             t = ob(p, t, l, f, g);
-            void 0 === r[b].S ? (t.Z = c - 2, r[b] = t) : r[b].S[c - 2] = t;
+            void 0 === r[b].S ? (t.Z = c2 - 2, r[b] = t) : r[b].S[c2 - 2] = t;
             return [];
           });
           return [];
@@ -43890,41 +43986,41 @@ var loadYoga = (() => {
         b = N(b);
         W(
           a,
-          { name: b, fromWireType: /* @__PURE__ */ __name(function(c) {
-            var d = M(c);
-            qb(c);
+          { name: b, fromWireType: /* @__PURE__ */ __name(function(c2) {
+            var d = M(c2);
+            qb(c2);
             return d;
-          }, "fromWireType"), toWireType: /* @__PURE__ */ __name(function(c, d) {
+          }, "fromWireType"), toWireType: /* @__PURE__ */ __name(function(c2, d) {
             return Ea(d);
           }, "toWireType"), argPackAdvance: 8, readValueFromPointer: Xa, V: null }
         );
       }, "A"),
-      n: /* @__PURE__ */ __name(function(a, b, c) {
-        c = Za(c);
+      n: /* @__PURE__ */ __name(function(a, b, c2) {
+        c2 = Za(c2);
         b = N(b);
         W(a, { name: b, fromWireType: /* @__PURE__ */ __name(function(d) {
           return d;
         }, "fromWireType"), toWireType: /* @__PURE__ */ __name(function(d, e) {
           return e;
-        }, "toWireType"), argPackAdvance: 8, readValueFromPointer: rb(b, c), V: null });
+        }, "toWireType"), argPackAdvance: 8, readValueFromPointer: rb(b, c2), V: null });
       }, "n"),
-      e: /* @__PURE__ */ __name(function(a, b, c, d, e) {
+      e: /* @__PURE__ */ __name(function(a, b, c2, d, e) {
         b = N(b);
         -1 === e && (e = 4294967295);
-        e = Za(c);
+        e = Za(c2);
         var f = /* @__PURE__ */ __name((k) => k, "f");
         if (0 === d) {
-          var g = 32 - 8 * c;
+          var g = 32 - 8 * c2;
           f = /* @__PURE__ */ __name((k) => k << g >>> g, "f");
         }
-        c = b.includes("unsigned") ? function(k, m) {
+        c2 = b.includes("unsigned") ? function(k, m) {
           return m >>> 0;
         } : function(k, m) {
           return m;
         };
-        W(a, { name: b, fromWireType: f, toWireType: c, argPackAdvance: 8, readValueFromPointer: sb(b, e, 0 !== d), V: null });
+        W(a, { name: b, fromWireType: f, toWireType: c2, argPackAdvance: 8, readValueFromPointer: sb(b, e, 0 !== d), V: null });
       }, "e"),
-      b: /* @__PURE__ */ __name(function(a, b, c) {
+      b: /* @__PURE__ */ __name(function(a, b, c2) {
         function d(f) {
           f >>= 2;
           var g = E;
@@ -43932,15 +44028,15 @@ var loadYoga = (() => {
         }
         __name(d, "d");
         var e = [Int8Array, Uint8Array, Int16Array, Uint16Array, Int32Array, Uint32Array, Float32Array, Float64Array][b];
-        c = N(c);
-        W(a, { name: c, fromWireType: d, argPackAdvance: 8, readValueFromPointer: d }, { ua: true });
+        c2 = N(c2);
+        W(a, { name: c2, fromWireType: d, argPackAdvance: 8, readValueFromPointer: d }, { ua: true });
       }, "b"),
       o: /* @__PURE__ */ __name(function(a, b) {
         b = N(b);
-        var c = "std::string" === b;
+        var c2 = "std::string" === b;
         W(a, { name: b, fromWireType: /* @__PURE__ */ __name(function(d) {
           var e = E[d >> 2], f = d + 4;
-          if (c) for (var g = f, k = 0; k <= e; ++k) {
+          if (c2) for (var g = f, k = 0; k <= e; ++k) {
             var m = f + k;
             if (k == e || 0 == A[m]) {
               g = g ? z(A, g, m - g) : "";
@@ -43960,7 +44056,7 @@ var loadYoga = (() => {
           e instanceof ArrayBuffer && (e = new Uint8Array(e));
           var f, g = "string" == typeof e;
           g || e instanceof Uint8Array || e instanceof Uint8ClampedArray || e instanceof Int8Array || L("Cannot pass non-string to std::string");
-          if (c && g) {
+          if (c2 && g) {
             var k = 0;
             for (f = 0; f < e.length; ++f) {
               var m = e.charCodeAt(f);
@@ -43971,7 +44067,7 @@ var loadYoga = (() => {
           k = Ib(4 + f + 1);
           m = k + 4;
           E[k >> 2] = f;
-          if (c && g) {
+          if (c2 && g) {
             if (g = m, m = f + 1, f = A, 0 < m) {
               m = g + m - 1;
               for (var l = 0; l < e.length; ++l) {
@@ -44011,8 +44107,8 @@ var loadYoga = (() => {
           S(d);
         }, "V") });
       }, "o"),
-      i: /* @__PURE__ */ __name(function(a, b, c) {
-        c = N(c);
+      i: /* @__PURE__ */ __name(function(a, b, c2) {
+        c2 = N(c2);
         if (2 === b) {
           var d = tb;
           var e = ub;
@@ -44020,7 +44116,7 @@ var loadYoga = (() => {
           var g = /* @__PURE__ */ __name(() => ka, "g");
           var k = 1;
         } else 4 === b && (d = wb, e = xb, f = yb, g = /* @__PURE__ */ __name(() => E, "g"), k = 2);
-        W(a, { name: c, fromWireType: /* @__PURE__ */ __name(function(m) {
+        W(a, { name: c2, fromWireType: /* @__PURE__ */ __name(function(m) {
           for (var l = E[m >> 2], n = g(), p, r = m + 4, u = 0; u <= l; ++u) {
             var t = m + 4 + u * b;
             if (u == l || 0 == n[t >> k]) r = d(r, t - r), void 0 === p ? p = r : (p += String.fromCharCode(0), p += r), r = t + b;
@@ -44028,7 +44124,7 @@ var loadYoga = (() => {
           S(m);
           return p;
         }, "fromWireType"), toWireType: /* @__PURE__ */ __name(function(m, l) {
-          "string" != typeof l && L("Cannot pass non-string to C++ string type " + c);
+          "string" != typeof l && L("Cannot pass non-string to C++ string type " + c2);
           var n = f(l), p = Ib(4 + n + b);
           E[p >> 2] = n >> k;
           e(l, p + 4, n + b);
@@ -44038,11 +44134,11 @@ var loadYoga = (() => {
           S(m);
         }, "V") });
       }, "i"),
-      k: /* @__PURE__ */ __name(function(a, b, c, d, e, f) {
-        Va[a] = { name: N(b), fa: Z(c, d), W: Z(e, f), ia: [] };
+      k: /* @__PURE__ */ __name(function(a, b, c2, d, e, f) {
+        Va[a] = { name: N(b), fa: Z(c2, d), W: Z(e, f), ia: [] };
       }, "k"),
-      h: /* @__PURE__ */ __name(function(a, b, c, d, e, f, g, k, m, l) {
-        Va[a].ia.push({ oa: N(b), ta: c, ra: Z(d, e), sa: f, za: g, ya: Z(k, m), Aa: l });
+      h: /* @__PURE__ */ __name(function(a, b, c2, d, e, f, g, k, m, l) {
+        Va[a].ia.push({ oa: N(b), ta: c2, ra: Z(d, e), sa: f, za: g, ya: Z(k, m), Aa: l });
       }, "h"),
       C: /* @__PURE__ */ __name(function(a, b) {
         b = N(b);
@@ -44056,36 +44152,36 @@ var loadYoga = (() => {
           }, "toWireType")
         });
       }, "C"),
-      s: /* @__PURE__ */ __name(function(a, b, c, d, e) {
+      s: /* @__PURE__ */ __name(function(a, b, c2, d, e) {
         a = Bb[a];
         b = M(b);
-        c = Ab(c);
+        c2 = Ab(c2);
         var f = [];
         E[d >> 2] = Ea(f);
-        return a(b, c, f, e);
+        return a(b, c2, f, e);
       }, "s"),
-      t: /* @__PURE__ */ __name(function(a, b, c, d) {
+      t: /* @__PURE__ */ __name(function(a, b, c2, d) {
         a = Bb[a];
         b = M(b);
-        c = Ab(c);
-        a(b, c, null, d);
+        c2 = Ab(c2);
+        a(b, c2, null, d);
       }, "t"),
       g: qb,
       m: /* @__PURE__ */ __name(function(a, b) {
-        var c = Db(a, b), d = c[0];
-        b = d.name + "_$" + c.slice(1).map(function(g) {
+        var c2 = Db(a, b), d = c2[0];
+        b = d.name + "_$" + c2.slice(1).map(function(g) {
           return g.name;
         }).join("_") + "$";
         var e = Eb[b];
         if (void 0 !== e) return e;
         var f = Array(a - 1);
         e = Cb((g, k, m, l) => {
-          for (var n = 0, p = 0; p < a - 1; ++p) f[p] = c[p + 1].readValueFromPointer(l + n), n += c[p + 1].argPackAdvance;
+          for (var n = 0, p = 0; p < a - 1; ++p) f[p] = c2[p + 1].readValueFromPointer(l + n), n += c2[p + 1].argPackAdvance;
           g = g[k].apply(
             g,
             f
           );
-          for (p = 0; p < a - 1; ++p) c[p + 1].ma && c[p + 1].ma(f[p]);
+          for (p = 0; p < a - 1; ++p) c2[p + 1].ma && c2[p + 1].ma(f[p]);
           if (!d.va) return d.toWireType(m, g);
         });
         return Eb[b] = e;
@@ -44101,15 +44197,15 @@ var loadYoga = (() => {
       c: /* @__PURE__ */ __name(function() {
         x("");
       }, "c"),
-      x: /* @__PURE__ */ __name(function(a, b, c) {
-        A.copyWithin(a, b, b + c);
+      x: /* @__PURE__ */ __name(function(a, b, c2) {
+        A.copyWithin(a, b, b + c2);
       }, "x"),
       w: /* @__PURE__ */ __name(function(a) {
         var b = A.length;
         a >>>= 0;
         if (2147483648 < a) return false;
-        for (var c = 1; 4 >= c; c *= 2) {
-          var d = b * (1 + 0.2 / c);
+        for (var c2 = 1; 4 >= c2; c2 *= 2) {
+          var d = b * (1 + 0.2 / c2);
           d = Math.min(d, a + 100663296);
           var e = Math;
           d = Math.max(a, d);
@@ -44134,8 +44230,8 @@ var loadYoga = (() => {
       u: /* @__PURE__ */ __name(function() {
         return 70;
       }, "u"),
-      y: /* @__PURE__ */ __name(function(a, b, c, d) {
-        for (var e = 0, f = 0; f < c; f++) {
+      y: /* @__PURE__ */ __name(function(a, b, c2, d) {
+        for (var e = 0, f = 0; f < c2; f++) {
           var g = E[b >> 2], k = E[b + 4 >> 2];
           b += 8;
           for (var m = 0; m < k; m++) {
@@ -44164,7 +44260,7 @@ var loadYoga = (() => {
         a(e.instance);
       }
       __name(b, "b");
-      function c(e) {
+      function c2(e) {
         return ya().then(function(f) {
           return WebAssembly.instantiate(f, d);
         }).then(function(f) {
@@ -44174,7 +44270,7 @@ var loadYoga = (() => {
           x(f);
         });
       }
-      __name(c, "c");
+      __name(c2, "c");
       var d = { a: Jb };
       F++;
       h.monitorRunDependencies && h.monitorRunDependencies(F);
@@ -44187,11 +44283,11 @@ var loadYoga = (() => {
         v("Module.instantiateWasm callback failed with error: " + e), ca(e);
       }
       (function() {
-        return w || "function" != typeof WebAssembly.instantiateStreaming || ua(H) || "function" != typeof fetch ? c(b) : fetch(H, { credentials: "same-origin" }).then(function(e) {
+        return w || "function" != typeof WebAssembly.instantiateStreaming || ua(H) || "function" != typeof fetch ? c2(b) : fetch(H, { credentials: "same-origin" }).then(function(e) {
           return WebAssembly.instantiateStreaming(e, d).then(b, function(f) {
             v("wasm streaming compile failed: " + f);
             v("falling back to ArrayBuffer instantiation");
-            return c(b);
+            return c2(b);
           });
         });
       })().catch(ca);
@@ -51528,14 +51624,14 @@ var import_react33 = __toESM(require_react(), 1);
 // src/repl.ts
 init_paths();
 init_logger();
-import { readFileSync as readFileSync12 } from "node:fs";
-import { fileURLToPath as fileURLToPath2 } from "node:url";
-import { dirname as dirname5, join as join15 } from "node:path";
+import { readFileSync as readFileSync13 } from "node:fs";
+import { fileURLToPath as fileURLToPath3 } from "node:url";
+import { dirname as dirname6, join as join15 } from "node:path";
 
 // src/utils/history.ts
-import { readFileSync as readFileSync2, writeFileSync, existsSync as existsSync3, mkdirSync } from "node:fs";
+import { readFileSync as readFileSync3, writeFileSync, existsSync as existsSync3, mkdirSync } from "node:fs";
 import { homedir as homedir2 } from "node:os";
-import { join as join2, dirname } from "node:path";
+import { join as join2, dirname as dirname2 } from "node:path";
 var FILE = join2(homedir2(), ".aicli", "history.json");
 var MAX_ITEMS2 = 200;
 var InputHistory = class {
@@ -51550,7 +51646,7 @@ var InputHistory = class {
   load() {
     try {
       if (!existsSync3(FILE)) return;
-      const raw = readFileSync2(FILE, "utf8");
+      const raw = readFileSync3(FILE, "utf8");
       const parsed = JSON.parse(raw);
       if (Array.isArray(parsed)) {
         this.items = parsed.filter((x) => typeof x === "string");
@@ -51560,7 +51656,7 @@ var InputHistory = class {
   }
   persist() {
     try {
-      mkdirSync(dirname(FILE), { recursive: true });
+      mkdirSync(dirname2(FILE), { recursive: true });
       writeFileSync(FILE, JSON.stringify(this.items.slice(-MAX_ITEMS2)), {
         mode: 384
       });
@@ -51612,16 +51708,17 @@ var import_react41 = __toESM(require_react(), 1);
 // src/ui/HistoryView.tsx
 var import_react34 = __toESM(require_react(), 1);
 init_history_store();
+init_theme();
 var import_jsx_runtime = __toESM(require_jsx_runtime(), 1);
 function formatItem(item) {
   switch (item.type) {
     case "user":
       return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Text, { children: [
-        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Text, { color: "#e27649", bold: true, children: [
-          "\xBB",
+        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Text, { color: c.accent, bold: true, children: [
+          symbols.user,
           " "
         ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Text, { color: "#bdb3a1", children: item.text })
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Text, { color: c.inkMuted, children: item.text })
       ] });
     case "assistant":
       return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Text, { children: item.text });
@@ -51630,17 +51727,22 @@ function formatItem(item) {
       return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Text, { children: item.text });
     case "info":
       return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Text, { children: [
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Text, { color: "#7fa8a6", children: "\u2139 " }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Text, { color: c.info, children: [
+          symbols.info,
+          " "
+        ] }),
         item.text
       ] });
     case "warn":
-      return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Text, { color: "#ec9470", children: [
-        "\u26A0 ",
+      return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Text, { color: c.accentSoft, children: [
+        symbols.warn,
+        " ",
         item.text
       ] });
     case "error":
-      return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Text, { color: "#c76a5f", children: [
-        "\u2717 ",
+      return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Text, { color: c.danger, children: [
+        symbols.error,
+        " ",
         item.text
       ] });
   }
@@ -51682,30 +51784,7 @@ __name(StreamingView, "StreamingView");
 
 // src/ui/InputBox.tsx
 var import_react35 = __toESM(require_react(), 1);
-
-// src/ui/theme.ts
-var colors = {
-  // Accents
-  accent: "#e27649",
-  accentSoft: "#ec9470",
-  accentDeep: "#b85a31",
-  // Ink (text)
-  ink: "#f6f1e8",
-  inkBright: "#f6f1e8",
-  inkMuted: "#bdb3a1",
-  inkDim: "#8a8270",
-  inkFaint: "#4a4239",
-  // Semantic
-  success: "#7fa670",
-  danger: "#c76a5f",
-  info: "#7fa8a6",
-  // Structure
-  border: "#4a4239",
-  borderDim: "#2a2520",
-  bgTag: "#245454"
-};
-
-// src/ui/InputBox.tsx
+init_theme();
 init_slash_store();
 var import_jsx_runtime2 = __toESM(require_jsx_runtime(), 1);
 var MAX_SLASH_ROWS = 8;
@@ -51726,7 +51805,7 @@ function cursorRowCol(value, cursor) {
 __name(cursorRowCol, "cursorRowCol");
 function lineCount(value) {
   let n = 1;
-  for (const c of value) if (c === "\n") n++;
+  for (const c2 of value) if (c2 === "\n") n++;
   return n;
 }
 __name(lineCount, "lineCount");
@@ -51744,6 +51823,43 @@ function moveCursorVertical(value, cursor, delta) {
   return startOfTarget + Math.min(col, targetLen);
 }
 __name(moveCursorVertical, "moveCursorVertical");
+function renderInputContent(args2) {
+  const { disabled, hasValue, placeholder, rendered } = args2;
+  const arrow = symbols.prompt;
+  if (disabled && !hasValue) {
+    return /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(Box_default, { flexDirection: "row", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(Text, { color: colors.inkFaint, children: [
+        arrow,
+        "  "
+      ] }),
+      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Text, { color: colors.inkFaint, children: "\u2026en cours \u2014 attend la fin de g\xE9n\xE9ration" })
+    ] });
+  }
+  if (disabled) {
+    return rendered.map((line, i) => /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(Box_default, { flexDirection: "row", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Text, { color: colors.inkFaint, children: i === 0 ? arrow + "  " : "   " }),
+      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Text, { color: colors.inkFaint, children: line.text || " " })
+    ] }, i));
+  }
+  if (!hasValue && placeholder) {
+    return /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(Box_default, { flexDirection: "row", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(Text, { color: colors.accent, children: [
+        arrow,
+        "  "
+      ] }),
+      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Text, { color: colors.inkFaint, children: placeholder })
+    ] });
+  }
+  return rendered.map((line, i) => /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(Box_default, { flexDirection: "row", children: [
+    /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Text, { color: colors.accent, children: i === 0 ? arrow + "  " : "   " }),
+    line.caretCol < 0 ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Text, { children: line.text || " " }) : /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(Text, { children: [
+      line.text.slice(0, line.caretCol),
+      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Text, { inverse: true, children: line.text.slice(line.caretCol, line.caretCol + 1) || " " }),
+      line.text.slice(line.caretCol + 1)
+    ] })
+  ] }, i));
+}
+__name(renderInputContent, "renderInputContent");
 function InputBox({
   disabled,
   onSubmit,
@@ -52024,7 +52140,7 @@ function InputBox({
             const absIdx = slashWindowStart + i;
             const active = absIdx === currentSlashIdx;
             return /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(Box_default, { flexDirection: "row", children: [
-              /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Text, { color: active ? colors.accent : colors.inkFaint, children: active ? "\u203A" : " " }),
+              /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Text, { color: active ? colors.accent : colors.inkFaint, children: active ? symbols.cursor : " " }),
               /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(Text, { color: active ? colors.ink : colors.inkMuted, children: [
                 " ",
                 "/",
@@ -52044,37 +52160,12 @@ function InputBox({
         borderColor: disabled ? colors.borderDim : colors.border,
         paddingX: 1,
         flexDirection: "column",
-        children: disabled && !value ? (
-          // Disabled sans rien tapé : affiche l'indicateur "en cours".
-          /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(Box_default, { flexDirection: "row", children: [
-            /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(Text, { color: colors.inkFaint, children: [
-              "\u203A",
-              "  "
-            ] }),
-            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Text, { color: colors.inkFaint, children: "\u2026en cours \u2014 attend la fin de g\xE9n\xE9ration" })
-          ] })
-        ) : disabled ? (
-          // Disabled AVEC du texte déjà tapé : garde le texte visible en dim
-          // pour que l'user ne pense pas qu'il est perdu. Caret caché car on
-          // ne peut pas éditer pendant l'exec.
-          rendered.map((line, i) => /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(Box_default, { flexDirection: "row", children: [
-            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Text, { color: colors.inkFaint, children: i === 0 ? "\u203A  " : "   " }),
-            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Text, { color: colors.inkFaint, children: line.text || " " })
-          ] }, i))
-        ) : showPlaceholder ? /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(Box_default, { flexDirection: "row", children: [
-          /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(Text, { color: colors.accent, children: [
-            "\u203A",
-            "  "
-          ] }),
-          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Text, { color: colors.inkFaint, children: placeholder })
-        ] }) : rendered.map((line, i) => /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(Box_default, { flexDirection: "row", children: [
-          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Text, { color: colors.accent, children: i === 0 ? "\u203A  " : "   " }),
-          line.caretCol < 0 ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Text, { children: line.text || " " }) : /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(Text, { children: [
-            line.text.slice(0, line.caretCol),
-            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Text, { inverse: true, children: line.text.slice(line.caretCol, line.caretCol + 1) || " " }),
-            line.text.slice(line.caretCol + 1)
-          ] })
-        ] }, i))
+        children: renderInputContent({
+          disabled: !!disabled,
+          hasValue: value.length > 0,
+          placeholder,
+          rendered
+        })
       }
     )
   ] });
@@ -52107,6 +52198,7 @@ init_picker_controller();
 // src/ui/ModelPicker.tsx
 var import_react37 = __toESM(require_react(), 1);
 init_model_selector();
+init_theme();
 var import_jsx_runtime4 = __toESM(require_jsx_runtime(), 1);
 function ModelPicker({ items, initial, pageSize = 10, onChoose }) {
   const [query, setQuery] = (0, import_react37.useState)("");
@@ -52158,9 +52250,9 @@ function ModelPicker({ items, initial, pageSize = 10, onChoose }) {
   const visible = filtered.slice(start, start + pageSize);
   const speedBadge = /* @__PURE__ */ __name((desc) => {
     if (!desc) return null;
-    if (/\brapide\b/i.test(desc)) return { label: "rapide", color: "#7fa670" };
-    if (/\bmoyen\b/i.test(desc)) return { label: "moyen", color: "#ec9470" };
-    if (/\blent\b/i.test(desc)) return { label: "lent", color: "#c76a5f" };
+    if (/\brapide\b/i.test(desc)) return { label: "rapide", color: c.success };
+    if (/\bmoyen\b/i.test(desc)) return { label: "moyen", color: c.accentSoft };
+    if (/\blent\b/i.test(desc)) return { label: "lent", color: c.danger };
     return null;
   }, "speedBadge");
   return /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)(
@@ -52168,17 +52260,20 @@ function ModelPicker({ items, initial, pageSize = 10, onChoose }) {
     {
       flexDirection: "column",
       borderStyle: "round",
-      borderColor: "#e27649",
+      borderColor: c.accent,
       paddingX: 1,
       children: [
         /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)(Box_default, { children: [
-          /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(Text, { color: "#bdb3a1", children: "model " }),
-          /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(Text, { color: "#8a8270", children: "\u203A " }),
+          /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(Text, { color: c.inkMuted, children: "model " }),
+          /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)(Text, { color: c.inkDim, children: [
+            symbols.prompt,
+            " "
+          ] }),
           /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(Text, { children: query }),
           /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(Text, { inverse: true, children: " " })
         ] }),
         /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)(Box_default, { flexDirection: "column", marginTop: 1, children: [
-          visible.length === 0 && /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)(Text, { color: "#8a8270", children: [
+          visible.length === 0 && /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)(Text, { color: c.inkDim, children: [
             'aucun match pour "',
             query,
             '"'
@@ -52187,22 +52282,22 @@ function ModelPicker({ items, initial, pageSize = 10, onChoose }) {
             const realIdx = start + i;
             const active = realIdx === idx;
             const speed = speedBadge(m.description);
-            const ttftColor = m.ttftMs == null ? "#4a4239" : m.ttftMs < 1500 ? "#7fa670" : m.ttftMs < 1e4 ? "#ec9470" : "#c76a5f";
-            const tpsColor = m.tokPerSec == null ? "#4a4239" : m.tokPerSec >= 100 ? "#7fa670" : m.tokPerSec >= 50 ? "#ec9470" : "#c76a5f";
+            const ttftColor = m.ttftMs == null ? c.inkFaint : m.ttftMs < 1500 ? c.success : m.ttftMs < 1e4 ? c.accentSoft : c.danger;
+            const tpsColor = m.tokPerSec == null ? c.inkFaint : m.tokPerSec >= 100 ? c.success : m.tokPerSec >= 50 ? c.accentSoft : c.danger;
             return /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)(Box_default, { children: [
-              /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(Text, { color: active ? "#e27649" : "#4a4239", children: active ? "\u203A" : " " }),
-              /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)(Text, { color: active ? "#f6f1e8" : "#bdb3a1", children: [
+              /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(Text, { color: active ? c.accent : c.inkFaint, children: active ? symbols.cursor : " " }),
+              /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)(Text, { color: active ? c.ink : c.inkMuted, children: [
                 " ",
                 displayModelId(m.id).padEnd(40)
               ] }),
-              /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(Text, { color: "#8a8270", children: m.category.padEnd(10) }),
+              /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(Text, { color: c.inkDim, children: m.category.padEnd(10) }),
               speed && /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(Text, { color: speed.color, children: speed.label.padEnd(8) }),
               /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(Text, { color: ttftColor, children: m.ttftMs != null ? `${m.ttftMs}ms`.padStart(8) : "      \u2014" }),
               /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(Text, { color: tpsColor, children: m.tokPerSec != null ? `${m.tokPerSec}t/s`.padStart(9) : "        \u2014" })
             ] }, m.id);
           })
         ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(Box_default, { marginTop: 1, children: /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)(Text, { color: "#8a8270", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(Box_default, { marginTop: 1, children: /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)(Text, { color: c.inkDim, children: [
           filtered.length,
           " match \xB7 \u2191\u2193 naviguer \xB7 Enter valider \xB7 Esc annuler"
         ] }) })
@@ -52249,6 +52344,7 @@ var permissionController = new PermissionController();
 
 // src/ui/PermissionPicker.tsx
 var import_react38 = __toESM(require_react(), 1);
+init_theme();
 var import_jsx_runtime5 = __toESM(require_jsx_runtime(), 1);
 var CHOICES = [
   { value: "allow", label: "Yes", hint: "une fois" },
@@ -52256,8 +52352,8 @@ var CHOICES = [
   { value: "allow-persist", label: "Persist always", hint: "enregistr\xE9" },
   { value: "deny", label: "No", hint: "refuser" }
 ];
-function categoryColor(c) {
-  return c === "execute" ? "#c76a5f" : c === "edit" ? "#ec9470" : "#bdb3a1";
+function categoryColor(cat) {
+  return cat === "execute" ? c.danger : cat === "edit" ? c.accentSoft : c.inkMuted;
 }
 __name(categoryColor, "categoryColor");
 function PermissionPicker({ toolName, category, input, onChoose }) {
@@ -52280,11 +52376,11 @@ function PermissionPicker({ toolName, category, input, onChoose }) {
       return;
     }
     if (!inp) return;
-    const c = inp.toLowerCase();
-    if (c === "y" || c === "o") onChoose("allow");
-    else if (c === "a") onChoose("allow-session");
-    else if (c === "p") onChoose("allow-persist");
-    else if (c === "n") onChoose("deny");
+    const ch = inp.toLowerCase();
+    if (ch === "y" || ch === "o") onChoose("allow");
+    else if (ch === "a") onChoose("allow-session");
+    else if (ch === "p") onChoose("allow-persist");
+    else if (ch === "n") onChoose("deny");
   });
   const inputLines = Object.entries(input).slice(0, 4).map(([k, v]) => {
     const val = typeof v === "string" ? v.length > 120 ? v.slice(0, 120) + "\u2026" : v.replace(/\n/g, "\u23CE") : JSON.stringify(v).slice(0, 120);
@@ -52295,27 +52391,30 @@ function PermissionPicker({ toolName, category, input, onChoose }) {
     {
       flexDirection: "column",
       borderStyle: "round",
-      borderColor: "#e27649",
+      borderColor: c.accent,
       paddingX: 1,
       children: [
         /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)(Box_default, { children: [
-          /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(Text, { color: "#e27649", children: "\u26A0 " }),
-          /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(Text, { color: "#f6f1e8", bold: true, children: "Permission requise" }),
-          /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(Text, { color: "#8a8270", children: " \xB7 " }),
+          /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)(Text, { color: c.accent, children: [
+            symbols.warn,
+            " "
+          ] }),
+          /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(Text, { color: c.ink, bold: true, children: "Permission requise" }),
+          /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(Text, { color: c.inkDim, children: " \xB7 " }),
           /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(Text, { color: categoryColor(category), children: category }),
-          /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(Text, { color: "#8a8270", children: " \xB7 " }),
-          /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(Text, { color: "#ec9470", bold: true, children: toolName })
+          /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(Text, { color: c.inkDim, children: " \xB7 " }),
+          /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(Text, { color: c.accentSoft, bold: true, children: toolName })
         ] }),
         inputLines.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(Box_default, { flexDirection: "column", marginTop: 1, children: inputLines.map(({ k, v }) => /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)(Box_default, { children: [
-          /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(Text, { color: "#bdb3a1", children: "  " + k + "  " }),
-          /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(Text, { color: "#f6f1e8", children: v })
+          /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(Text, { color: c.inkMuted, children: "  " + k + "  " }),
+          /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(Text, { color: c.ink, children: v })
         ] }, k)) }),
-        /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(Box_default, { flexDirection: "column", marginTop: 1, children: CHOICES.map((c, i) => /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)(Box_default, { children: [
-          /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(Text, { color: i === idx ? "#e27649" : "#4a4239", children: i === idx ? "\u203A" : " " }),
-          /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(Text, { color: i === idx ? "#f6f1e8" : "#bdb3a1", children: " " + c.label.padEnd(22) }),
-          /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(Text, { color: "#8a8270", children: c.hint })
-        ] }, c.value)) }),
-        /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(Box_default, { marginTop: 1, children: /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(Text, { color: "#8a8270", children: "\u2191\u2193 \xB7 Enter valider \xB7 Esc refuser \xB7 raccourcis y / a / p / n" }) })
+        /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(Box_default, { flexDirection: "column", marginTop: 1, children: CHOICES.map((choice, i) => /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)(Box_default, { children: [
+          /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(Text, { color: i === idx ? c.accent : c.inkFaint, children: i === idx ? symbols.cursor : " " }),
+          /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(Text, { color: i === idx ? c.ink : c.inkMuted, children: " " + choice.label.padEnd(22) }),
+          /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(Text, { color: c.inkDim, children: choice.hint })
+        ] }, choice.value)) }),
+        /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(Box_default, { marginTop: 1, children: /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(Text, { color: c.inkDim, children: "\u2191\u2193 \xB7 Enter valider \xB7 Esc refuser \xB7 raccourcis y / a / p / n" }) })
       ]
     }
   );
@@ -52327,6 +52426,7 @@ init_session_controller();
 
 // src/ui/SessionPicker.tsx
 var import_react39 = __toESM(require_react(), 1);
+init_theme();
 var import_jsx_runtime6 = __toESM(require_jsx_runtime(), 1);
 function shortenCwd(cwd2) {
   const home = process.env.HOME ?? process.env.USERPROFILE ?? "";
@@ -52496,6 +52596,7 @@ var askController = new AskController();
 
 // src/ui/AskPicker.tsx
 var import_react40 = __toESM(require_react(), 1);
+init_theme();
 var import_jsx_runtime7 = __toESM(require_jsx_runtime(), 1);
 function AskPicker({ question, options, onAnswer }) {
   const hasOptions = Array.isArray(options) && options.length > 0;
@@ -52536,28 +52637,35 @@ function AskPicker({ question, options, onAnswer }) {
     {
       flexDirection: "column",
       borderStyle: "round",
-      borderColor: "#e27649",
+      borderColor: c.accent,
       paddingX: 1,
       children: [
         /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)(Box_default, { children: [
-          /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(Text, { color: "#ec9470", children: "\u25C6 " }),
-          /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(Text, { color: "#f6f1e8", children: question })
+          /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)(Text, { color: c.accentSoft, children: [
+            symbols.tool,
+            " "
+          ] }),
+          /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(Text, { color: c.ink, children: question })
         ] }),
         hasOptions ? /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(Box_default, { flexDirection: "column", marginTop: 1, children: options.map((opt, i) => {
           const active = i === idx;
           return /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)(Box_default, { children: [
-            /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(Text, { color: active ? "#e27649" : "#4a4239", children: active ? "\u203A" : " " }),
-            /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)(Text, { color: active ? "#f6f1e8" : "#bdb3a1", children: [
+            /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(Text, { color: active ? c.accent : c.inkFaint, children: active ? symbols.cursor : " " }),
+            /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)(Text, { color: active ? c.ink : c.inkMuted, children: [
               " ",
               opt
             ] })
           ] }, i);
         }) }) : /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)(Box_default, { marginTop: 1, children: [
-          /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(Text, { color: "#8a8270", children: "r\xE9ponse \u203A " }),
+          /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)(Text, { color: c.inkDim, children: [
+            "r\xE9ponse ",
+            symbols.prompt,
+            " "
+          ] }),
           /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(Text, { children: typed }),
           /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(Text, { inverse: true, children: " " })
         ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(Box_default, { marginTop: 1, children: /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(Text, { color: "#8a8270", children: hasOptions ? "\u2191\u2193 naviguer \xB7 Enter valider \xB7 Esc annuler" : "tape ta r\xE9ponse \xB7 Enter valider \xB7 Esc annuler" }) })
+        /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(Box_default, { marginTop: 1, children: /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(Text, { color: c.inkDim, children: hasOptions ? "\u2191\u2193 naviguer \xB7 Enter valider \xB7 Esc annuler" : "tape ta r\xE9ponse \xB7 Enter valider \xB7 Esc annuler" }) })
       ]
     }
   );
@@ -52665,7 +52773,7 @@ function App2({ history } = {}) {
       InputBox,
       {
         disabled: inputDisabled,
-        placeholder: "\xE9cris un prompt ou /help \xB7 \\\\+Enter = nouvelle ligne \xB7 Ctrl+U = vider \xB7 Shift+Tab = mode",
+        placeholder: columns >= 100 ? "\xE9cris un prompt ou /help \xB7 \\+Enter = nouvelle ligne \xB7 Ctrl+U = vider \xB7 Shift+Tab = mode" : "\xE9cris un prompt ou /help",
         history,
         onSubmit: (line) => inputController.submit(line),
         onInterrupt: () => inputController.interrupt(),
@@ -52785,9 +52893,6 @@ var BetterModelWatcher = class {
   }
 };
 
-// src/repl.ts
-init_context_window();
-
 // src/tools/shell-detect.ts
 import { execSync } from "node:child_process";
 import { existsSync as existsSync6 } from "node:fs";
@@ -52802,7 +52907,7 @@ function doDetect() {
   if (process.platform !== "win32") {
     return {
       cmd: "sh",
-      args: /* @__PURE__ */ __name((c) => ["-c", c], "args"),
+      args: /* @__PURE__ */ __name((c2) => ["-c", c2], "args"),
       kind: "posix",
       label: "sh (POSIX)"
     };
@@ -52826,7 +52931,7 @@ function doDetect() {
     if (cand.path.includes("\\") && existsSync6(cand.path)) {
       return {
         cmd: cand.path,
-        args: /* @__PURE__ */ __name((c) => ["-c", c], "args"),
+        args: /* @__PURE__ */ __name((c2) => ["-c", c2], "args"),
         kind: cand.kind,
         label: cand.label
       };
@@ -52837,7 +52942,7 @@ function doDetect() {
         // wsl.exe : `wsl bash -c "cmd"` ou directement `wsl -- cmd` (run in
         // default distro). On utilise bash -c pour que la syntaxe reste la
         // même que sur Unix.
-        args: cand.path === "wsl.exe" ? (c) => ["bash", "-c", c] : (c) => ["-c", c],
+        args: cand.path === "wsl.exe" ? (c2) => ["bash", "-c", c2] : (c2) => ["-c", c2],
         kind: cand.kind,
         label: cand.label
       };
@@ -52846,7 +52951,7 @@ function doDetect() {
   if (hasCommand("bash")) {
     return {
       cmd: "bash",
-      args: /* @__PURE__ */ __name((c) => ["-c", c], "args"),
+      args: /* @__PURE__ */ __name((c2) => ["-c", c2], "args"),
       kind: "posix",
       label: "bash (PATH)"
     };
@@ -52854,7 +52959,7 @@ function doDetect() {
   if (hasCommand("pwsh")) {
     return {
       cmd: "pwsh",
-      args: /* @__PURE__ */ __name((c) => ["-NoProfile", "-Command", c], "args"),
+      args: /* @__PURE__ */ __name((c2) => ["-NoProfile", "-Command", c2], "args"),
       kind: "pwsh",
       label: "PowerShell 7"
     };
@@ -52862,14 +52967,14 @@ function doDetect() {
   if (hasCommand("powershell")) {
     return {
       cmd: "powershell",
-      args: /* @__PURE__ */ __name((c) => ["-NoProfile", "-Command", c], "args"),
+      args: /* @__PURE__ */ __name((c2) => ["-NoProfile", "-Command", c2], "args"),
       kind: "pwsh",
       label: "PowerShell 5"
     };
   }
   return {
     cmd: "cmd.exe",
-    args: /* @__PURE__ */ __name((c) => ["/d", "/s", "/c", c], "args"),
+    args: /* @__PURE__ */ __name((c2) => ["/d", "/s", "/c", c2], "args"),
     kind: "cmd",
     label: "cmd.exe"
   };
@@ -52997,7 +53102,7 @@ var readTool = {
 
 // src/tools/write.ts
 import { mkdir, writeFile } from "node:fs/promises";
-import { dirname as dirname3 } from "node:path";
+import { dirname as dirname4 } from "node:path";
 var writeTool = {
   name: "Write",
   description: "\xC9crit (ou \xE9crase) un fichier avec le contenu fourni.",
@@ -53022,7 +53127,7 @@ var writeTool = {
     if (!raw) throw new Error("Write: 'path' manquant");
     const abs = resolvePath(raw, ctx.cwd);
     guardPath(abs, { mode: "write", cwd: ctx.cwd });
-    await mkdir(dirname3(abs), { recursive: true });
+    await mkdir(dirname4(abs), { recursive: true });
     await writeFile(abs, content, "utf8");
     return `\xC9crit ${content.length} caract\xE8res dans ${abs}`;
   }
@@ -53130,14 +53235,14 @@ stderr:
 ${tailCap(stderr, "stderr")}`
         );
       }, timeout);
-      child.stdout.on("data", (c) => {
-        stdout += c.toString();
+      child.stdout.on("data", (c2) => {
+        stdout += c2.toString();
         if (stdout.length > MAX_STREAM_CHARS * 2) {
           stdout = stdout.slice(-MAX_STREAM_CHARS * 2);
         }
       });
-      child.stderr.on("data", (c) => {
-        stderr += c.toString();
+      child.stderr.on("data", (c2) => {
+        stderr += c2.toString();
         if (stderr.length > MAX_STREAM_CHARS * 2) {
           stderr = stderr.slice(-MAX_STREAM_CHARS * 2);
         }
@@ -53337,8 +53442,8 @@ function globSegmentToRegex(pattern) {
   let out = "";
   let i = 0;
   while (i < pattern.length) {
-    const c = pattern[i];
-    if (c === "*") {
+    const c2 = pattern[i];
+    if (c2 === "*") {
       if (pattern[i + 1] === "*") {
         if (pattern[i + 2] === "/") {
           out += "(?:.*/)?";
@@ -53351,10 +53456,10 @@ function globSegmentToRegex(pattern) {
       }
       out += "[^/]*";
       i++;
-    } else if (c === "?") {
+    } else if (c2 === "?") {
       out += "[^/]";
       i++;
-    } else if (c === "[") {
+    } else if (c2 === "[") {
       const end = pattern.indexOf("]", i);
       if (end === -1) {
         out += "\\[";
@@ -53363,11 +53468,11 @@ function globSegmentToRegex(pattern) {
         out += pattern.slice(i, end + 1);
         i = end + 1;
       }
-    } else if ("+.()^$|\\".includes(c)) {
-      out += "\\" + c;
+    } else if ("+.()^$|\\".includes(c2)) {
+      out += "\\" + c2;
       i++;
     } else {
-      out += c;
+      out += c2;
       i++;
     }
   }
@@ -53405,14 +53510,14 @@ function splitTopLevelCommas(s) {
   const out = [];
   let depth = 0;
   let buf = "";
-  for (const c of s) {
-    if (c === "{") depth++;
-    else if (c === "}") depth--;
-    if (c === "," && depth === 0) {
+  for (const c2 of s) {
+    if (c2 === "{") depth++;
+    else if (c2 === "}") depth--;
+    if (c2 === "," && depth === 0) {
       out.push(buf);
       buf = "";
     } else {
-      buf += c;
+      buf += c2;
     }
   }
   out.push(buf);
@@ -54835,7 +54940,7 @@ var AgentLoop = class {
 };
 
 // src/commands/registry.ts
-import { readFileSync as readFileSync7, readdirSync as readdirSync2, statSync as statSync4 } from "node:fs";
+import { readFileSync as readFileSync8, readdirSync as readdirSync2, statSync as statSync4 } from "node:fs";
 import { basename as basename2, extname as extname2, join as join10 } from "node:path";
 
 // src/commands/builtin.ts
@@ -54872,7 +54977,7 @@ __name(openBrowser, "openBrowser");
 
 // src/auth/store.ts
 import {
-  readFileSync as readFileSync5,
+  readFileSync as readFileSync6,
   writeFileSync as writeFileSync3,
   chmodSync,
   mkdirSync as mkdirSync3,
@@ -54897,7 +55002,7 @@ function loadCredentials() {
   }
   if (!existsSync7(FILE2)) return null;
   try {
-    const raw = readFileSync5(FILE2, "utf8");
+    const raw = readFileSync6(FILE2, "utf8");
     const parsed = JSON.parse(raw);
     if (!parsed.token || typeof parsed.token !== "string") return null;
     return {
@@ -55066,6 +55171,8 @@ async function runLoginFlow(opts = {}) {
 __name(runLoginFlow, "runLoginFlow");
 
 // src/commands/builtin.ts
+init_paths();
+init_context_window();
 function builtinCommands(allCommands) {
   return [
     {
@@ -55073,9 +55180,9 @@ function builtinCommands(allCommands) {
       description: "Affiche la liste des commandes disponibles.",
       async run() {
         log.banner("Commandes disponibles");
-        for (const c of allCommands()) {
+        for (const c2 of allCommands()) {
           console.log(
-            "  " + log.accent.bold("/" + c.name.padEnd(12)) + log.inkMuted(c.description)
+            "  " + log.accent.bold("/" + c2.name.padEnd(12)) + log.inkMuted(c2.description)
           );
         }
         console.log();
@@ -55085,6 +55192,33 @@ function builtinCommands(allCommands) {
         log.faint(
           "Tape du texte libre pour parler \xE0 l'agent. Ctrl-D ou /exit pour quitter."
         );
+      }
+    },
+    {
+      name: "about",
+      description: "Affiche le d\xE9tail de la session (model, tools, mode, shell, cwd).",
+      async run({ agent, tools, skills, subAgents, mcpServers, permissions }) {
+        const home = process.env.HOME || process.env.USERPROFILE || "";
+        const cwdShort = home && CWD.startsWith(home) ? "~" + CWD.slice(home.length) : CWD;
+        const mode = permissions.getMode();
+        const modeStatus = mode === "bypass" ? "error" : mode === "plan" ? "warn" : "ok";
+        const modeValue = mode === "bypass" ? "\u26A0 bypass" : mode === "plan" ? "\u2394 plan" : mode === "accept-edits" ? "\u2713 accept-edits" : mode;
+        log.banner("AI_CLI", getAppVersion(), "agent code \xB7 terminal \xB7 tools");
+        log.specs([
+          {
+            label: "model",
+            value: cleanProvider(agent.provider.name),
+            status: "ok"
+          },
+          {
+            label: "tools",
+            value: `${tools.list().length} tools \xB7 ${skills.length} skills \xB7 ${subAgents.length} agents \xB7 ${mcpServers.length} MCP`,
+            status: "muted"
+          },
+          { label: "mode", value: modeValue, status: modeStatus },
+          { label: "shell", value: detectShell().label, status: "muted" },
+          { label: "cwd", value: cwdShort, status: "muted" }
+        ]);
       }
     },
     {
@@ -55218,7 +55352,7 @@ function builtinCommands(allCommands) {
       name: "tokens",
       description: "Alias de /usage.",
       async run(ctx) {
-        const usageCmd = allCommands().find((c) => c.name === "usage");
+        const usageCmd = allCommands().find((c2) => c2.name === "usage");
         if (usageCmd) await usageCmd.run(ctx, "");
       }
     },
@@ -55759,14 +55893,14 @@ var CommandRegistry = class {
   }
   commands = /* @__PURE__ */ new Map();
   constructor() {
-    for (const c of builtinCommands(() => [...this.commands.values()])) {
-      this.commands.set(c.name, c);
+    for (const c2 of builtinCommands(() => [...this.commands.values()])) {
+      this.commands.set(c2.name, c2);
     }
     for (const dir of subdirs("commands")) {
       for (const entry of readdirSync2(dir)) {
         const full = join10(dir, entry);
         if (!statSync4(full).isFile() || extname2(entry) !== ".md") continue;
-        const raw = readFileSync7(full, "utf8");
+        const raw = readFileSync8(full, "utf8");
         const { meta, body } = parseFrontmatter(raw);
         const name = basename2(entry, ".md");
         const description = typeof meta.description === "string" && meta.description || body.split("\n")[0].slice(0, 80) || "Commande personnalis\xE9e";
@@ -55809,7 +55943,7 @@ var CommandRegistry = class {
 
 // src/skills/loader.ts
 init_paths();
-import { readFileSync as readFileSync8, readdirSync as readdirSync3, statSync as statSync5, existsSync as existsSync9 } from "node:fs";
+import { readFileSync as readFileSync9, readdirSync as readdirSync3, statSync as statSync5, existsSync as existsSync9 } from "node:fs";
 import { join as join11 } from "node:path";
 function loadSkills() {
   const skills = [];
@@ -55819,7 +55953,7 @@ function loadSkills() {
       if (!statSync5(full).isDirectory()) continue;
       const file = join11(full, "SKILL.md");
       if (!existsSync9(file)) continue;
-      const raw = readFileSync8(file, "utf8");
+      const raw = readFileSync9(file, "utf8");
       const { meta, body } = parseFrontmatter(raw);
       const name = typeof meta.name === "string" && meta.name || entry;
       const description = typeof meta.description === "string" && meta.description || "(sans description)";
@@ -55862,7 +55996,7 @@ __name(makeSkillTool, "makeSkillTool");
 
 // src/agents/loader.ts
 init_paths();
-import { readFileSync as readFileSync9, readdirSync as readdirSync4, statSync as statSync6 } from "node:fs";
+import { readFileSync as readFileSync10, readdirSync as readdirSync4, statSync as statSync6 } from "node:fs";
 import { basename as basename3, extname as extname3, join as join12 } from "node:path";
 function loadSubAgents() {
   const agents = [];
@@ -55870,7 +56004,7 @@ function loadSubAgents() {
     for (const entry of readdirSync4(dir)) {
       const full = join12(dir, entry);
       if (!statSync6(full).isFile() || extname3(entry) !== ".md") continue;
-      const raw = readFileSync9(full, "utf8");
+      const raw = readFileSync10(full, "utf8");
       const { meta, body } = parseFrontmatter(raw);
       const name = typeof meta.name === "string" && meta.name || basename3(entry, ".md");
       const description = typeof meta.description === "string" && meta.description || "(sans description)";
@@ -55946,7 +56080,7 @@ __name(makeAgentTool, "makeAgentTool");
 
 // src/mcp/config.ts
 init_paths();
-import { existsSync as existsSync10, readFileSync as readFileSync10 } from "node:fs";
+import { existsSync as existsSync10, readFileSync as readFileSync11 } from "node:fs";
 import { homedir as homedir7 } from "node:os";
 import { join as join13 } from "node:path";
 
@@ -56109,7 +56243,7 @@ var McpClient = class {
     );
     if (res.error) throw new Error(res.error.message);
     const result = res.result ?? {};
-    const texts = (result.content ?? []).map((c) => c.type === "text" ? c.text ?? "" : JSON.stringify(c)).join("\n");
+    const texts = (result.content ?? []).map((c2) => c2.type === "text" ? c2.text ?? "" : JSON.stringify(c2)).join("\n");
     return result.isError ? `[mcp error] ${texts}` : texts;
   }
   close() {
@@ -56154,7 +56288,7 @@ async function loadMcpServers(tools) {
     }
     let config;
     try {
-      config = JSON.parse(readFileSync10(file, "utf8"));
+      config = JSON.parse(readFileSync11(file, "utf8"));
     } catch (err) {
       log.warn(`mcp.json invalide (${file}): ${err.message}`);
       continue;
@@ -56183,7 +56317,7 @@ __name(loadMcpServers, "loadMcpServers");
 
 // src/permissions/store.ts
 import {
-  readFileSync as readFileSync11,
+  readFileSync as readFileSync12,
   writeFileSync as writeFileSync5,
   chmodSync as chmodSync2,
   mkdirSync as mkdirSync5,
@@ -56204,7 +56338,7 @@ function loadPermissions() {
   }
   if (!existsSync11(FILE3)) return { ...DEFAULT_CONFIG };
   try {
-    const raw = readFileSync11(FILE3, "utf8");
+    const raw = readFileSync12(FILE3, "utf8");
     const parsed = JSON.parse(raw);
     const mode = parsed.mode && isValidMode(parsed.mode) ? parsed.mode : "default";
     const alwaysAllow = Array.isArray(parsed.alwaysAllow) ? parsed.alwaysAllow.filter((s) => typeof s === "string") : [];
@@ -56228,9 +56362,9 @@ __name(savePermissions, "savePermissions");
 init_status_bar();
 function readPkgVersion() {
   try {
-    const here = dirname5(fileURLToPath2(import.meta.url));
+    const here = dirname6(fileURLToPath3(import.meta.url));
     const pkgPath = join15(here, "..", "package.json");
-    const pkg = JSON.parse(readFileSync12(pkgPath, "utf8"));
+    const pkg = JSON.parse(readFileSync13(pkgPath, "utf8"));
     return typeof pkg.version === "string" ? pkg.version : "?";
   } catch {
     return "?";
@@ -56389,7 +56523,7 @@ async function startRepl() {
   const commands2 = new CommandRegistry();
   const { setSlashCommands: setSlashCommands2 } = await Promise.resolve().then(() => (init_slash_store(), slash_store_exports));
   setSlashCommands2(
-    commands2.list().map((c) => ({ name: c.name, description: c.description }))
+    commands2.list().map((c2) => ({ name: c2.name, description: c2.description }))
   );
   initStatusBar();
   const { installConsolePatch: installConsolePatch2 } = await Promise.resolve().then(() => (init_history_store(), history_store_exports));
@@ -56405,37 +56539,9 @@ async function startRepl() {
     }
   );
   log.banner("AI_CLI", APP_VERSION, "agent code \xB7 terminal \xB7 tools");
-  const detectedShell = detectShell();
-  const home = process.env.HOME || process.env.USERPROFILE || "";
-  const cwdShort = home && CWD.startsWith(home) ? "~" + CWD.slice(home.length) : CWD;
-  const modeStatus = permConfig.mode === "bypass" ? "error" : permConfig.mode === "plan" ? "warn" : "ok";
-  log.specs([
-    {
-      label: "model",
-      value: cleanProvider(provider.name),
-      status: "ok"
-    },
-    {
-      label: "tools",
-      value: `${tools.list().length} tools \xB7 ${skills.length} skills \xB7 ${subAgents.length} agents \xB7 ${mcpServers.length} MCP`,
-      status: "muted"
-    },
-    {
-      label: "mode",
-      value: permConfig.mode === "bypass" ? "\u26A0 bypass" : permConfig.mode === "plan" ? "\u2394 plan" : permConfig.mode,
-      status: modeStatus
-    },
-    {
-      label: "shell",
-      value: detectedShell.label,
-      status: "muted"
-    },
-    {
-      label: "cwd",
-      value: cwdShort,
-      status: "muted"
-    }
-  ]);
+  log.faint(
+    `tape ${log.accent("/about")} pour voir le d\xE9tail \xB7 ${log.accent("/help")} pour les commandes`
+  );
   if (!currentCreds) {
     log.info(
       `${log.accentSoft("\u2192")} tape ${log.accent.bold("/login")} ${log.inkMuted(

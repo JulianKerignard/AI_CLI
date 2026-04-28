@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { Box, Text, useInput } from "ink";
+import { c, symbols } from "./theme.js";
 
 // Composant qui affiche une question posée par l'agent (tool AskUser).
 // - Si options fourni : picker navigation ↑↓ + Enter.
@@ -54,12 +55,12 @@ export function AskPicker({ question, options, onAnswer }: Props) {
     <Box
       flexDirection="column"
       borderStyle="round"
-      borderColor="#e27649"
+      borderColor={c.accent}
       paddingX={1}
     >
       <Box>
-        <Text color="#ec9470">◆ </Text>
-        <Text color="#f6f1e8">{question}</Text>
+        <Text color={c.accentSoft}>{symbols.tool} </Text>
+        <Text color={c.ink}>{question}</Text>
       </Box>
 
       {hasOptions ? (
@@ -68,10 +69,10 @@ export function AskPicker({ question, options, onAnswer }: Props) {
             const active = i === idx;
             return (
               <Box key={i}>
-                <Text color={active ? "#e27649" : "#4a4239"}>
-                  {active ? "›" : " "}
+                <Text color={active ? c.accent : c.inkFaint}>
+                  {active ? symbols.cursor : " "}
                 </Text>
-                <Text color={active ? "#f6f1e8" : "#bdb3a1"}>
+                <Text color={active ? c.ink : c.inkMuted}>
                   {" "}
                   {opt}
                 </Text>
@@ -81,14 +82,14 @@ export function AskPicker({ question, options, onAnswer }: Props) {
         </Box>
       ) : (
         <Box marginTop={1}>
-          <Text color="#8a8270">réponse › </Text>
+          <Text color={c.inkDim}>réponse {symbols.prompt} </Text>
           <Text>{typed}</Text>
           <Text inverse> </Text>
         </Box>
       )}
 
       <Box marginTop={1}>
-        <Text color="#8a8270">
+        <Text color={c.inkDim}>
           {hasOptions
             ? "↑↓ naviguer · Enter valider · Esc annuler"
             : "tape ta réponse · Enter valider · Esc annuler"}

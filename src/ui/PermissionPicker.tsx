@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { Box, Text, useInput } from "ink";
 import type { PromptDecision } from "../permissions/prompt.js";
+import { c, symbols } from "./theme.js";
 
 // Picker natif Ink pour askPermission (remplace @inquirer/select qui
 // créait des artefacts visuels en cohabitant avec Ink). 4 choix
@@ -20,8 +21,8 @@ interface Props {
   onChoose: (decision: PromptDecision) => void;
 }
 
-function categoryColor(c: Props["category"]): string {
-  return c === "execute" ? "#c76a5f" : c === "edit" ? "#ec9470" : "#bdb3a1";
+function categoryColor(cat: Props["category"]): string {
+  return cat === "execute" ? c.danger : cat === "edit" ? c.accentSoft : c.inkMuted;
 }
 
 export function PermissionPicker({ toolName, category, input, onChoose }: Props) {
@@ -46,11 +47,11 @@ export function PermissionPicker({ toolName, category, input, onChoose }: Props)
     }
     // Raccourcis clavier y/a/p/n/o
     if (!inp) return;
-    const c = inp.toLowerCase();
-    if (c === "y" || c === "o") onChoose("allow");
-    else if (c === "a") onChoose("allow-session");
-    else if (c === "p") onChoose("allow-persist");
-    else if (c === "n") onChoose("deny");
+    const ch = inp.toLowerCase();
+    if (ch === "y" || ch === "o") onChoose("allow");
+    else if (ch === "a") onChoose("allow-session");
+    else if (ch === "p") onChoose("allow-persist");
+    else if (ch === "n") onChoose("deny");
   });
 
   const inputLines = Object.entries(input).slice(0, 4).map(([k, v]) => {
@@ -67,18 +68,18 @@ export function PermissionPicker({ toolName, category, input, onChoose }: Props)
     <Box
       flexDirection="column"
       borderStyle="round"
-      borderColor="#e27649"
+      borderColor={c.accent}
       paddingX={1}
     >
       <Box>
-        <Text color="#e27649">⚠ </Text>
-        <Text color="#f6f1e8" bold>
+        <Text color={c.accent}>{symbols.warn} </Text>
+        <Text color={c.ink} bold>
           Permission requise
         </Text>
-        <Text color="#8a8270"> · </Text>
+        <Text color={c.inkDim}> · </Text>
         <Text color={categoryColor(category)}>{category}</Text>
-        <Text color="#8a8270"> · </Text>
-        <Text color="#ec9470" bold>
+        <Text color={c.inkDim}> · </Text>
+        <Text color={c.accentSoft} bold>
           {toolName}
         </Text>
       </Box>
@@ -86,27 +87,27 @@ export function PermissionPicker({ toolName, category, input, onChoose }: Props)
         <Box flexDirection="column" marginTop={1}>
           {inputLines.map(({ k, v }) => (
             <Box key={k}>
-              <Text color="#bdb3a1">{"  " + k + "  "}</Text>
-              <Text color="#f6f1e8">{v}</Text>
+              <Text color={c.inkMuted}>{"  " + k + "  "}</Text>
+              <Text color={c.ink}>{v}</Text>
             </Box>
           ))}
         </Box>
       )}
       <Box flexDirection="column" marginTop={1}>
-        {CHOICES.map((c, i) => (
-          <Box key={c.value}>
-            <Text color={i === idx ? "#e27649" : "#4a4239"}>
-              {i === idx ? "›" : " "}
+        {CHOICES.map((choice, i) => (
+          <Box key={choice.value}>
+            <Text color={i === idx ? c.accent : c.inkFaint}>
+              {i === idx ? symbols.cursor : " "}
             </Text>
-            <Text color={i === idx ? "#f6f1e8" : "#bdb3a1"}>
-              {" " + c.label.padEnd(22)}
+            <Text color={i === idx ? c.ink : c.inkMuted}>
+              {" " + choice.label.padEnd(22)}
             </Text>
-            <Text color="#8a8270">{c.hint}</Text>
+            <Text color={c.inkDim}>{choice.hint}</Text>
           </Box>
         ))}
       </Box>
       <Box marginTop={1}>
-        <Text color="#8a8270">
+        <Text color={c.inkDim}>
           ↑↓ · Enter valider · Esc refuser · raccourcis y / a / p / n
         </Text>
       </Box>

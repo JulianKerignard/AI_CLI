@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useMemo } from "react";
 import { Box, Text, useInput } from "ink";
 import type { InputHistory } from "../utils/history.js";
-import { colors as c } from "./theme.js";
+import { colors as c, symbols } from "./theme.js";
 import { getSlashCommands } from "./slash-store.js";
 
 // Max lignes visibles dans le popup autocomplete /slash
@@ -79,6 +79,65 @@ function moveCursorVertical(
   }
   const targetLen = lines[targetRow].length;
   return startOfTarget + Math.min(col, targetLen);
+}
+
+interface RenderedLine {
+  text: string;
+  caretCol: number;
+}
+
+// Rend le contenu intérieur de l'InputBox selon l'état. Avant : 3 branches
+// disabled imbriquées en JSX inline. Maintenant : 4 cas exhaustifs et
+// nommés (busy / locked / placeholder / live).
+function renderInputContent(args: {
+  disabled: boolean;
+  hasValue: boolean;
+  placeholder?: string;
+  rendered: RenderedLine[];
+}): React.ReactNode {
+  const { disabled, hasValue, placeholder, rendered } = args;
+  const arrow = symbols.prompt;
+
+  if (disabled && !hasValue) {
+    return (
+      <Box flexDirection="row">
+        <Text color={c.inkFaint}>{arrow}{"  "}</Text>
+        <Text color={c.inkFaint}>…en cours — attend la fin de génération</Text>
+      </Box>
+    );
+  }
+  if (disabled) {
+    return rendered.map((line, i) => (
+      <Box key={i} flexDirection="row">
+        <Text color={c.inkFaint}>{i === 0 ? arrow + "  " : "   "}</Text>
+        <Text color={c.inkFaint}>{line.text || " "}</Text>
+      </Box>
+    ));
+  }
+  if (!hasValue && placeholder) {
+    return (
+      <Box flexDirection="row">
+        <Text color={c.accent}>{arrow}{"  "}</Text>
+        <Text color={c.inkFaint}>{placeholder}</Text>
+      </Box>
+    );
+  }
+  return rendered.map((line, i) => (
+    <Box key={i} flexDirection="row">
+      <Text color={c.accent}>{i === 0 ? arrow + "  " : "   "}</Text>
+      {line.caretCol < 0 ? (
+        <Text>{line.text || " "}</Text>
+      ) : (
+        <Text>
+          {line.text.slice(0, line.caretCol)}
+          <Text inverse>
+            {line.text.slice(line.caretCol, line.caretCol + 1) || " "}
+          </Text>
+          {line.text.slice(line.caretCol + 1)}
+        </Text>
+      )}
+    </Box>
+  ));
 }
 
 export function InputBox({
@@ -445,7 +504,7 @@ export function InputBox({
           return (
             <Box key={cmd.name} flexDirection="row">
               <Text color={active ? c.accent : c.inkFaint}>
-                {active ? "›" : " "}
+                {active ? symbols.cursor : " "}
               </Text>
               <Text color={active ? c.ink : c.inkMuted}>
                 {" "}/{cmd.name.padEnd(16)}
@@ -467,43 +526,12 @@ export function InputBox({
       paddingX={1}
       flexDirection="column"
     >
-      {disabled && !value ? (
-        // Disabled sans rien tapé : affiche l'indicateur "en cours".
-        <Box flexDirection="row">
-          <Text color={c.inkFaint}>›{"  "}</Text>
-          <Text color={c.inkFaint}>…en cours — attend la fin de génération</Text>
-        </Box>
-      ) : disabled ? (
-        // Disabled AVEC du texte déjà tapé : garde le texte visible en dim
-        // pour que l'user ne pense pas qu'il est perdu. Caret caché car on
-        // ne peut pas éditer pendant l'exec.
-        rendered.map((line, i) => (
-          <Box key={i} flexDirection="row">
-            <Text color={c.inkFaint}>{i === 0 ? "›  " : "   "}</Text>
-            <Text color={c.inkFaint}>{line.text || " "}</Text>
-          </Box>
-        ))
-      ) : showPlaceholder ? (
-        <Box flexDirection="row">
-          <Text color={c.accent}>›{"  "}</Text>
-          <Text color={c.inkFaint}>{placeholder}</Text>
-        </Box>
-      ) : (
-        rendered.map((line, i) => (
-          <Box key={i} flexDirection="row">
-            <Text color={c.accent}>{i === 0 ? "›  " : "   "}</Text>
-            {line.caretCol < 0 ? (
-              <Text>{line.text || " "}</Text>
-            ) : (
-              <Text>
-                {line.text.slice(0, line.caretCol)}
-                <Text inverse>{line.text.slice(line.caretCol, line.caretCol + 1) || " "}</Text>
-                {line.text.slice(line.caretCol + 1)}
-              </Text>
-            )}
-          </Box>
-        ))
-      )}
+      {renderInputContent({
+        disabled: !!disabled,
+        hasValue: value.length > 0,
+        placeholder,
+        rendered,
+      })}
     </Box>
     </Box>
   );

@@ -138,7 +138,11 @@ export function App({ history }: AppProps = {}) {
       ) : (
         <InputBox
           disabled={inputDisabled}
-          placeholder="écris un prompt ou /help · \\+Enter = nouvelle ligne · Ctrl+U = vider · Shift+Tab = mode"
+          placeholder={
+            columns >= 100
+              ? "écris un prompt ou /help · \\+Enter = nouvelle ligne · Ctrl+U = vider · Shift+Tab = mode"
+              : "écris un prompt ou /help"
+          }
           history={history}
           onSubmit={(line) => inputController.submit(line)}
           onInterrupt={() => inputController.interrupt()}

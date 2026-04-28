@@ -30,7 +30,6 @@ import {
   appendEvent,
 } from "./sessions/store.js";
 import { BetterModelWatcher } from "./lib/better-model-watcher.js";
-import { cleanProvider } from "./lib/context-window.js";
 import { detectShell, shellSyntaxHint } from "./tools/shell-detect.js";
 import { createBaseRegistry } from "./tools/registry.js";
 import { DemoProvider } from "./agent/demo-provider.js";
@@ -275,50 +274,16 @@ export async function startRepl(): Promise<void> {
     },
   );
 
-  // Banner moderne : bande verticale accent + nom + version + tagline.
+  // Banner court au boot : 2 lignes éditoriales, juste le nom + version
+  // + 1 ligne d'info. Avant : 8 lignes (banner + 5 specs) qui scrollaient
+  // hors écran après quelques tours et n'étaient plus visibles. Maintenant
+  // les specs détaillées (model, tools, mode, shell, cwd) sont à la
+  // demande via /about — l'info importante (mode, model) reste visible
+  // en permanence dans la status line en bas.
   log.banner("AI_CLI", APP_VERSION, "agent code · terminal · tools");
-  // Specs alignés en bloc avec dots colorés selon l'état.
-  const detectedShell = detectShell();
-  const home = process.env.HOME || process.env.USERPROFILE || "";
-  const cwdShort = home && CWD.startsWith(home) ? "~" + CWD.slice(home.length) : CWD;
-  const modeStatus: "ok" | "warn" | "error" =
-    permConfig.mode === "bypass"
-      ? "error"
-      : permConfig.mode === "plan"
-        ? "warn"
-        : "ok";
-  log.specs([
-    {
-      label: "model",
-      value: cleanProvider(provider.name),
-      status: "ok",
-    },
-    {
-      label: "tools",
-      value: `${tools.list().length} tools · ${skills.length} skills · ${subAgents.length} agents · ${mcpServers.length} MCP`,
-      status: "muted",
-    },
-    {
-      label: "mode",
-      value:
-        permConfig.mode === "bypass"
-          ? "⚠ bypass"
-          : permConfig.mode === "plan"
-            ? "⎔ plan"
-            : permConfig.mode,
-      status: modeStatus,
-    },
-    {
-      label: "shell",
-      value: detectedShell.label,
-      status: "muted",
-    },
-    {
-      label: "cwd",
-      value: cwdShort,
-      status: "muted",
-    },
-  ]);
+  log.faint(
+    `tape ${log.accent("/about")} pour voir le détail · ${log.accent("/help")} pour les commandes`,
+  );
   if (!currentCreds) {
     log.info(
       `${log.accentSoft("→")} tape ${log.accent.bold("/login")} ${log.inkMuted(
