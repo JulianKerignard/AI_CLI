@@ -1,6 +1,6 @@
 {
   "name": "@juliank./aicli",
-  "version": "0.3.0",
+  "version": "0.3.1-dev.5",
   "description": "Un CLI interactif à la Claude Code : slash commands, skills, sub-agents, MCP — avec provider démo (pas de clé API).",
   "type": "module",
   "bin": {
@@ -14,7 +14,8 @@
     "typecheck": "tsc -p . --noEmit"
   },
   "files": [
-    "dist",
+    "dist/index.js",
+    "dist/.version",
     "package.json",
     "README.md"
   ],

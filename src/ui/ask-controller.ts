@@ -19,6 +19,11 @@ export interface AskRequest {
 class AskController extends EventEmitter {
   private current: AskRequest | null = null;
 
+  constructor() {
+    super();
+    this.setMaxListeners(20);
+  }
+
   getCurrent(): AskRequest | null {
     return this.current;
   }

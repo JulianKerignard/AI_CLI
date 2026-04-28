@@ -15,6 +15,11 @@ interface Request {
 class SessionController extends EventEmitter {
   private current: Request | null = null;
 
+  constructor() {
+    super();
+    this.setMaxListeners(20);
+  }
+
   getCurrent(): Request | null {
     return this.current;
   }

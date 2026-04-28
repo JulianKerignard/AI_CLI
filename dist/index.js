@@ -2833,9 +2833,9 @@ var require_react_reconciler_production = __commonJS({
                 if (1 !== RunInRootFrame || 1 !== namePropDescriptor) {
                   do
                     if (RunInRootFrame--, namePropDescriptor--, 0 > namePropDescriptor || sampleLines[RunInRootFrame] !== controlLines[namePropDescriptor]) {
-                      var frame = "\n" + sampleLines[RunInRootFrame].replace(" at new ", " at ");
-                      fn.displayName && frame.includes("<anonymous>") && (frame = frame.replace("<anonymous>", fn.displayName));
-                      return frame;
+                      var frame2 = "\n" + sampleLines[RunInRootFrame].replace(" at new ", " at ");
+                      fn.displayName && frame2.includes("<anonymous>") && (frame2 = frame2.replace("<anonymous>", fn.displayName));
+                      return frame2;
                     }
                   while (1 <= RunInRootFrame && 0 <= namePropDescriptor);
                 }
@@ -12130,10 +12130,10 @@ var require_react_reconciler_development = __commonJS({
       __name(describeBuiltInComponentFrame, "describeBuiltInComponentFrame");
       function describeNativeComponentFrame(fn, construct) {
         if (!fn || reentry) return "";
-        var frame = componentFrameCache.get(fn);
-        if (void 0 !== frame) return frame;
+        var frame2 = componentFrameCache.get(fn);
+        if (void 0 !== frame2) return frame2;
         reentry = true;
-        frame = Error.prepareStackTrace;
+        frame2 = Error.prepareStackTrace;
         Error.prepareStackTrace = void 0;
         var previousDispatcher = null;
         previousDispatcher = ReactSharedInternals.H;
@@ -12226,7 +12226,7 @@ var require_react_reconciler_development = __commonJS({
               }
           }
         } finally {
-          reentry = false, ReactSharedInternals.H = previousDispatcher, reenableLogs(), Error.prepareStackTrace = frame;
+          reentry = false, ReactSharedInternals.H = previousDispatcher, reenableLogs(), Error.prepareStackTrace = frame2;
         }
         sampleLines = (sampleLines = fn ? fn.displayName || fn.name : "") ? describeBuiltInComponentFrame(sampleLines) : "";
         "function" === typeof fn && componentFrameCache.set(fn, sampleLines);
@@ -27378,7 +27378,7 @@ var require_extension = __commonJS({
 var require_websocket = __commonJS({
   "node_modules/ws/lib/websocket.js"(exports, module) {
     "use strict";
-    var EventEmitter10 = __require("events");
+    var EventEmitter11 = __require("events");
     var https = __require("https");
     var http = __require("http");
     var net = __require("net");
@@ -27410,7 +27410,7 @@ var require_websocket = __commonJS({
     var protocolVersions = [8, 13];
     var readyStates = ["CONNECTING", "OPEN", "CLOSING", "CLOSED"];
     var subprotocolRegex = /^[!#$%&'*+\-.0-9A-Z^_`|a-z~]+$/;
-    var WebSocket2 = class _WebSocket extends EventEmitter10 {
+    var WebSocket2 = class _WebSocket extends EventEmitter11 {
       static {
         __name(this, "WebSocket");
       }
@@ -28435,7 +28435,7 @@ var require_subprotocol = __commonJS({
 var require_websocket_server = __commonJS({
   "node_modules/ws/lib/websocket-server.js"(exports, module) {
     "use strict";
-    var EventEmitter10 = __require("events");
+    var EventEmitter11 = __require("events");
     var http = __require("http");
     var { Duplex } = __require("stream");
     var { createHash: createHash2 } = __require("crypto");
@@ -28448,7 +28448,7 @@ var require_websocket_server = __commonJS({
     var RUNNING = 0;
     var CLOSING = 1;
     var CLOSED = 2;
-    var WebSocketServer2 = class extends EventEmitter10 {
+    var WebSocketServer2 = class extends EventEmitter11 {
       static {
         __name(this, "WebSocketServer");
       }
@@ -31097,10 +31097,11 @@ function installConsolePatch() {
   console.warn = (...args2) => pushLine(args2, "warn");
   console.error = (...args2) => pushLine(args2, "error");
 }
-var HistoryStore, historyStore, installed;
+var MAX_ITEMS, HistoryStore, historyStore, installed;
 var init_history_store = __esm({
   "src/ui/history-store.ts"() {
     "use strict";
+    MAX_ITEMS = 500;
     HistoryStore = class extends EventEmitter3 {
       static {
         __name(this, "HistoryStore");
@@ -31108,11 +31109,30 @@ var init_history_store = __esm({
       items = [];
       streaming = null;
       nextId = 1;
+      evictedCount = 0;
+      constructor() {
+        super();
+        this.setMaxListeners(20);
+      }
       getItems() {
         return this.items;
       }
       getStreaming() {
         return this.streaming;
+      }
+      // Nombre d'items évincés depuis le début de la session (pour debug,
+      // affichage status bar, etc.).
+      getEvictedCount() {
+        return this.evictedCount;
+      }
+      // Trim head si on dépasse MAX_ITEMS. Appelé après chaque push. O(1) amortized
+      // (splice depuis le début est O(n) mais rare : on évince par batch d'1).
+      trimIfNeeded() {
+        if (this.items.length > MAX_ITEMS) {
+          const drop = this.items.length - MAX_ITEMS;
+          this.items.splice(0, drop);
+          this.evictedCount += drop;
+        }
       }
       // Push un item "figé". S'il y avait un streaming en cours, on le fige
       // d'abord puis on ajoute le nouvel item.
@@ -31124,6 +31144,7 @@ var init_history_store = __esm({
         }
         const id = this.nextId++;
         this.items.push({ ...item, id });
+        this.trimIfNeeded();
         this.emit("items-change");
         return id;
       }
@@ -31134,6 +31155,7 @@ var init_history_store = __esm({
         if (!this.streaming || this.streaming.type !== "assistant") {
           if (this.streaming) {
             this.items.push(this.streaming);
+            this.trimIfNeeded();
             this.emit("items-change");
           }
           this.streaming = {
@@ -31150,13 +31172,24 @@ var init_history_store = __esm({
         if (this.streaming) {
           this.items.push(this.streaming);
           this.streaming = null;
+          this.trimIfNeeded();
           this.emit("items-change");
           this.emit("streaming-change");
         }
       }
+      // Retourne le texte assistant en cours de stream (utilisé par la loop
+      // pour récupérer le partial au moment d'un abort user). Ne consomme pas
+      // le buffer, ne fige pas — endAssistant() reste responsable du flush.
+      getAssistantPartial() {
+        if (this.streaming?.type === "assistant") {
+          return this.streaming.text;
+        }
+        return "";
+      }
       clear() {
         this.items = [];
         this.streaming = null;
+        this.evictedCount = 0;
         this.emit("items-change");
         this.emit("streaming-change");
       }
@@ -31860,6 +31893,444 @@ var init_model_catalog = __esm({
   }
 });
 
+// src/utils/git-info.ts
+import { readFileSync as readFileSync3, existsSync as existsSync4, statSync } from "node:fs";
+import { join as join3, dirname as dirname2 } from "node:path";
+import { spawnSync } from "node:child_process";
+function findGitDir(startDir) {
+  let dir = startDir;
+  for (let i = 0; i < 100; i++) {
+    const candidate = join3(dir, ".git");
+    if (existsSync4(candidate)) return candidate;
+    const parent = dirname2(dir);
+    if (parent === dir) return null;
+    dir = parent;
+  }
+  return null;
+}
+function getGitInfo(cwd2) {
+  const now = Date.now();
+  if (cached && cached.cwd === cwd2 && now - cached.at < CACHE_TTL_MS) {
+    return cached.info;
+  }
+  const info = {
+    branch: null,
+    repoRoot: null,
+    additions: 0,
+    deletions: 0,
+    dirty: false
+  };
+  const gitDir = findGitDir(cwd2);
+  if (!gitDir) {
+    cached = { at: now, cwd: cwd2, info };
+    return info;
+  }
+  info.repoRoot = dirname2(gitDir);
+  try {
+    const headPath = join3(gitDir, "HEAD");
+    if (existsSync4(headPath) && statSync(headPath).isFile()) {
+      const head = readFileSync3(headPath, "utf8").trim();
+      const m = /^ref:\s+refs\/heads\/(.+)$/.exec(head);
+      info.branch = m ? m[1] : head.slice(0, 7);
+    }
+  } catch {
+  }
+  try {
+    const proc = spawnSync("git", ["diff", "--numstat", "HEAD"], {
+      cwd: info.repoRoot,
+      // Windows : git.exe peut être lent au premier call (Defender scan).
+      // 300ms suffit si warm, cache à 60s absorbe les premiers spawns.
+      timeout: process.platform === "win32" ? 300 : 500,
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "pipe"]
+    });
+    if (proc.error) {
+      return info;
+    }
+    if (proc.status === 0 && proc.stdout) {
+      const lines = proc.stdout.trim().split("\n").filter(Boolean);
+      for (const l of lines) {
+        const parts = l.split(/\s+/);
+        const add = Number(parts[0]);
+        const del = Number(parts[1]);
+        if (Number.isFinite(add)) info.additions += add;
+        if (Number.isFinite(del)) info.deletions += del;
+      }
+      info.dirty = lines.length > 0;
+    }
+  } catch {
+  }
+  cached = { at: now, cwd: cwd2, info };
+  return info;
+}
+var CACHE_TTL_MS, cached;
+var init_git_info = __esm({
+  "src/utils/git-info.ts"() {
+    "use strict";
+    __name(findGitDir, "findGitDir");
+    CACHE_TTL_MS = process.platform === "win32" ? 6e4 : 1e4;
+    cached = null;
+    __name(getGitInfo, "getGitInfo");
+  }
+});
+
+// src/lib/context-window.ts
+function cleanProvider(name) {
+  const httpMatch = /^http\((.+)\)$/.exec(name);
+  let s = httpMatch ? httpMatch[1] : name;
+  if (s.startsWith("nvidia/")) s = s.slice("nvidia/".length);
+  else if (s.startsWith("openrouter/")) s = s.slice("openrouter/".length);
+  else if (s.startsWith("google/")) s = s.slice("google/".length);
+  const slashIdx = s.indexOf("/");
+  if (slashIdx !== -1) s = s.slice(slashIdx + 1);
+  s = s.replace(/:free$/, "").replace(/-instruct$/, "");
+  if (s.startsWith("mistral-")) s = s.slice("mistral-".length);
+  s = s.replace(/-latest$/, "");
+  return s;
+}
+function estimateBaselineTokens(system, tools) {
+  let chars = system.length;
+  for (const t of tools) {
+    chars += t.name.length;
+    chars += t.description.length;
+    chars += JSON.stringify(t.schema).length;
+  }
+  return Math.ceil(chars / 4);
+}
+function contextWindowFor(model) {
+  const m = cleanProvider(model).toLowerCase();
+  if (m.includes("kimi-k2")) return 256e3;
+  if (m.includes("qwen3-coder")) return 256e3;
+  if (m.includes("qwen3-next")) return 256e3;
+  if (m.includes("qwen2.5-coder")) return 32e3;
+  if (m.includes("nemotron-ultra")) return 128e3;
+  if (m.includes("nemotron-super")) return 128e3;
+  if (m.includes("gpt-oss")) return 131e3;
+  if (m.includes("llama-3.3-70b")) return 128e3;
+  if (m.includes("llama-3.1-405b")) return 128e3;
+  if (m.includes("llama-3.1-8b")) return 128e3;
+  if (m.includes("phi-4")) return 16e3;
+  if (m.includes("glm-5") || m.includes("glm5")) return 2e5;
+  if (m.includes("glm4")) return 128e3;
+  if (m.includes("minimax-m")) return 1e6;
+  if (m.includes("codestral") || m.includes("devstral")) return 256e3;
+  if (m.includes("small")) return 32e3;
+  if (m.includes("large") || m.includes("medium")) return 128e3;
+  if (m.includes("magistral")) return 4e4;
+  return 128e3;
+}
+var init_context_window = __esm({
+  "src/lib/context-window.ts"() {
+    "use strict";
+    __name(cleanProvider, "cleanProvider");
+    __name(estimateBaselineTokens, "estimateBaselineTokens");
+    __name(contextWindowFor, "contextWindowFor");
+  }
+});
+
+// src/utils/status-bar.ts
+var status_bar_exports = {};
+__export(status_bar_exports, {
+  initStatusBar: () => initStatusBar,
+  renderStatusLines: () => renderStatusLines,
+  resetTurn: () => resetTurn,
+  setSessionTotals: () => setSessionTotals,
+  subscribeStatus: () => subscribeStatus,
+  teardownStatusBar: () => teardownStatusBar,
+  updateStatus: () => updateStatus
+});
+import { EventEmitter as EventEmitter4 } from "node:events";
+import { sep } from "node:path";
+function subscribeStatus(cb) {
+  emitter.on("change", cb);
+  return () => {
+    emitter.off("change", cb);
+  };
+}
+function startTick() {
+  if (tickTimer) return;
+  if (!ANIMATED_PHASES.has(state.phase)) return;
+  tickTimer = setInterval(() => {
+    frame = (frame + 1) % 1e6;
+    emitter.emit("change");
+  }, TICK_INTERVAL_MS);
+  tickTimer.unref?.();
+}
+function stopTick() {
+  if (!tickTimer) return;
+  clearInterval(tickTimer);
+  tickTimer = null;
+}
+function phaseSymbol(phase) {
+  const frames = ANIM_FRAMES[phase];
+  if (!frames || frames.length === 0) return PHASE_SYM[phase];
+  return frames[frame % frames.length];
+}
+function starSymbol() {
+  return STAR_FRAMES[Math.floor(frame / 3) % STAR_FRAMES.length];
+}
+function compact2(n) {
+  if (n < 1e3) return String(n);
+  if (n < 1e4) return (n / 1e3).toFixed(1) + "k";
+  if (n < 1e6) return Math.round(n / 1e3) + "k";
+  return (n / 1e6).toFixed(1) + "M";
+}
+function renderBar(pct, width, color = ACCENT) {
+  const filled = Math.max(0, Math.min(width, Math.round(pct * width)));
+  return color("\u2588".repeat(filled)) + FAINT("\u2591".repeat(width - filled));
+}
+function shortCwd(cwd2) {
+  const max = 35;
+  if (cwd2.length <= max) return cwd2;
+  const parts = cwd2.split(sep).filter(Boolean);
+  if (parts.length <= 2) return "..." + sep + parts.slice(-2).join(sep);
+  return "..." + sep + parts.slice(-2).join(sep);
+}
+function formatResetShort(iso) {
+  const ts = Date.parse(iso);
+  if (!Number.isFinite(ts)) return "?";
+  const ms = ts - Date.now();
+  if (ms <= 0) return "soon";
+  const mins = Math.round(ms / 6e4);
+  if (mins < 60) return `${mins}m`;
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
+  return m === 0 ? `${h}h` : `${h}h${m}m`;
+}
+function visibleLen(s) {
+  return s.replace(/\x1b\[[0-9;]*m/g, "").length;
+}
+function renderStatusLines(cols) {
+  const tag = state.sessionTag ?? cleanProvider2(state.provider ?? "");
+  const tagBox = tag ? import_chalk4.default.bgHex("#245454").hex("#f6f1e8")(` ${tag} `) : "";
+  const ruleLen = Math.max(0, cols - visibleLen(tagBox) - 2);
+  const rule = TEAL(GLYPH.sepLine.repeat(ruleLen)) + (tagBox ? "  " + tagBox : "");
+  const parts1 = [];
+  if (state.provider) {
+    const ctxWin = state.contextWindow ?? contextWindowFor2(state.provider);
+    const ctxStr = ctxWin >= 1e6 ? `${ctxWin / 1e6}M` : `${ctxWin / 1e3}k`;
+    const diamondColor = state.phase === "streaming" || state.phase === "executing-tool" ? frame % 2 === 0 ? ACCENT : ACCENT_SOFT : ACCENT;
+    let head = diamondColor(GLYPH.diamond + " ") + INK_BRIGHT.bold(cleanProvider2(state.provider)) + FAINT(` (${ctxStr} ctx)`);
+    if (state.currentQuality !== void 0 && state.currentSpeed !== void 0) {
+      head += FAINT("  ") + MUTED("Q") + INK(String(state.currentQuality)) + FAINT("/10 ") + MUTED("V") + INK(String(state.currentSpeed)) + FAINT("/10");
+    }
+    parts1.push(head);
+  }
+  if (state.cwd) parts1.push(MUTED(shortCwd(state.cwd)));
+  const git = state.cwd ? getGitInfo(state.cwd) : null;
+  if (git?.branch) parts1.push(INK("on ") + ACCENT_SOFT.italic(git.branch));
+  const tokenSegs = [];
+  if ((state.tokensIn ?? 0) > 0)
+    tokenSegs.push(MUTED(GLYPH.arrowUp) + INK(compact2(state.tokensIn)));
+  if ((state.tokensOut ?? 0) > 0)
+    tokenSegs.push(MUTED(GLYPH.arrowDown) + INK(compact2(state.tokensOut)));
+  if (tokenSegs.length > 0) parts1.push(tokenSegs.join(" "));
+  if (git && (git.additions > 0 || git.deletions > 0)) {
+    parts1.push(SUCCESS(`+${git.additions}`) + " " + DANGER(`-${git.deletions}`));
+  }
+  const sep5 = FAINT("  \u2502  ");
+  const softSep = FAINT("  \xB7  ");
+  const line1 = parts1.slice(0, 3).join(softSep) + (parts1.length > 3 ? sep5 + parts1.slice(3).join(sep5) : "");
+  const parts2 = [];
+  const sessionTotal = (state.sessionInTotal ?? 0) + (state.sessionOutTotal ?? 0);
+  const ctxWindow = state.contextWindow ?? contextWindowFor2(state.provider ?? "mistral-large-latest");
+  const baseline = state.baselineTokens ?? 0;
+  {
+    const effectiveMax = Math.max(1, ctxWindow - baseline);
+    const convUsed = Math.max(0, sessionTotal - baseline);
+    const pct = Math.min(1, convUsed / effectiveMax);
+    const pctNum = Math.round(pct * 100);
+    const bar = renderBar(pct, 10);
+    const baselineTag = baseline > 0 ? FAINT(` (+${compact2(baseline)} base)`) : "";
+    parts2.push(
+      INK_BRIGHT(compact2(convUsed)) + FAINT("/") + MUTED(compact2(effectiveMax)) + "  " + bar + "  " + ACCENT(`${pctNum}%`) + FAINT(" ctx") + baselineTag
+    );
+  }
+  if (state.quotaUsed !== void 0 && state.quotaLimit) {
+    const pct = state.quotaUsed / state.quotaLimit;
+    const pctNum = Math.round(pct * 100);
+    const color = pct >= 0.9 ? DANGER : pct >= 0.7 ? ACCENT_SOFT : ACCENT;
+    const bar = renderBar(pct, 6, color);
+    const resetPart = state.resetAt ? FAINT(" \u27F3") + MUTED(formatResetShort(state.resetAt)) : "";
+    parts2.push(
+      MUTED("5h ") + bar + " " + color(`${state.quotaUsed}/${state.quotaLimit}`) + FAINT(" ") + color(`${pctNum}%`) + resetPart
+    );
+  }
+  const line2 = parts2.join(FAINT("  \xB7  "));
+  let phaseStr = PHASE_COLOR[state.phase](
+    phaseSymbol(state.phase) + " " + PHASE_LABEL[state.phase]
+  );
+  if (state.phase === "executing-tool" && state.toolName) {
+    phaseStr += MUTED(" " + state.toolName);
+  }
+  if (state.phase === "waiting-quota" && state.waitingMsRemaining !== void 0) {
+    const s = Math.max(1, Math.ceil(state.waitingMsRemaining / 1e3));
+    phaseStr += MUTED(` ${s}s`);
+  }
+  if (state.suggestedBetter) {
+    const parts = state.suggestedBetter.id.split("/");
+    const shortId = parts[parts.length - 1] || state.suggestedBetter.id;
+    phaseStr += FAINT("  \xB7  ") + SUCCESS(starSymbol() + " ") + ACCENT_SOFT(shortId) + FAINT(" \xB7 ") + MUTED("Q") + INK(String(state.suggestedBetter.qualityOutOf10)) + FAINT("/10 ") + MUTED("V") + INK(String(state.suggestedBetter.speedOutOf10)) + FAINT("/10");
+  }
+  let modePart = "";
+  if (state.permissionMode && state.permissionMode !== "default") {
+    if (state.permissionMode === "bypass") {
+      modePart = import_chalk4.default.hex("#e26849").bold(
+        (IS_LEGACY_CONSOLE ? "! " : "\u26A0 ") + "bypass"
+      ) + "  ";
+    } else if (state.permissionMode === "plan") {
+      modePart = ACCENT_SOFT((IS_LEGACY_CONSOLE ? "[P] " : "\u2394 ") + "plan") + "  ";
+    } else if (state.permissionMode === "accept-edits") {
+      modePart = SUCCESS((IS_LEGACY_CONSOLE ? "[E] " : "\u2713 ") + "accept-edits") + "  ";
+    } else {
+      modePart = MUTED(state.permissionMode) + "  ";
+    }
+  }
+  const versionPart = FAINT(`v${VERSION}`);
+  const leftLen = visibleLen(phaseStr);
+  const rightPart = modePart + versionPart;
+  const rightLen = visibleLen(rightPart);
+  const padding = Math.max(2, cols - leftLen - rightLen);
+  const line3 = phaseStr + " ".repeat(padding) + rightPart;
+  return [rule, line1, line2, line3];
+}
+function scheduleRender() {
+  emitter.emit("change");
+  if (ANIMATED_PHASES.has(state.phase)) startTick();
+  else stopTick();
+}
+function initStatusBar() {
+  if (enabled) return;
+  enabled = true;
+  state.cwd = process.cwd();
+  process.on("exit", teardownStatusBar);
+}
+function teardownStatusBar() {
+  if (!enabled) return;
+  enabled = false;
+  stopTick();
+}
+function updateStatus(partial) {
+  Object.assign(state, partial);
+  scheduleRender();
+}
+function setSessionTotals(inTotal, outTotal) {
+  state.sessionInTotal = inTotal;
+  state.sessionOutTotal = outTotal;
+  scheduleRender();
+}
+function resetTurn() {
+  state.tokensIn = void 0;
+  state.tokensOut = void 0;
+  state.toolName = void 0;
+  state.waitingMsRemaining = void 0;
+  state.phase = "idle";
+  scheduleRender();
+}
+var emitter, state, enabled, VERSION, PHASE_LABEL, IS_LEGACY_CONSOLE, PHASE_SYM, ANIM_FRAMES, ANIMATED_PHASES, TICK_INTERVAL_MS, frame, tickTimer, STAR_FRAMES, GLYPH, PHASE_COLOR, FAINT, MUTED, INK, INK_BRIGHT, ACCENT, ACCENT_SOFT, DANGER, SUCCESS, TEAL, cleanProvider2, contextWindowFor2;
+var init_status_bar = __esm({
+  "src/utils/status-bar.ts"() {
+    "use strict";
+    init_logger();
+    init_git_info();
+    init_context_window();
+    emitter = new EventEmitter4();
+    emitter.setMaxListeners(20);
+    __name(subscribeStatus, "subscribeStatus");
+    state = { phase: "idle" };
+    enabled = false;
+    VERSION = "0.1.0";
+    PHASE_LABEL = {
+      idle: "idle",
+      loading: "chargement du mod\xE8le\u2026",
+      thinking: "thinking\u2026",
+      streaming: "streaming",
+      "waiting-quota": "waiting quota",
+      "executing-tool": "tool",
+      compacting: "compacting\u2026",
+      offline: "offline"
+    };
+    IS_LEGACY_CONSOLE = process.platform === "win32" && !process.env.WT_SESSION;
+    PHASE_SYM = IS_LEGACY_CONSOLE ? {
+      idle: ".",
+      loading: "~",
+      thinking: "*",
+      streaming: "*",
+      "waiting-quota": "...",
+      "executing-tool": "#",
+      compacting: "~",
+      offline: "o"
+    } : {
+      idle: "\xB7",
+      loading: "\u21BB",
+      thinking: "\u25CF",
+      streaming: "\u25CF",
+      "waiting-quota": "\u23F3",
+      "executing-tool": "\u25C6",
+      compacting: "\u21BB",
+      offline: "\u25CB"
+    };
+    ANIM_FRAMES = IS_LEGACY_CONSOLE ? {} : {
+      thinking: ["\u280B", "\u2819", "\u2839", "\u2838", "\u283C", "\u2834", "\u2826", "\u2827", "\u2807", "\u280F"],
+      streaming: ["\u25CF", "\u25D0", "\u25D1", "\u25D2", "\u25D3", "\u25D4", "\u25D5"],
+      loading: ["\u25DC", "\u25E0", "\u25DD", "\u25DE", "\u25E1", "\u25DF"],
+      "executing-tool": ["\u25C6", "\u25C8", "\u25C7", "\u25C8"],
+      compacting: ["\u2801", "\u2802", "\u2804", "\u2840", "\u2880", "\u2820", "\u2810", "\u2808"],
+      "waiting-quota": ["\u23F3", "\u231B"]
+    };
+    ANIMATED_PHASES = /* @__PURE__ */ new Set([
+      "thinking",
+      "streaming",
+      "loading",
+      "executing-tool",
+      "compacting",
+      "waiting-quota"
+    ]);
+    TICK_INTERVAL_MS = 100;
+    frame = 0;
+    tickTimer = null;
+    __name(startTick, "startTick");
+    __name(stopTick, "stopTick");
+    __name(phaseSymbol, "phaseSymbol");
+    STAR_FRAMES = IS_LEGACY_CONSOLE ? ["*"] : ["\u2605", "\u2726", "\u2727", "\u2726"];
+    __name(starSymbol, "starSymbol");
+    GLYPH = IS_LEGACY_CONSOLE ? { diamond: "#", sepLine: "-", midDot: ".", arrowUp: "^", arrowDown: "v", star: "*" } : { diamond: "\u25C6", sepLine: "\u2500", midDot: "\xB7", arrowUp: "\u2191", arrowDown: "\u2193", star: "\u2605" };
+    PHASE_COLOR = {
+      idle: import_chalk4.default.hex("#8a8270"),
+      loading: import_chalk4.default.hex("#7fa8a6"),
+      thinking: import_chalk4.default.hex("#ec9470"),
+      streaming: import_chalk4.default.hex("#e27649"),
+      "waiting-quota": import_chalk4.default.hex("#c76a5f"),
+      "executing-tool": import_chalk4.default.hex("#ec9470"),
+      compacting: import_chalk4.default.hex("#bdb3a1"),
+      offline: import_chalk4.default.hex("#8a8270")
+    };
+    FAINT = import_chalk4.default.hex("#4a4239");
+    MUTED = import_chalk4.default.hex("#8a8270");
+    INK = import_chalk4.default.hex("#bdb3a1");
+    INK_BRIGHT = import_chalk4.default.hex("#f6f1e8");
+    ACCENT = import_chalk4.default.hex("#e27649");
+    ACCENT_SOFT = import_chalk4.default.hex("#ec9470");
+    DANGER = import_chalk4.default.hex("#c76a5f");
+    SUCCESS = import_chalk4.default.hex("#7fa670");
+    TEAL = import_chalk4.default.hex("#7fa8a6");
+    __name(compact2, "compact");
+    cleanProvider2 = cleanProvider;
+    contextWindowFor2 = contextWindowFor;
+    __name(renderBar, "renderBar");
+    __name(shortCwd, "shortCwd");
+    __name(formatResetShort, "formatResetShort");
+    __name(visibleLen, "visibleLen");
+    __name(renderStatusLines, "renderStatusLines");
+    __name(scheduleRender, "scheduleRender");
+    __name(initStatusBar, "initStatusBar");
+    __name(teardownStatusBar, "teardownStatusBar");
+    __name(updateStatus, "updateStatus");
+    __name(setSessionTotals, "setSessionTotals");
+    __name(resetTurn, "resetTurn");
+  }
+});
+
 // src/ui/input-controller.ts
 var input_controller_exports = {};
 __export(input_controller_exports, {
@@ -31876,6 +32347,10 @@ var init_input_controller = __esm({
       }
       pending = null;
       _disabled = false;
+      constructor() {
+        super();
+        this.setMaxListeners(20);
+      }
       get disabled() {
         return this._disabled;
       }
@@ -31931,6 +32406,10 @@ var init_picker_controller = __esm({
         __name(this, "PickerController");
       }
       current = null;
+      constructor() {
+        super();
+        this.setMaxListeners(20);
+      }
       getCurrent() {
         return this.current;
       }
@@ -31985,7 +32464,16 @@ function normalizeModelId(id) {
   return id;
 }
 function displayModelId(id) {
-  return normalizeModelId(id);
+  let s = id;
+  if (s.startsWith("nvidia/")) s = s.slice("nvidia/".length);
+  else if (s.startsWith("openrouter/")) s = s.slice("openrouter/".length);
+  else if (s.startsWith("google/")) s = s.slice("google/".length);
+  const slashIdx = s.indexOf("/");
+  if (slashIdx !== -1) s = s.slice(slashIdx + 1);
+  s = s.replace(/:free$/, "").replace(/-instruct$/, "");
+  if (s.startsWith("mistral-")) s = s.slice("mistral-".length);
+  s = s.replace(/-latest$/, "");
+  return s;
 }
 function qualityFallback(category) {
   const cat = (category || "").toLowerCase();
@@ -32160,6 +32648,10 @@ var init_session_controller = __esm({
         __name(this, "SessionController");
       }
       current = null;
+      constructor() {
+        super();
+        this.setMaxListeners(20);
+      }
       getCurrent() {
         return this.current;
       }
@@ -32178,6 +32670,31 @@ var init_session_controller = __esm({
       }
     };
     sessionController = new SessionController();
+  }
+});
+
+// src/ui/interrupt-controller.ts
+var interrupt_controller_exports = {};
+__export(interrupt_controller_exports, {
+  interruptController: () => interruptController
+});
+import { EventEmitter as EventEmitter10 } from "node:events";
+var InterruptController, interruptController;
+var init_interrupt_controller = __esm({
+  "src/ui/interrupt-controller.ts"() {
+    "use strict";
+    InterruptController = class extends EventEmitter10 {
+      static {
+        __name(this, "InterruptController");
+      }
+      // Demande d'interruption. La loop décide si elle est applicable (ignore
+      // si pas de tour en cours).
+      request() {
+        this.emit("interrupt");
+      }
+    };
+    interruptController = new InterruptController();
+    interruptController.setMaxListeners(20);
   }
 });
 
@@ -32348,51 +32865,64 @@ var init_store = __esm({
 // src/lib/favorites.ts
 var favorites_exports = {};
 __export(favorites_exports, {
-  FAVORITE_ALIASES: () => FAVORITE_ALIASES,
-  FAVORITE_FULL_IDS: () => FAVORITE_FULL_IDS,
-  FAVORITE_ORDER: () => FAVORITE_ORDER,
-  resolveFavoriteAlias: () => resolveFavoriteAlias
+  resolveAlias: () => resolveAlias,
+  resolveFavoritesFromCatalog: () => resolveFavoritesFromCatalog
 });
-function resolveFavoriteAlias(input) {
-  const hit = FAVORITE_ALIASES[input.toLowerCase()];
-  return hit ?? null;
+function resolveFavoritesFromCatalog(catalog) {
+  const tagged = catalog.filter(
+    (m) => m.favorite === true && Array.isArray(m.aliases) && m.aliases.length > 0
+  );
+  if (tagged.length > 0) {
+    const aliases2 = {};
+    const order = [];
+    const fullIds = /* @__PURE__ */ new Set();
+    for (const m of tagged) {
+      const list = m.aliases ?? [];
+      const primary = list[0];
+      if (!primary) continue;
+      aliases2[primary.toLowerCase()] = m.id;
+      order.push(primary);
+      for (const alt of list.slice(1)) {
+        aliases2[alt.toLowerCase()] = m.id;
+      }
+      fullIds.add(m.id);
+    }
+    return { aliases: aliases2, order, fullIds, source: "catalog" };
+  }
+  const aliases = {};
+  for (const f of FALLBACK_FAVORITES) {
+    aliases[f.alias.toLowerCase()] = f.fullId;
+  }
+  return {
+    aliases,
+    order: FALLBACK_FAVORITES.map((f) => f.alias),
+    fullIds: new Set(FALLBACK_FAVORITES.map((f) => f.fullId)),
+    source: "fallback"
+  };
 }
-var FAVORITE_ALIASES, FAVORITE_ORDER, FAVORITE_FULL_IDS;
+function resolveAlias(favorites, input) {
+  return favorites.aliases[input.trim().toLowerCase()] ?? null;
+}
+var FALLBACK_FAVORITES;
 var init_favorites = __esm({
   "src/lib/favorites.ts"() {
     "use strict";
-    FAVORITE_ALIASES = {
-      hy3: "openrouter/tencent/hy3-preview:free",
-      "ling-1t": "openrouter/inclusionai/ling-2.6-1t:free",
-      flash: "google/gemini-flash-latest",
-      large: "mistral-large-latest",
-      codestral: "codestral-latest",
-      devstral: "devstral-latest",
-      nemotron: "nvidia/nvidia/llama-3.1-nemotron-ultra-253b-v1",
-      "gpt-oss": "nvidia/openai/gpt-oss-120b",
-      "qwen-coder": "nvidia/qwen/qwen2.5-coder-32b-instruct",
-      "kimi-k2": "nvidia/moonshotai/kimi-k2-instruct",
-      "kimi-thinking": "nvidia/moonshotai/kimi-k2-thinking",
-      "flash-lite": "google/gemini-flash-lite-latest"
-    };
-    FAVORITE_ORDER = [
-      "hy3",
-      "ling-1t",
-      "flash",
-      "large",
-      "codestral",
-      "devstral",
-      "nemotron",
-      "gpt-oss",
-      "qwen-coder",
-      "kimi-k2",
-      "kimi-thinking",
-      "flash-lite"
+    FALLBACK_FAVORITES = [
+      { alias: "hy3", fullId: "openrouter/tencent/hy3-preview:free" },
+      { alias: "ling-1t", fullId: "openrouter/inclusionai/ling-2.6-1t:free" },
+      { alias: "flash", fullId: "google/gemini-flash-latest" },
+      { alias: "large", fullId: "mistral-large-latest" },
+      { alias: "codestral", fullId: "codestral-latest" },
+      { alias: "devstral", fullId: "devstral-latest" },
+      { alias: "nemotron", fullId: "nvidia/nvidia/llama-3.1-nemotron-ultra-253b-v1" },
+      { alias: "gpt-oss", fullId: "nvidia/openai/gpt-oss-120b" },
+      { alias: "qwen-coder", fullId: "nvidia/qwen/qwen2.5-coder-32b-instruct" },
+      { alias: "kimi-k2", fullId: "nvidia/moonshotai/kimi-k2-instruct" },
+      { alias: "kimi-thinking", fullId: "nvidia/moonshotai/kimi-k2-thinking" },
+      { alias: "flash-lite", fullId: "google/gemini-flash-lite-latest" }
     ];
-    __name(resolveFavoriteAlias, "resolveFavoriteAlias");
-    FAVORITE_FULL_IDS = new Set(
-      Object.values(FAVORITE_ALIASES)
-    );
+    __name(resolveFavoritesFromCatalog, "resolveFavoritesFromCatalog");
+    __name(resolveAlias, "resolveAlias");
   }
 });
 
@@ -33092,7 +33622,7 @@ var init_theme = __esm({
       },
       spinner: {
         interval: 80,
-        frames: ["\u280B", "\u2819", "\u2839", "\u2838", "\u283C", "\u2834", "\u2826", "\u2827", "\u2807", "\u280F"].map((frame) => styleText("yellow", frame))
+        frames: ["\u280B", "\u2819", "\u2839", "\u2838", "\u283C", "\u2834", "\u2826", "\u2827", "\u2807", "\u280F"].map((frame2) => styleText("yellow", frame2))
       },
       style: {
         answer: /* @__PURE__ */ __name((text) => styleText("cyan", text), "answer"),
@@ -34414,7 +34944,7 @@ import { fileURLToPath } from "node:url";
 import { homedir as homedir6 } from "node:os";
 function getLocalVersion() {
   if (true) {
-    return "0.3.0";
+    return "0.3.1-dev.5";
   }
   try {
     const here = dirname4(fileURLToPath(import.meta.url));
@@ -50992,7 +51522,7 @@ import { readFileSync as readFileSync2, writeFileSync, existsSync as existsSync3
 import { homedir as homedir2 } from "node:os";
 import { join as join2, dirname } from "node:path";
 var FILE = join2(homedir2(), ".aicli", "history.json");
-var MAX_ITEMS = 200;
+var MAX_ITEMS2 = 200;
 var InputHistory = class {
   static {
     __name(this, "InputHistory");
@@ -51016,7 +51546,7 @@ var InputHistory = class {
   persist() {
     try {
       mkdirSync(dirname(FILE), { recursive: true });
-      writeFileSync(FILE, JSON.stringify(this.items.slice(-MAX_ITEMS)), {
+      writeFileSync(FILE, JSON.stringify(this.items.slice(-MAX_ITEMS2)), {
         mode: 384
       });
     } catch {
@@ -51032,8 +51562,8 @@ var InputHistory = class {
       return;
     }
     this.items.push(trimmed);
-    if (this.items.length > MAX_ITEMS) {
-      this.items.splice(0, this.items.length - MAX_ITEMS);
+    if (this.items.length > MAX_ITEMS2) {
+      this.items.splice(0, this.items.length - MAX_ITEMS2);
     }
     this.cursor = -1;
     this.persist();
@@ -51507,352 +52037,7 @@ __name(InputBox, "InputBox");
 
 // src/ui/StatusLine.tsx
 var import_react36 = __toESM(require_react(), 1);
-
-// src/utils/status-bar.ts
-init_logger();
-import { EventEmitter as EventEmitter4 } from "node:events";
-import { sep } from "node:path";
-
-// src/utils/git-info.ts
-import { readFileSync as readFileSync3, existsSync as existsSync4, statSync } from "node:fs";
-import { join as join3, dirname as dirname2 } from "node:path";
-import { spawnSync } from "node:child_process";
-function findGitDir(startDir) {
-  let dir = startDir;
-  for (let i = 0; i < 100; i++) {
-    const candidate = join3(dir, ".git");
-    if (existsSync4(candidate)) return candidate;
-    const parent = dirname2(dir);
-    if (parent === dir) return null;
-    dir = parent;
-  }
-  return null;
-}
-__name(findGitDir, "findGitDir");
-var CACHE_TTL_MS = process.platform === "win32" ? 6e4 : 1e4;
-var cached = null;
-function getGitInfo(cwd2) {
-  const now = Date.now();
-  if (cached && cached.cwd === cwd2 && now - cached.at < CACHE_TTL_MS) {
-    return cached.info;
-  }
-  const info = {
-    branch: null,
-    repoRoot: null,
-    additions: 0,
-    deletions: 0,
-    dirty: false
-  };
-  const gitDir = findGitDir(cwd2);
-  if (!gitDir) {
-    cached = { at: now, cwd: cwd2, info };
-    return info;
-  }
-  info.repoRoot = dirname2(gitDir);
-  try {
-    const headPath = join3(gitDir, "HEAD");
-    if (existsSync4(headPath) && statSync(headPath).isFile()) {
-      const head = readFileSync3(headPath, "utf8").trim();
-      const m = /^ref:\s+refs\/heads\/(.+)$/.exec(head);
-      info.branch = m ? m[1] : head.slice(0, 7);
-    }
-  } catch {
-  }
-  try {
-    const proc = spawnSync("git", ["diff", "--numstat", "HEAD"], {
-      cwd: info.repoRoot,
-      // Windows : git.exe peut être lent au premier call (Defender scan).
-      // 300ms suffit si warm, cache à 60s absorbe les premiers spawns.
-      timeout: process.platform === "win32" ? 300 : 500,
-      encoding: "utf8",
-      stdio: ["ignore", "pipe", "pipe"]
-    });
-    if (proc.error) {
-      return info;
-    }
-    if (proc.status === 0 && proc.stdout) {
-      const lines = proc.stdout.trim().split("\n").filter(Boolean);
-      for (const l of lines) {
-        const parts = l.split(/\s+/);
-        const add = Number(parts[0]);
-        const del = Number(parts[1]);
-        if (Number.isFinite(add)) info.additions += add;
-        if (Number.isFinite(del)) info.deletions += del;
-      }
-      info.dirty = lines.length > 0;
-    }
-  } catch {
-  }
-  cached = { at: now, cwd: cwd2, info };
-  return info;
-}
-__name(getGitInfo, "getGitInfo");
-
-// src/lib/context-window.ts
-function cleanProvider(name) {
-  const httpMatch = /^http\((.+)\)$/.exec(name);
-  const inner = httpMatch ? httpMatch[1] : name;
-  return inner.startsWith("nvidia/") ? inner.slice("nvidia/".length) : inner;
-}
-__name(cleanProvider, "cleanProvider");
-function estimateBaselineTokens(system, tools) {
-  let chars = system.length;
-  for (const t of tools) {
-    chars += t.name.length;
-    chars += t.description.length;
-    chars += JSON.stringify(t.schema).length;
-  }
-  return Math.ceil(chars / 4);
-}
-__name(estimateBaselineTokens, "estimateBaselineTokens");
-function contextWindowFor(model) {
-  const m = cleanProvider(model).toLowerCase();
-  if (m.includes("kimi-k2")) return 256e3;
-  if (m.includes("qwen3-coder")) return 256e3;
-  if (m.includes("qwen3-next")) return 256e3;
-  if (m.includes("qwen2.5-coder")) return 32e3;
-  if (m.includes("nemotron-ultra")) return 128e3;
-  if (m.includes("nemotron-super")) return 128e3;
-  if (m.includes("gpt-oss")) return 131e3;
-  if (m.includes("llama-3.3-70b")) return 128e3;
-  if (m.includes("llama-3.1-405b")) return 128e3;
-  if (m.includes("llama-3.1-8b")) return 128e3;
-  if (m.includes("phi-4")) return 16e3;
-  if (m.includes("glm-5") || m.includes("glm5")) return 2e5;
-  if (m.includes("glm4")) return 128e3;
-  if (m.includes("minimax-m")) return 1e6;
-  if (m.includes("codestral") || m.includes("devstral")) return 256e3;
-  if (m.includes("small")) return 32e3;
-  if (m.includes("large") || m.includes("medium")) return 128e3;
-  if (m.includes("magistral")) return 4e4;
-  return 128e3;
-}
-__name(contextWindowFor, "contextWindowFor");
-
-// src/utils/status-bar.ts
-var emitter = new EventEmitter4();
-emitter.setMaxListeners(20);
-function subscribeStatus(cb) {
-  emitter.on("change", cb);
-  return () => {
-    emitter.off("change", cb);
-  };
-}
-__name(subscribeStatus, "subscribeStatus");
-var state = { phase: "idle" };
-var enabled = false;
-var VERSION = "0.1.0";
-var PHASE_LABEL = {
-  idle: "idle",
-  loading: "chargement du mod\xE8le\u2026",
-  thinking: "thinking\u2026",
-  streaming: "streaming",
-  "waiting-quota": "waiting quota",
-  "executing-tool": "tool",
-  compacting: "compacting\u2026",
-  offline: "offline"
-};
-var IS_LEGACY_CONSOLE = process.platform === "win32" && !process.env.WT_SESSION;
-var PHASE_SYM = IS_LEGACY_CONSOLE ? {
-  idle: ".",
-  loading: "~",
-  thinking: "*",
-  streaming: "*",
-  "waiting-quota": "...",
-  "executing-tool": "#",
-  compacting: "~",
-  offline: "o"
-} : {
-  idle: "\xB7",
-  loading: "\u21BB",
-  thinking: "\u25CF",
-  streaming: "\u25CF",
-  "waiting-quota": "\u23F3",
-  "executing-tool": "\u25C6",
-  compacting: "\u21BB",
-  offline: "\u25CB"
-};
-var GLYPH = IS_LEGACY_CONSOLE ? { diamond: "#", sepLine: "-", midDot: ".", arrowUp: "^", arrowDown: "v", star: "*" } : { diamond: "\u25C6", sepLine: "\u2500", midDot: "\xB7", arrowUp: "\u2191", arrowDown: "\u2193", star: "\u2605" };
-var PHASE_COLOR = {
-  idle: import_chalk4.default.hex("#8a8270"),
-  loading: import_chalk4.default.hex("#7fa8a6"),
-  thinking: import_chalk4.default.hex("#ec9470"),
-  streaming: import_chalk4.default.hex("#e27649"),
-  "waiting-quota": import_chalk4.default.hex("#c76a5f"),
-  "executing-tool": import_chalk4.default.hex("#ec9470"),
-  compacting: import_chalk4.default.hex("#bdb3a1"),
-  offline: import_chalk4.default.hex("#8a8270")
-};
-var FAINT = import_chalk4.default.hex("#4a4239");
-var MUTED = import_chalk4.default.hex("#8a8270");
-var INK = import_chalk4.default.hex("#bdb3a1");
-var INK_BRIGHT = import_chalk4.default.hex("#f6f1e8");
-var ACCENT = import_chalk4.default.hex("#e27649");
-var ACCENT_SOFT = import_chalk4.default.hex("#ec9470");
-var DANGER = import_chalk4.default.hex("#c76a5f");
-var SUCCESS = import_chalk4.default.hex("#7fa670");
-var TEAL = import_chalk4.default.hex("#7fa8a6");
-function compact2(n) {
-  if (n < 1e3) return String(n);
-  if (n < 1e4) return (n / 1e3).toFixed(1) + "k";
-  if (n < 1e6) return Math.round(n / 1e3) + "k";
-  return (n / 1e6).toFixed(1) + "M";
-}
-__name(compact2, "compact");
-var cleanProvider2 = cleanProvider;
-var contextWindowFor2 = contextWindowFor;
-function renderBar(pct, width, color = ACCENT) {
-  const filled = Math.max(0, Math.min(width, Math.round(pct * width)));
-  return color("\u2588".repeat(filled)) + FAINT("\u2591".repeat(width - filled));
-}
-__name(renderBar, "renderBar");
-function shortCwd(cwd2) {
-  const max = 35;
-  if (cwd2.length <= max) return cwd2;
-  const parts = cwd2.split(sep).filter(Boolean);
-  if (parts.length <= 2) return "..." + sep + parts.slice(-2).join(sep);
-  return "..." + sep + parts.slice(-2).join(sep);
-}
-__name(shortCwd, "shortCwd");
-function formatResetShort(iso) {
-  const ts = Date.parse(iso);
-  if (!Number.isFinite(ts)) return "?";
-  const ms = ts - Date.now();
-  if (ms <= 0) return "soon";
-  const mins = Math.round(ms / 6e4);
-  if (mins < 60) return `${mins}m`;
-  const h = Math.floor(mins / 60);
-  const m = mins % 60;
-  return m === 0 ? `${h}h` : `${h}h${m}m`;
-}
-__name(formatResetShort, "formatResetShort");
-function visibleLen(s) {
-  return s.replace(/\x1b\[[0-9;]*m/g, "").length;
-}
-__name(visibleLen, "visibleLen");
-function renderStatusLines(cols) {
-  const tag = state.sessionTag ?? cleanProvider2(state.provider ?? "");
-  const tagBox = tag ? import_chalk4.default.bgHex("#245454").hex("#f6f1e8")(` ${tag} `) : "";
-  const ruleLen = Math.max(0, cols - visibleLen(tagBox) - 2);
-  const rule = TEAL(GLYPH.sepLine.repeat(ruleLen)) + (tagBox ? "  " + tagBox : "");
-  const parts1 = [];
-  if (state.provider) {
-    const ctxWin = state.contextWindow ?? contextWindowFor2(state.provider);
-    const ctxStr = ctxWin >= 1e6 ? `${ctxWin / 1e6}M` : `${ctxWin / 1e3}k`;
-    let head = ACCENT(GLYPH.diamond + " ") + INK_BRIGHT.bold(cleanProvider2(state.provider)) + FAINT(` (${ctxStr} ctx)`);
-    if (state.currentQuality !== void 0 && state.currentSpeed !== void 0) {
-      head += FAINT("  ") + MUTED("Q") + INK(String(state.currentQuality)) + FAINT("/10 ") + MUTED("V") + INK(String(state.currentSpeed)) + FAINT("/10");
-    }
-    parts1.push(head);
-  }
-  if (state.cwd) parts1.push(MUTED(shortCwd(state.cwd)));
-  const git = state.cwd ? getGitInfo(state.cwd) : null;
-  if (git?.branch) parts1.push(INK("on ") + ACCENT_SOFT.italic(git.branch));
-  const tokenSegs = [];
-  if ((state.tokensIn ?? 0) > 0)
-    tokenSegs.push(MUTED(GLYPH.arrowUp) + INK(compact2(state.tokensIn)));
-  if ((state.tokensOut ?? 0) > 0)
-    tokenSegs.push(MUTED(GLYPH.arrowDown) + INK(compact2(state.tokensOut)));
-  if (tokenSegs.length > 0) parts1.push(tokenSegs.join(" "));
-  if (git && (git.additions > 0 || git.deletions > 0)) {
-    parts1.push(SUCCESS(`+${git.additions}`) + " " + DANGER(`-${git.deletions}`));
-  }
-  const sep5 = FAINT("  \u2502  ");
-  const softSep = FAINT("  \xB7  ");
-  const line1 = parts1.slice(0, 3).join(softSep) + (parts1.length > 3 ? sep5 + parts1.slice(3).join(sep5) : "");
-  const parts2 = [];
-  const sessionTotal = (state.sessionInTotal ?? 0) + (state.sessionOutTotal ?? 0);
-  const ctxWindow = state.contextWindow ?? contextWindowFor2(state.provider ?? "mistral-large-latest");
-  const baseline = state.baselineTokens ?? 0;
-  {
-    const effectiveMax = Math.max(1, ctxWindow - baseline);
-    const convUsed = Math.max(0, sessionTotal - baseline);
-    const pct = Math.min(1, convUsed / effectiveMax);
-    const pctNum = Math.round(pct * 100);
-    const bar = renderBar(pct, 10);
-    const baselineTag = baseline > 0 ? FAINT(` (+${compact2(baseline)} base)`) : "";
-    parts2.push(
-      INK_BRIGHT(compact2(convUsed)) + FAINT("/") + MUTED(compact2(effectiveMax)) + "  " + bar + "  " + ACCENT(`${pctNum}%`) + FAINT(" ctx") + baselineTag
-    );
-  }
-  if (state.quotaUsed !== void 0 && state.quotaLimit) {
-    const pct = state.quotaUsed / state.quotaLimit;
-    const pctNum = Math.round(pct * 100);
-    const color = pct >= 0.9 ? DANGER : pct >= 0.7 ? ACCENT_SOFT : ACCENT;
-    const bar = renderBar(pct, 6, color);
-    const resetPart = state.resetAt ? FAINT(" \u27F3") + MUTED(formatResetShort(state.resetAt)) : "";
-    parts2.push(
-      MUTED("5h ") + bar + " " + color(`${state.quotaUsed}/${state.quotaLimit}`) + FAINT(" ") + color(`${pctNum}%`) + resetPart
-    );
-  }
-  const line2 = parts2.join(FAINT("  \xB7  "));
-  let phaseStr = PHASE_COLOR[state.phase](
-    PHASE_SYM[state.phase] + " " + PHASE_LABEL[state.phase]
-  );
-  if (state.phase === "executing-tool" && state.toolName) {
-    phaseStr += MUTED(" " + state.toolName);
-  }
-  if (state.phase === "waiting-quota" && state.waitingMsRemaining !== void 0) {
-    const s = Math.max(1, Math.ceil(state.waitingMsRemaining / 1e3));
-    phaseStr += MUTED(` ${s}s`);
-  }
-  if (state.suggestedBetter) {
-    const parts = state.suggestedBetter.id.split("/");
-    const shortId = parts[parts.length - 1] || state.suggestedBetter.id;
-    phaseStr += FAINT("  \xB7  ") + SUCCESS(GLYPH.star + " ") + ACCENT_SOFT(shortId) + FAINT(" \xB7 ") + MUTED("Q") + INK(String(state.suggestedBetter.qualityOutOf10)) + FAINT("/10 ") + MUTED("V") + INK(String(state.suggestedBetter.speedOutOf10)) + FAINT("/10");
-  }
-  let modePart = "";
-  if (state.permissionMode && state.permissionMode !== "default") {
-    if (state.permissionMode === "bypass") {
-      modePart = import_chalk4.default.hex("#e26849").bold(
-        (IS_LEGACY_CONSOLE ? "! " : "\u26A0 ") + "bypass"
-      ) + "  ";
-    } else if (state.permissionMode === "plan") {
-      modePart = ACCENT_SOFT((IS_LEGACY_CONSOLE ? "[P] " : "\u2394 ") + "plan") + "  ";
-    } else if (state.permissionMode === "accept-edits") {
-      modePart = SUCCESS((IS_LEGACY_CONSOLE ? "[E] " : "\u2713 ") + "accept-edits") + "  ";
-    } else {
-      modePart = MUTED(state.permissionMode) + "  ";
-    }
-  }
-  const versionPart = FAINT(`v${VERSION}`);
-  const leftLen = visibleLen(phaseStr);
-  const rightPart = modePart + versionPart;
-  const rightLen = visibleLen(rightPart);
-  const padding = Math.max(2, cols - leftLen - rightLen);
-  const line3 = phaseStr + " ".repeat(padding) + rightPart;
-  return [rule, line1, line2, line3];
-}
-__name(renderStatusLines, "renderStatusLines");
-function scheduleRender() {
-  emitter.emit("change");
-}
-__name(scheduleRender, "scheduleRender");
-function initStatusBar() {
-  if (enabled) return;
-  enabled = true;
-  state.cwd = process.cwd();
-  process.on("exit", teardownStatusBar);
-}
-__name(initStatusBar, "initStatusBar");
-function teardownStatusBar() {
-  if (!enabled) return;
-  enabled = false;
-}
-__name(teardownStatusBar, "teardownStatusBar");
-function updateStatus(partial) {
-  Object.assign(state, partial);
-  scheduleRender();
-}
-__name(updateStatus, "updateStatus");
-function setSessionTotals(inTotal, outTotal) {
-  state.sessionInTotal = inTotal;
-  state.sessionOutTotal = outTotal;
-  scheduleRender();
-}
-__name(setSessionTotals, "setSessionTotals");
-
-// src/ui/StatusLine.tsx
+init_status_bar();
 var import_jsx_runtime3 = __toESM(require_jsx_runtime(), 1);
 function StatusLine({ columns }) {
   const [lines, setLines] = (0, import_react36.useState)(
@@ -51925,7 +52110,6 @@ function ModelPicker({ items, initial, pageSize = 10, onChoose }) {
     Math.min(idx - Math.floor(pageSize / 2), filtered.length - pageSize)
   );
   const visible = filtered.slice(start, start + pageSize);
-  const providerColor = /* @__PURE__ */ __name((p) => p === "nvidia" ? "#7fa670" : p === "persona" ? "#ec9470" : "#e27649", "providerColor");
   const speedBadge = /* @__PURE__ */ __name((desc) => {
     if (!desc) return null;
     if (/\brapide\b/i.test(desc)) return { label: "rapide", color: "#7fa670" };
@@ -51963,11 +52147,7 @@ function ModelPicker({ items, initial, pageSize = 10, onChoose }) {
                 " ",
                 displayModelId(m.id).padEnd(55)
               ] }),
-              /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(Text, { color: providerColor(m.provider), children: m.provider }),
-              /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)(Text, { color: "#8a8270", children: [
-                "  ",
-                m.category
-              ] }),
+              /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(Text, { color: "#8a8270", children: m.category }),
               speed && /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)(Text, { color: speed.color, children: [
                 "  (",
                 speed.label,
@@ -51994,6 +52174,10 @@ var PermissionController = class extends EventEmitter7 {
   }
   current = null;
   queue = [];
+  constructor() {
+    super();
+    this.setMaxListeners(20);
+  }
   getCurrent() {
     return this.current;
   }
@@ -52239,6 +52423,10 @@ var AskController = class extends EventEmitter9 {
     __name(this, "AskController");
   }
   current = null;
+  constructor() {
+    super();
+    this.setMaxListeners(20);
+  }
   getCurrent() {
     return this.current;
   }
@@ -52331,6 +52519,7 @@ function AskPicker({ question, options, onAnswer }) {
 __name(AskPicker, "AskPicker");
 
 // src/ui/App.tsx
+init_interrupt_controller();
 var import_jsx_runtime8 = __toESM(require_jsx_runtime(), 1);
 function App2({ history } = {}) {
   const { stdout } = use_stdout_default();
@@ -52389,6 +52578,11 @@ function App2({ history } = {}) {
       askController.off("change", update);
     };
   }, []);
+  use_input_default((_input, key) => {
+    if (key.escape) {
+      interruptController.request();
+    }
+  }, { isActive: !permissionActive && !askActive && !sessionActive && !pickerActive });
   return /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)(Box_default, { flexDirection: "column", children: [
     /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(HistoryView, {}),
     /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(StreamingView, {}),
@@ -52443,6 +52637,7 @@ init_store();
 
 // src/lib/better-model-watcher.ts
 init_model_selector();
+init_status_bar();
 var POLL_INTERVAL_MS = 60 * 1e3;
 var MIN_SCORE_DELTA = 1.5;
 var BetterModelWatcher = class {
@@ -52512,8 +52707,9 @@ var BetterModelWatcher = class {
     }
     if (this.stopped) return;
     if (models.length === 0) return;
-    const { FAVORITE_FULL_IDS: FAVORITE_FULL_IDS2 } = await Promise.resolve().then(() => (init_favorites(), favorites_exports));
-    const favModels = models.filter((m) => FAVORITE_FULL_IDS2.has(m.id));
+    const { resolveFavoritesFromCatalog: resolveFavoritesFromCatalog2 } = await Promise.resolve().then(() => (init_favorites(), favorites_exports));
+    const favorites = resolveFavoritesFromCatalog2(models);
+    const favModels = models.filter((m) => favorites.fullIds.has(m.id));
     if (favModels.length === 0) return;
     const scored = favModels.map((m) => scoreModel(m, this.mode)).sort((a, b) => b.score - a.score);
     const current = scored.find((s) => s.model.id === creds.model);
@@ -52542,6 +52738,9 @@ var BetterModelWatcher = class {
     });
   }
 };
+
+// src/repl.ts
+init_context_window();
 
 // src/tools/shell-detect.ts
 import { execSync } from "node:child_process";
@@ -53821,6 +54020,8 @@ var RateLimiter = class {
 };
 
 // src/agent/http-provider.ts
+init_status_bar();
+var CLI_VERSION = true ? "0.3.1-dev.5" : "dev";
 var MISTRAL_LIMITER = new RateLimiter({ capacity: 60, windowMs: 6e4 });
 var NVIDIA_LIMITER = new RateLimiter({ capacity: 60, windowMs: 6e4 });
 function isNvidiaModel(model) {
@@ -53925,10 +54126,14 @@ var HttpProvider = class {
           Accept: "text/event-stream",
           // Identifie le client côté bridge (persist dans Conversation.client
           // pour séparer aicli vs claude-code vs anthropic-sdk dans le dataset).
-          "User-Agent": "aicli/0.1.1",
+          "User-Agent": `aicli/${CLI_VERSION}`,
           "x-client": "aicli"
         },
-        body: JSON.stringify(body)
+        body: JSON.stringify(body),
+        // Propage le signal d'annulation user (Esc dans le REPL Ink). Si
+        // déclenché, fetch throw AbortError immédiatement, ou le reader
+        // throw au prochain read().
+        signal: opts.signal
       });
       if (res.ok && res.body) break;
       lastErrText = await res.text().catch(() => "");
@@ -53966,18 +54171,43 @@ var HttpProvider = class {
     const decoder = new TextDecoder();
     let buf = "";
     const reader = res.body.getReader();
+    const MAX_SSE_BUFFER_BYTES = 5e6;
     let streamError = null;
+    let aborted = false;
     while (true) {
+      if (opts.signal?.aborted) {
+        aborted = true;
+        try {
+          await reader.cancel();
+        } catch {
+        }
+        break;
+      }
       let readResult;
       try {
         readResult = await reader.read();
       } catch (err) {
-        streamError = err instanceof Error ? err : new Error(String(err));
+        const e = err instanceof Error ? err : new Error(String(err));
+        if (e.name === "AbortError" || opts.signal?.aborted) {
+          aborted = true;
+          break;
+        }
+        streamError = e;
         break;
       }
       const { value, done } = readResult;
       if (done) break;
       buf += decoder.decode(value, { stream: true });
+      if (buf.length > MAX_SSE_BUFFER_BYTES) {
+        try {
+          await reader.cancel();
+        } catch {
+        }
+        streamError = new Error(
+          `SSE buffer overflow (>${MAX_SSE_BUFFER_BYTES} bytes sans s\xE9parateur)`
+        );
+        break;
+      }
       let sep5;
       while ((sep5 = buf.indexOf("\n\n")) !== -1) {
         const chunk = buf.slice(0, sep5);
@@ -54102,6 +54332,11 @@ var HttpProvider = class {
       limiter.markCold(3e4);
       throw err;
     }
+    if (aborted) {
+      const err = new Error("G\xE9n\xE9ration interrompue par l'utilisateur (Esc)");
+      err.name = "AbortError";
+      throw err;
+    }
     const quota = parseQuotaHeaders(res.headers);
     return { content, stopReason, usage, quota };
   }
@@ -54203,7 +54438,9 @@ __name(logDenied, "logDenied");
 
 // src/agent/loop.ts
 init_compactor();
+init_context_window();
 init_history_store();
+init_status_bar();
 var AgentLoop = class {
   static {
     __name(this, "AgentLoop");
@@ -54220,6 +54457,13 @@ var AgentLoop = class {
     const envLimit = Number(process.env.AICLI_MAX_ITERATIONS);
     const defaultLimit = Number.isFinite(envLimit) && envLimit > 0 ? envLimit : 25;
     this.opts = { ...opts, maxIterations: opts.maxIterations ?? defaultLimit };
+    void Promise.resolve().then(() => (init_interrupt_controller(), interrupt_controller_exports)).then(
+      ({ interruptController: interruptController2 }) => {
+        interruptController2.on("interrupt", () => {
+          this.abort();
+        });
+      }
+    );
   }
   getStats() {
     return { ...this.stats };
@@ -54243,6 +54487,15 @@ var AgentLoop = class {
   }
   reset() {
     this.messages.length = 0;
+  }
+  // Controller actif pendant un tour send(). Permet à l'UI Ink de signaler
+  // un abort (Esc) qui propage jusqu'au fetch + reader SSE du provider.
+  // Reset à null entre les tours.
+  currentAbort = null;
+  abort() {
+    if (!this.currentAbort) return false;
+    this.currentAbort.abort();
+    return true;
   }
   appendSystemNote(note) {
     this.messages.push({
@@ -54336,11 +54589,13 @@ var AgentLoop = class {
       const callProviderWithRetry = /* @__PURE__ */ __name(async () => {
         const MAX_RETRIES = 3;
         for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+          this.currentAbort = new AbortController();
           try {
             return await this.opts.provider.chat({
               system: this.opts.system,
               messages: this.messages,
               tools: this.opts.tools.list(),
+              signal: this.currentAbort.signal,
               onTextDelta: /* @__PURE__ */ __name((delta) => {
                 startStream();
                 historyStore.appendAssistantDelta(delta);
@@ -54350,7 +54605,11 @@ var AgentLoop = class {
             });
           } catch (err) {
             const msg = err instanceof Error ? err.message : String(err);
-            const isRetryable = /rate limit|quota|interrompu|terminated|upstream|500|502|503|504/i.test(
+            const errName = err instanceof Error ? err.name : "";
+            if (errName === "AbortError" || /interrompue par l'utilisateur/i.test(msg)) {
+              throw err;
+            }
+            const isRetryable = /rate limit|quota|terminated|upstream|500|502|503|504/i.test(
               msg
             ) && attempt < MAX_RETRIES - 1;
             if (!isRetryable) throw err;
@@ -54376,7 +54635,30 @@ var AgentLoop = class {
         }
         throw new Error("Max retries atteint");
       }, "callProviderWithRetry");
-      const response = await callProviderWithRetry();
+      let response;
+      try {
+        response = await callProviderWithRetry();
+      } catch (err) {
+        const errName = err instanceof Error ? err.name : "";
+        const errMsg = err instanceof Error ? err.message : String(err);
+        if (errName === "AbortError" || /interrompue par l'utilisateur/i.test(errMsg)) {
+          if (streamStarted) historyStore.endAssistant();
+          this.currentAbort = null;
+          updateStatus({ phase: "idle" });
+          const partial = historyStore.getAssistantPartial();
+          if (partial) {
+            this.messages.push({
+              role: "assistant",
+              content: [{ type: "text", text: partial }]
+            });
+          }
+          log.faint("(g\xE9n\xE9ration interrompue par Esc)");
+          return partial;
+        }
+        this.currentAbort = null;
+        throw err;
+      }
+      this.currentAbort = null;
       if (streamStarted) {
         historyStore.endAssistant();
       }
@@ -54763,6 +55045,16 @@ function builtinCommands(allCommands) {
       description: "R\xE9initialise l'historique de conversation.",
       async run({ agent }) {
         agent.reset();
+        agent.resetStats();
+        const { setSessionTotals: setSessionTotals2, updateStatus: updateStatus2 } = await Promise.resolve().then(() => (init_status_bar(), status_bar_exports));
+        setSessionTotals2(0, 0);
+        updateStatus2({
+          tokensIn: void 0,
+          tokensOut: void 0,
+          baselineTokens: void 0
+        });
+        const { takeAllAndClear: takeAllAndClear2 } = await Promise.resolve().then(() => (init_pending_images(), pending_images_exports));
+        takeAllAndClear2();
         log.info("Historique effac\xE9.");
       }
     },
@@ -54893,7 +55185,7 @@ function builtinCommands(allCommands) {
           return;
         }
         const targetId = args2.trim();
-        const { FAVORITE_ALIASES: FAVORITE_ALIASES2, FAVORITE_ORDER: FAVORITE_ORDER2, resolveFavoriteAlias: resolveFavoriteAlias2 } = await Promise.resolve().then(() => (init_favorites(), favorites_exports));
+        const { resolveFavoritesFromCatalog: resolveFavoritesFromCatalog2, resolveAlias: resolveAlias2 } = await Promise.resolve().then(() => (init_favorites(), favorites_exports));
         const { fetchCatalog: fetchCatalog2 } = await Promise.resolve().then(() => (init_model_catalog(), model_catalog_exports));
         let catalog = [];
         try {
@@ -54904,12 +55196,13 @@ function builtinCommands(allCommands) {
           );
           return;
         }
+        const favorites = resolveFavoritesFromCatalog2(catalog);
         if (targetId) {
-          const resolved = resolveFavoriteAlias2(targetId) ?? targetId;
+          const resolved = resolveAlias2(favorites, targetId) ?? targetId;
           const match = catalog.find((m) => m.id === resolved);
           if (!match) {
             log.error(
-              `Mod\xE8le inconnu : ${targetId}. Favoris dispos : ${FAVORITE_ORDER2.join(", ")}.`
+              `Mod\xE8le inconnu : ${targetId}. Favoris dispos : ${favorites.order.join(", ")}.`
             );
             return;
           }
@@ -54921,9 +55214,9 @@ function builtinCommands(allCommands) {
           return;
         }
         const byId = new Map(catalog.map((m) => [m.id, m]));
-        const favs = FAVORITE_ORDER2.map((alias) => {
-          const fullId = FAVORITE_ALIASES2[alias];
-          const m = byId.get(fullId);
+        const favs = favorites.order.map((alias) => {
+          const fullId = favorites.aliases[alias.toLowerCase()];
+          const m = fullId ? byId.get(fullId) : void 0;
           if (!m) return null;
           return { ...m, alias };
         }).filter((m) => m !== null);
@@ -54933,10 +55226,11 @@ function builtinCommands(allCommands) {
           );
           return;
         }
-        if (favs.length < FAVORITE_ORDER2.length) {
-          const missing = FAVORITE_ORDER2.filter(
-            (a) => !byId.has(FAVORITE_ALIASES2[a])
-          );
+        if (favs.length < favorites.order.length) {
+          const missing = favorites.order.filter((a) => {
+            const fullId = favorites.aliases[a.toLowerCase()];
+            return !fullId || !byId.has(fullId);
+          });
           log.dim(
             `(${missing.length} favori(s) indisponible(s) : ${missing.join(", ")})`
           );
@@ -54974,8 +55268,9 @@ function builtinCommands(allCommands) {
           );
           return;
         }
-        const { FAVORITE_FULL_IDS: FAVORITE_FULL_IDS2 } = await Promise.resolve().then(() => (init_favorites(), favorites_exports));
-        models = models.filter((m) => FAVORITE_FULL_IDS2.has(m.id));
+        const { resolveFavoritesFromCatalog: resolveFavoritesFromCatalog2 } = await Promise.resolve().then(() => (init_favorites(), favorites_exports));
+        const favorites = resolveFavoritesFromCatalog2(models);
+        models = models.filter((m) => favorites.fullIds.has(m.id));
         if (models.length === 0) {
           log.error("Aucun mod\xE8le favori disponible.");
           return;
@@ -55647,6 +55942,14 @@ function sanitizeEnv(userEnv) {
 }
 __name(sanitizeEnv, "sanitizeEnv");
 var MAX_BUFFER_BYTES = 1e7;
+var INIT_TIMEOUT_MS = 1e4;
+var DEFAULT_CALL_TIMEOUT_MS = 6e4;
+function callTimeoutMs() {
+  const fromEnv = Number(process.env.AICLI_MCP_TIMEOUT_MS);
+  return Number.isFinite(fromEnv) && fromEnv > 0 ? fromEnv : DEFAULT_CALL_TIMEOUT_MS;
+}
+__name(callTimeoutMs, "callTimeoutMs");
+var CLI_VERSION2 = true ? "0.3.1-dev.5" : "dev";
 var McpClient = class {
   constructor(name, config) {
     this.name = name;
@@ -55724,22 +56027,30 @@ var McpClient = class {
     });
   }
   async initialize() {
-    await this.request("initialize", {
-      protocolVersion: "2024-11-05",
-      capabilities: {},
-      clientInfo: { name: "aicli", version: "0.1.0" }
-    });
+    await this.request(
+      "initialize",
+      {
+        protocolVersion: "2024-11-05",
+        capabilities: {},
+        clientInfo: { name: "aicli", version: CLI_VERSION2 }
+      },
+      INIT_TIMEOUT_MS
+    );
     this.child.stdin.write(
       JSON.stringify({ jsonrpc: "2.0", method: "notifications/initialized" }) + "\n"
     );
   }
   async listTools() {
-    const res = await this.request("tools/list");
+    const res = await this.request("tools/list", void 0, INIT_TIMEOUT_MS);
     const result = res.result ?? {};
     return result.tools ?? [];
   }
   async callTool(name, args2) {
-    const res = await this.request("tools/call", { name, arguments: args2 });
+    const res = await this.request(
+      "tools/call",
+      { name, arguments: args2 },
+      callTimeoutMs()
+    );
     if (res.error) throw new Error(res.error.message);
     const result = res.result ?? {};
     const texts = (result.content ?? []).map((c) => c.type === "text" ? c.text ?? "" : JSON.stringify(c)).join("\n");
@@ -55858,6 +56169,7 @@ function savePermissions(cfg) {
 __name(savePermissions, "savePermissions");
 
 // src/repl.ts
+init_status_bar();
 function readPkgVersion() {
   try {
     const here = dirname5(fileURLToPath2(import.meta.url));
@@ -55899,23 +56211,19 @@ Si doute : CONVERSATION.
 
 # Poser des questions \xE0 l'user (tool AskUser)
 
-Si la demande est **ambigu\xEB** ou **destructive sans contexte clair**, utilise le tool **AskUser** pour clarifier avant d'agir. Deux modes :
+**AskUser est un dernier recours en phase de planification**, pas un confort pendant l'ex\xE9cution. Tu l'utilises seulement quand une d\xE9cision **strictement bloquante** rend le travail impossible et que tu ne peux pas trancher seul de fa\xE7on raisonnable.
 
-- **Avec options** (2-6 choix) : affiche un picker. Ex: \`AskUser({ question: "Quelle granularit\xE9 ?", options: ["patch", "minor", "major"] })\`.
-- **Sans options** : input texte libre pour des r\xE9ponses ouvertes. Ex: \`AskUser({ question: "Quel motif chercher dans les logs ?" })\`.
+**Quand l'utiliser** (rare) :
+- Choix produit irr\xE9versible avec plusieurs interpr\xE9tations valides : "supprime les vieux fichiers" \u2192 ["tous", "> 7j", "> 30j", "annuler"].
+- D\xE9cision de design avec impact architectural fort qu'on ne peut pas inf\xE9rer (granularit\xE9 version, framework cible, langue d'un fichier).
 
-Exemples o\xF9 utiliser AskUser :
-- "supprime les vieux fichiers" \u2192 options ["tous", "> 7 jours", "> 30 jours", "annuler"]
-- "refactore cette fonction" \u2192 options ["lisibilit\xE9", "perf", "split en plusieurs"]
-- "update les deps" \u2192 options ["patch", "minor", "major"]
-- "\xE9cris un test" (pas de framework d\xE9tect\xE9) \u2192 texte libre "Quel framework ?"
+**Quand NE PAS l'utiliser** (cas par d\xE9faut) :
+- Pour proposer une action ("veux-tu que j'installe X ?", "je cr\xE9e le fichier ?", "je commit ?") \u2192 **agis directement** ou explique en texte ce que tu vas faire. Si l'user voulait un dialogue, il aurait pos\xE9 une question.
+- Pour confirmer une commande pr\xEAte \xE0 tourner \u2192 la couche permissions le fait d\xE9j\xE0 (modes default/accept-edits/bypass).
+- Pour pr\xE9ciser un d\xE9tail trivial \u2192 fais le choix le plus raisonnable et mentionne-le bri\xE8vement apr\xE8s coup.
+- Pendant l'ex\xE9cution d'une t\xE2che d\xE9j\xE0 cadr\xE9e par l'user \u2192 continue, ne re-demande pas.
 
-Exemples o\xF9 NE PAS utiliser AskUser (juste agir) :
-- "lis package.json" \u2192 lis.
-- "fix le typo dans README.md" \u2192 lis, trouve, corrige.
-- "lance les tests" \u2192 npm test (ou \xE9quivalent).
-
-R\xE8gle : AskUser > un fix au pif qui casse. Mais AskUser \xE9videmment inutile > fait perdre du temps.
+**R\xE8gle** : si tu peux faire un choix raisonnable et le justifier en une ligne apr\xE8s coup, fais-le. AskUser coupe le flow et frustre. Pr\xE9f\xE8re la conversation libre ("Je vais utiliser X car Y, dis-moi si tu pr\xE9f\xE8res Z") au picker forc\xE9.
 
 # Style
 - **Concis par d\xE9faut** (comme Claude) : r\xE9ponse courte, droit au but. Pas de pr\xE9ambule ("Bien s\xFBr", "Voici"), pas de r\xE9sum\xE9 final ("J'ai fini de...", "En r\xE9sum\xE9..."), pas d'emojis sauf si l'user en met.

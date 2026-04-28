@@ -33,7 +33,23 @@ export function builtinCommands(allCommands: () => SlashCommand[]): SlashCommand
       name: "clear",
       description: "Réinitialise l'historique de conversation.",
       async run({ agent }) {
+        // Clear complet : contexte conversationnel + stats agent + totaux
+        // affichés dans le status bar + images en attente. Sans ça, le ctx
+        // affiché reste à la valeur cumulée et donne l'impression que /clear
+        // n'a pas vraiment vidé la conv.
         agent.reset();
+        agent.resetStats();
+        const { setSessionTotals, updateStatus } = await import(
+          "../utils/status-bar.js"
+        );
+        setSessionTotals(0, 0);
+        updateStatus({
+          tokensIn: undefined,
+          tokensOut: undefined,
+          baselineTokens: undefined,
+        });
+        const { takeAllAndClear } = await import("../ui/pending-images.js");
+        takeAllAndClear();
         log.info("Historique effacé.");
       },
     },
@@ -206,17 +222,13 @@ export function builtinCommands(allCommands: () => SlashCommand[]): SlashCommand
         }
         const targetId = args.trim();
 
-        const { FAVORITE_ALIASES, FAVORITE_ORDER, resolveFavoriteAlias } =
-          await import("../lib/favorites.js");
+        const { resolveFavoritesFromCatalog, resolveAlias } = await import(
+          "../lib/favorites.js"
+        );
         const { fetchCatalog } = await import("../lib/model-catalog.js");
+        type CatalogModel = Awaited<ReturnType<typeof fetchCatalog>>[number];
 
-        let catalog: Array<{
-          id: string;
-          provider: string;
-          category: string;
-          weight: number;
-          description?: string;
-        }> = [];
+        let catalog: CatalogModel[] = [];
         try {
           catalog = await fetchCatalog(creds);
         } catch (err) {
@@ -226,15 +238,17 @@ export function builtinCommands(allCommands: () => SlashCommand[]): SlashCommand
           return;
         }
 
+        const favorites = resolveFavoritesFromCatalog(catalog);
+
         // Switch direct via alias ou fullId. On accepte n'importe quel
         // modèle du catalog (pas seulement les favoris) pour laisser
         // l'user basculer explicitement vers un non-favori s'il le veut.
         if (targetId) {
-          const resolved = resolveFavoriteAlias(targetId) ?? targetId;
+          const resolved = resolveAlias(favorites, targetId) ?? targetId;
           const match = catalog.find((m) => m.id === resolved);
           if (!match) {
             log.error(
-              `Modèle inconnu : ${targetId}. Favoris dispos : ${FAVORITE_ORDER.join(", ")}.`,
+              `Modèle inconnu : ${targetId}. Favoris dispos : ${favorites.order.join(", ")}.`,
             );
             return;
           }
@@ -246,17 +260,19 @@ export function builtinCommands(allCommands: () => SlashCommand[]): SlashCommand
           return;
         }
 
-        // Picker : restreint aux 6 favoris (hy3, ling-1t, flash, large,
-        // codestral, devstral), ordre saisi par l'user. Si un favori n'est
-        // pas dans le catalog (provider désactivé), on le skip — inutile
-        // de le proposer, l'appel échouerait.
+        // Picker : restreint à la shortlist favoris dérivée du catalog
+        // (ou fallback si le serveur ne tague pas encore favorite/aliases).
+        // Si un favori n'est pas présent dans le catalog (provider désactivé),
+        // on le skip — inutile de le proposer, l'appel échouerait.
         const byId = new Map(catalog.map((m) => [m.id, m]));
-        const favs = FAVORITE_ORDER.map((alias) => {
-          const fullId = FAVORITE_ALIASES[alias];
-          const m = byId.get(fullId);
-          if (!m) return null;
-          return { ...m, alias };
-        }).filter((m): m is NonNullable<typeof m> => m !== null);
+        const favs = favorites.order
+          .map((alias) => {
+            const fullId = favorites.aliases[alias.toLowerCase()];
+            const m = fullId ? byId.get(fullId) : undefined;
+            if (!m) return null;
+            return { ...m, alias };
+          })
+          .filter((m): m is NonNullable<typeof m> => m !== null);
 
         if (favs.length === 0) {
           log.error(
@@ -264,10 +280,11 @@ export function builtinCommands(allCommands: () => SlashCommand[]): SlashCommand
           );
           return;
         }
-        if (favs.length < FAVORITE_ORDER.length) {
-          const missing = FAVORITE_ORDER.filter(
-            (a) => !byId.has(FAVORITE_ALIASES[a]),
-          );
+        if (favs.length < favorites.order.length) {
+          const missing = favorites.order.filter((a) => {
+            const fullId = favorites.aliases[a.toLowerCase()];
+            return !fullId || !byId.has(fullId);
+          });
           log.dim(
             `(${missing.length} favori(s) indisponible(s) : ${missing.join(", ")})`,
           );
@@ -321,11 +338,14 @@ export function builtinCommands(allCommands: () => SlashCommand[]): SlashCommand
           return;
         }
 
-        // Restreint aux 6 favoris pour que /best propose uniquement un
-        // modèle de la shortlist user. Sans ce filtre, il pourrait
+        // Restreint à la shortlist favoris pour que /best propose uniquement
+        // un modèle visible dans /model. Sans ce filtre, il pourrait
         // suggérer un non-favori (incohérent avec l'UX /model).
-        const { FAVORITE_FULL_IDS } = await import("../lib/favorites.js");
-        models = models.filter((m) => FAVORITE_FULL_IDS.has(m.id));
+        const { resolveFavoritesFromCatalog } = await import(
+          "../lib/favorites.js"
+        );
+        const favorites = resolveFavoritesFromCatalog(models);
+        models = models.filter((m) => favorites.fullIds.has(m.id));
 
         if (models.length === 0) {
           log.error("Aucun modèle favori disponible.");

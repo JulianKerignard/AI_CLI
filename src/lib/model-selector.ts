@@ -116,17 +116,28 @@ const MODEL_QUALITY: Record<string, number> = {
   "devstral-latest": 8,
 };
 
-// Préfixe NVIDIA_PROVIDER_PREFIX = "nvidia/" : côté /api/v1/models les ids
-// sont préfixés. On strippe avant lookup.
+// Lookup-only : strip le préfixe "nvidia/" pour matcher dans les maps de
+// quality/speed (clés sans préfixe). Conservé tel quel — pas d'impact UI.
 function normalizeModelId(id: string): string {
   if (id.startsWith("nvidia/")) return id.slice("nvidia/".length);
   return id;
 }
 
-// Display-only : strip le préfixe "nvidia/" pour l'affichage UI. L'ID complet
-// reste utilisé pour les requêtes API, credentials, sessions.
+// Display-only : aucune mention provider visible. Strip total des
+// préfixes (nvidia/, openrouter/, google/) + owner imbriqué + suffixes
+// techniques (:free, -instruct, -latest, mistral-). Aligné avec
+// shortModelLabel côté site (lib/format.ts).
 export function displayModelId(id: string): string {
-  return normalizeModelId(id);
+  let s = id;
+  if (s.startsWith("nvidia/")) s = s.slice("nvidia/".length);
+  else if (s.startsWith("openrouter/")) s = s.slice("openrouter/".length);
+  else if (s.startsWith("google/")) s = s.slice("google/".length);
+  const slashIdx = s.indexOf("/");
+  if (slashIdx !== -1) s = s.slice(slashIdx + 1);
+  s = s.replace(/:free$/, "").replace(/-instruct$/, "");
+  if (s.startsWith("mistral-")) s = s.slice("mistral-".length);
+  s = s.replace(/-latest$/, "");
+  return s;
 }
 
 // Fallback par catégorie pour les modèles inconnus (pas dans MODEL_QUALITY).

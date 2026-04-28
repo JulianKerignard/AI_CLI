@@ -18,10 +18,26 @@ export type HistoryItem =
 // déclenchait un setItems([...all]) O(n) sur chaque delta SSE = re-render
 // quadratique du terminal. Séparés → HistoryView ne re-render que sur push
 // effectif, StreamingView uniquement sur delta.
+//
+// Cap mémoire : sur une session longue (>1h, tools verbeux), items[] peut
+// dépasser plusieurs dizaines de MB. Comme <Static> d'Ink a déjà écrit les
+// vieux items dans le scrollback terminal et ne les re-render plus, on peut
+// les évincer du store sans impact visuel — l'user retrouve l'historique
+// dans le scrollback. Garde un compteur pour debug/info.
+const MAX_ITEMS = 500;
+
 class HistoryStore extends EventEmitter {
   private items: HistoryItem[] = [];
   private streaming: HistoryItem | null = null;
   private nextId = 1;
+  private evictedCount = 0;
+
+  constructor() {
+    super();
+    // Plusieurs vues s'abonnent (HistoryView, StreamingView, voire dev) —
+    // 20 absorbe les remounts Ink + composants de debug sans warning.
+    this.setMaxListeners(20);
+  }
 
   getItems(): readonly HistoryItem[] {
     return this.items;
@@ -29,6 +45,22 @@ class HistoryStore extends EventEmitter {
 
   getStreaming(): HistoryItem | null {
     return this.streaming;
+  }
+
+  // Nombre d'items évincés depuis le début de la session (pour debug,
+  // affichage status bar, etc.).
+  getEvictedCount(): number {
+    return this.evictedCount;
+  }
+
+  // Trim head si on dépasse MAX_ITEMS. Appelé après chaque push. O(1) amortized
+  // (splice depuis le début est O(n) mais rare : on évince par batch d'1).
+  private trimIfNeeded(): void {
+    if (this.items.length > MAX_ITEMS) {
+      const drop = this.items.length - MAX_ITEMS;
+      this.items.splice(0, drop);
+      this.evictedCount += drop;
+    }
   }
 
   // Push un item "figé". S'il y avait un streaming en cours, on le fige
@@ -41,6 +73,7 @@ class HistoryStore extends EventEmitter {
     }
     const id = this.nextId++;
     this.items.push({ ...item, id } as HistoryItem);
+    this.trimIfNeeded();
     this.emit("items-change");
     return id;
   }
@@ -53,6 +86,7 @@ class HistoryStore extends EventEmitter {
       // Si un streaming d'autre type existe, on le fige d'abord.
       if (this.streaming) {
         this.items.push(this.streaming);
+        this.trimIfNeeded();
         this.emit("items-change");
       }
       this.streaming = {
@@ -70,14 +104,26 @@ class HistoryStore extends EventEmitter {
     if (this.streaming) {
       this.items.push(this.streaming);
       this.streaming = null;
+      this.trimIfNeeded();
       this.emit("items-change");
       this.emit("streaming-change");
     }
   }
 
+  // Retourne le texte assistant en cours de stream (utilisé par la loop
+  // pour récupérer le partial au moment d'un abort user). Ne consomme pas
+  // le buffer, ne fige pas — endAssistant() reste responsable du flush.
+  getAssistantPartial(): string {
+    if (this.streaming?.type === "assistant") {
+      return (this.streaming as { text: string }).text;
+    }
+    return "";
+  }
+
   clear(): void {
     this.items = [];
     this.streaming = null;
+    this.evictedCount = 0;
     this.emit("items-change");
     this.emit("streaming-change");
   }

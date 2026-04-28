@@ -69,6 +69,15 @@ export class AgentLoop {
     const envLimit = Number(process.env.AICLI_MAX_ITERATIONS);
     const defaultLimit = Number.isFinite(envLimit) && envLimit > 0 ? envLimit : 25;
     this.opts = { ...opts, maxIterations: opts.maxIterations ?? defaultLimit };
+    // Bind l'emitter d'interruption UI (Esc dans Ink). Lazy import pour
+    // éviter une dépendance circulaire au load (loop ↔ ui).
+    void import("../ui/interrupt-controller.js").then(
+      ({ interruptController }) => {
+        interruptController.on("interrupt", () => {
+          this.abort();
+        });
+      },
+    );
   }
 
   getStats(): SessionStats {
@@ -98,6 +107,17 @@ export class AgentLoop {
 
   reset(): void {
     this.messages.length = 0;
+  }
+
+  // Controller actif pendant un tour send(). Permet à l'UI Ink de signaler
+  // un abort (Esc) qui propage jusqu'au fetch + reader SSE du provider.
+  // Reset à null entre les tours.
+  private currentAbort: AbortController | null = null;
+
+  abort(): boolean {
+    if (!this.currentAbort) return false;
+    this.currentAbort.abort();
+    return true;
   }
 
   appendSystemNote(note: string): void {
@@ -230,11 +250,15 @@ export class AgentLoop {
       const callProviderWithRetry = async (): Promise<ProviderResponse> => {
         const MAX_RETRIES = 3;
         for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+          // Nouveau controller par tentative — abort() ferme celle en cours
+          // sans affecter les retries futurs.
+          this.currentAbort = new AbortController();
           try {
             return await this.opts.provider.chat({
               system: this.opts.system,
               messages: this.messages,
               tools: this.opts.tools.list(),
+              signal: this.currentAbort.signal,
               onTextDelta: (delta) => {
                 startStream();
                 historyStore.appendAssistantDelta(delta);
@@ -244,8 +268,13 @@ export class AgentLoop {
             });
           } catch (err) {
             const msg = err instanceof Error ? err.message : String(err);
+            const errName = err instanceof Error ? err.name : "";
+            // AbortError (user Esc) : pas de retry, propagation directe.
+            if (errName === "AbortError" || /interrompue par l'utilisateur/i.test(msg)) {
+              throw err;
+            }
             const isRetryable =
-              /rate limit|quota|interrompu|terminated|upstream|500|502|503|504/i.test(
+              /rate limit|quota|terminated|upstream|500|502|503|504/i.test(
                 msg,
               ) && attempt < MAX_RETRIES - 1;
             if (!isRetryable) throw err;
@@ -272,7 +301,40 @@ export class AgentLoop {
         }
         throw new Error("Max retries atteint");
       };
-      const response = await callProviderWithRetry();
+      let response: ProviderResponse;
+      try {
+        response = await callProviderWithRetry();
+      } catch (err) {
+        // L'user a appuyé sur Esc → on close proprement le tour avec ce
+        // qu'on a déjà streamé, on push un message assistant partiel dans
+        // l'historique pour que la conversation puisse reprendre, et on
+        // retourne. Pas de propagation d'erreur jusqu'au REPL.
+        const errName = err instanceof Error ? err.name : "";
+        const errMsg = err instanceof Error ? err.message : String(err);
+        if (
+          errName === "AbortError" ||
+          /interrompue par l'utilisateur/i.test(errMsg)
+        ) {
+          if (streamStarted) historyStore.endAssistant();
+          this.currentAbort = null;
+          updateStatus({ phase: "idle" });
+          // Push un message assistant texte avec ce qu'on a streamé pour
+          // garder l'historique cohérent (sinon le prochain tour user se
+          // retrouve avec un trou et le modèle peut réagir bizarrement).
+          const partial = historyStore.getAssistantPartial();
+          if (partial) {
+            this.messages.push({
+              role: "assistant",
+              content: [{ type: "text", text: partial }],
+            });
+          }
+          log.faint("(génération interrompue par Esc)");
+          return partial;
+        }
+        this.currentAbort = null;
+        throw err;
+      }
+      this.currentAbort = null;
 
       // Fin du stream : fige l'item assistant dans l'historique statique.
       if (streamStarted) {
