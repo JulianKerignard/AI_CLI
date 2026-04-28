@@ -93,8 +93,11 @@ export async function compactMessages(
   provider: Provider,
   systemPrompt: string,
   contextWindow?: number,
+  opts: { force?: boolean } = {},
 ): Promise<boolean> {
-  if (!shouldCompact(messages, contextWindow)) return false;
+  // force=true skip le shouldCompact (utilisé par /compact manuel — l'user
+  // a explicitement demandé). force=false = ancien comportement auto.
+  if (!opts.force && !shouldCompact(messages, contextWindow)) return false;
   if (messages.length <= ABSOLUTE_MIN_HEAD + KEEP_TAIL_MESSAGES) return false;
 
   const headCount = messages.length - KEEP_TAIL_MESSAGES;

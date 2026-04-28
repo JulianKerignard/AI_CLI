@@ -653,7 +653,7 @@ export function builtinCommands(allCommands: () => SlashCommand[]): SlashCommand
     {
       name: "compact",
       description:
-        "Force un résumé auto de l'historique agent (utile si session longue).",
+        "Résume l'historique agent pour libérer du context (manuel, jamais auto).",
       async run({ agent }) {
         const { compactMessages } = await import("../agent/compactor.js");
         try {
@@ -661,16 +661,16 @@ export function builtinCommands(allCommands: () => SlashCommand[]): SlashCommand
           const done = await compactMessages(
             agent.messages,
             agent.provider,
-            // Accès indirect au system — on ne l'exposed pas, compact suffit
-            // à s'en passer si forcé (prompt de compaction est self-contained).
             "",
+            undefined,
+            { force: true },
           );
           if (done) {
             log.info(
               `Historique compacté : ${before} → ${agent.messages.length} messages.`,
             );
           } else {
-            log.info("Rien à compacter (historique trop court ou disabled).");
+            log.info("Rien à compacter (historique trop court).");
           }
         } catch (err) {
           log.error(

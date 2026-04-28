@@ -33011,8 +33011,8 @@ function extractOpenToolUseIds(tailMessages) {
   }
   return ids;
 }
-async function compactMessages(messages, provider, systemPrompt, contextWindow) {
-  if (!shouldCompact(messages, contextWindow)) return false;
+async function compactMessages(messages, provider, systemPrompt, contextWindow, opts = {}) {
+  if (!opts.force && !shouldCompact(messages, contextWindow)) return false;
   if (messages.length <= ABSOLUTE_MIN_HEAD + KEEP_TAIL_MESSAGES) return false;
   const headCount = messages.length - KEEP_TAIL_MESSAGES;
   const head = messages.slice(0, headCount);
@@ -54499,6 +54499,10 @@ var AgentLoop = class {
     turns: 0,
     toolCalls: 0
   };
+  // Soft warning ctx : 1 fois par session pour éviter le spam si l'user
+  // continue à charger des fichiers volumineux. Reset au /clear via
+  // resetStats().
+  warnedNearCtxLimit = false;
   constructor(opts) {
     const envLimit = Number(process.env.AICLI_MAX_ITERATIONS);
     const defaultLimit = Number.isFinite(envLimit) && envLimit > 0 ? envLimit : 25;
@@ -54521,6 +54525,7 @@ var AgentLoop = class {
       turns: 0,
       toolCalls: 0
     };
+    this.warnedNearCtxLimit = false;
   }
   get provider() {
     return this.opts.provider;
@@ -54599,25 +54604,18 @@ var AgentLoop = class {
     let lastQuota;
     for (let i = 0; i < this.opts.maxIterations; i++) {
       const ctxWin = contextWindowFor(this.opts.provider.name);
-      try {
-        updateStatus({ phase: "compacting" });
-        await compactMessages(
-          this.messages,
-          this.opts.provider,
-          this.opts.system,
-          ctxWin
+      const estimated = estimateTokens(this.messages) * 1.2;
+      if (estimated > ctxWin) {
+        log.error(
+          `Historique trop gros (~${Math.round(estimated)} tokens > ${ctxWin} ctx window). Tape /compact pour r\xE9sumer l'historique, ou /clear pour repartir \xE0 z\xE9ro.`
         );
-      } catch (err) {
-        log.warn(
-          `[compact] erreur : ${err instanceof Error ? err.message : err}`
+        return finalText;
+      }
+      if (!this.warnedNearCtxLimit && estimated > ctxWin * 0.8) {
+        this.warnedNearCtxLimit = true;
+        log.faint(
+          `(historique \xE0 ~${Math.round(estimated / ctxWin * 100)}% du ctx \u2014 tape /compact si besoin)`
         );
-        const estimated = estimateTokens(this.messages) * 1.2;
-        if (estimated > ctxWin) {
-          log.error(
-            `[compact] historique trop gros (${Math.round(estimated)} tokens > ${ctxWin} ctx window) et compaction a \xE9chou\xE9. Tape /compact pour retenter, ou /exit et recommence.`
-          );
-          return finalText;
-        }
       }
       updateStatus({
         provider: this.opts.provider.name,
@@ -55560,7 +55558,7 @@ function builtinCommands(allCommands) {
     },
     {
       name: "compact",
-      description: "Force un r\xE9sum\xE9 auto de l'historique agent (utile si session longue).",
+      description: "R\xE9sume l'historique agent pour lib\xE9rer du context (manuel, jamais auto).",
       async run({ agent }) {
         const { compactMessages: compactMessages2 } = await Promise.resolve().then(() => (init_compactor(), compactor_exports));
         try {
@@ -55568,16 +55566,16 @@ function builtinCommands(allCommands) {
           const done = await compactMessages2(
             agent.messages,
             agent.provider,
-            // Accès indirect au system — on ne l'exposed pas, compact suffit
-            // à s'en passer si forcé (prompt de compaction est self-contained).
-            ""
+            "",
+            void 0,
+            { force: true }
           );
           if (done) {
             log.info(
               `Historique compact\xE9 : ${before} \u2192 ${agent.messages.length} messages.`
             );
           } else {
-            log.info("Rien \xE0 compacter (historique trop court ou disabled).");
+            log.info("Rien \xE0 compacter (historique trop court).");
           }
         } catch (err) {
           log.error(

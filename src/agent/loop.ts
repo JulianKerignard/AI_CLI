@@ -12,7 +12,7 @@ import { log, formatQuotaStatus, formatTurnStatus } from "../utils/logger.js";
 import type { PolicyState } from "../permissions/policy.js";
 import { decide } from "../permissions/policy.js";
 import { askPermission, logDenied } from "../permissions/prompt.js";
-import { compactMessages, estimateTokens } from "./compactor.js";
+import { estimateTokens } from "./compactor.js";
 import {
   contextWindowFor,
   estimateBaselineTokens,
@@ -62,6 +62,10 @@ export class AgentLoop {
     turns: 0,
     toolCalls: 0,
   };
+  // Soft warning ctx : 1 fois par session pour éviter le spam si l'user
+  // continue à charger des fichiers volumineux. Reset au /clear via
+  // resetStats().
+  private warnedNearCtxLimit = false;
 
   constructor(opts: AgentOptions) {
     // Default 25 (aligné Claude Code) pour laisser les tâches multi-étapes aboutir.
@@ -91,6 +95,7 @@ export class AgentLoop {
       turns: 0,
       toolCalls: 0,
     };
+    this.warnedNearCtxLimit = false;
   }
 
   get provider(): Provider {
@@ -192,36 +197,25 @@ export class AgentLoop {
     let lastQuota: ProviderQuota | undefined;
 
     for (let i = 0; i < this.opts.maxIterations; i++) {
-      // Compaction auto avant chaque tour : seuils absolus (30 msgs / 60k
-      // tokens) OU seuil relatif 70% du context window du modèle courant.
-      // Le relatif permet de gérer correctement les petits ctx (phi-4 16k).
-      //
-      // INVARIANT : appel synchrone avant provider.chat(). Pas de watcher
-      // async → évite race condition avec messages[] pendant streaming.
-      //
-      // Si compact fail ET que le tokens est vraiment > ctx window, on
-      // stop la boucle plutôt que de crash côté provider 400.
+      // Compaction MANUELLE uniquement (via /compact). Avant : compaction
+      // auto silencieuse à 60-70% du ctx window, ce qui surprenait l'user
+      // au milieu d'une longue tâche (1 appel LLM en plus + perte de
+      // détails). Maintenant on warn quand on approche, et on hard-stop
+      // si on dépasse vraiment (sinon le provider crash 400).
       const ctxWin = contextWindowFor(this.opts.provider.name);
-      try {
-        updateStatus({ phase: "compacting" });
-        await compactMessages(
-          this.messages,
-          this.opts.provider,
-          this.opts.system,
-          ctxWin,
+      const estimated = estimateTokens(this.messages) * 1.2;
+      if (estimated > ctxWin) {
+        log.error(
+          `Historique trop gros (~${Math.round(estimated)} tokens > ${ctxWin} ctx window). ` +
+            `Tape /compact pour résumer l'historique, ou /clear pour repartir à zéro.`,
         );
-      } catch (err) {
-        log.warn(
-          `[compact] erreur : ${err instanceof Error ? err.message : err}`,
+        return finalText;
+      }
+      if (!this.warnedNearCtxLimit && estimated > ctxWin * 0.8) {
+        this.warnedNearCtxLimit = true;
+        log.faint(
+          `(historique à ~${Math.round((estimated / ctxWin) * 100)}% du ctx — tape /compact si besoin)`,
         );
-        // Vérifie si on est vraiment en danger de crash provider.
-        const estimated = estimateTokens(this.messages) * 1.2;
-        if (estimated > ctxWin) {
-          log.error(
-            `[compact] historique trop gros (${Math.round(estimated)} tokens > ${ctxWin} ctx window) et compaction a échoué. Tape /compact pour retenter, ou /exit et recommence.`,
-          );
-          return finalText;
-        }
       }
 
       // Status : 'loading' pendant la phase pre-premier-token (cold start
