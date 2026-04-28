@@ -51854,10 +51854,41 @@ function InputBox({
         exitHistory();
         return;
       }
-      if (key.backspace || key.delete) {
+      if (key.ctrl && input === "u") {
+        setValue("");
+        setCursor(0);
+        exitHistory();
+        return;
+      }
+      if (key.ctrl && input === "w") {
+        if (cursor === 0) return;
+        let i = cursor;
+        while (i > 0 && /\s/.test(value[i - 1])) i--;
+        while (i > 0 && !/\s/.test(value[i - 1])) i--;
+        setValue(value.slice(0, i) + value.slice(cursor));
+        setCursor(i);
+        exitHistory();
+        return;
+      }
+      if (key.ctrl && input === "k") {
+        const eol = value.indexOf("\n", cursor);
+        const end = eol === -1 ? value.length : eol;
+        if (end === cursor) return;
+        setValue(value.slice(0, cursor) + value.slice(end));
+        exitHistory();
+        return;
+      }
+      if (key.backspace) {
         if (cursor > 0) {
           setValue(value.slice(0, cursor - 1) + value.slice(cursor));
           setCursor(cursor - 1);
+          exitHistory();
+        }
+        return;
+      }
+      if (key.delete) {
+        if (cursor < value.length) {
+          setValue(value.slice(0, cursor) + value.slice(cursor + 1));
           exitHistory();
         }
         return;
@@ -52636,7 +52667,7 @@ function App2({ history } = {}) {
       InputBox,
       {
         disabled: inputDisabled,
-        placeholder: "\xE9cris un prompt ou /help \xB7 \\\\+Enter = nouvelle ligne \xB7 Shift+Tab = mode",
+        placeholder: "\xE9cris un prompt ou /help \xB7 \\\\+Enter = nouvelle ligne \xB7 Ctrl+U = vider \xB7 Shift+Tab = mode",
         history,
         onSubmit: (line) => inputController.submit(line),
         onInterrupt: () => inputController.interrupt(),
@@ -55052,6 +55083,9 @@ function builtinCommands(allCommands) {
           );
         }
         console.log();
+        log.faint(
+          "Raccourcis : Ctrl+U vider \xB7 Ctrl+W mot pr\xE9c\xE9dent \xB7 Ctrl+K fin de ligne \xB7 \\+Enter nouvelle ligne \xB7 Esc interrompt \xB7 Shift+Tab cycle mode."
+        );
         log.faint(
           "Tape du texte libre pour parler \xE0 l'agent. Ctrl-D ou /exit pour quitter."
         );

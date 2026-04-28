@@ -25,6 +25,10 @@ export function builtinCommands(allCommands: () => SlashCommand[]): SlashCommand
         }
         console.log();
         log.faint(
+          "Raccourcis : Ctrl+U vider · Ctrl+W mot précédent · Ctrl+K fin de ligne · " +
+            "\\+Enter nouvelle ligne · Esc interrompt · Shift+Tab cycle mode.",
+        );
+        log.faint(
           "Tape du texte libre pour parler à l'agent. Ctrl-D ou /exit pour quitter.",
         );
       },

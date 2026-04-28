@@ -234,10 +234,53 @@ export function InputBox({
         return;
       }
 
-      if (key.backspace || key.delete) {
+      // Ctrl+U : vide tout le buffer (kill-line standard shell). Raccourci
+      // demandé pour "supprimer tout d'un coup" sans avoir à backspace lettre
+      // par lettre.
+      if (key.ctrl && input === "u") {
+        setValue("");
+        setCursor(0);
+        exitHistory();
+        return;
+      }
+
+      // Ctrl+W : supprime le mot précédent (standard shell readline).
+      if (key.ctrl && input === "w") {
+        if (cursor === 0) return;
+        let i = cursor;
+        while (i > 0 && /\s/.test(value[i - 1])) i--;
+        while (i > 0 && !/\s/.test(value[i - 1])) i--;
+        setValue(value.slice(0, i) + value.slice(cursor));
+        setCursor(i);
+        exitHistory();
+        return;
+      }
+
+      // Ctrl+K : supprime du curseur jusqu'à la fin de la ligne (kill-to-eol).
+      if (key.ctrl && input === "k") {
+        const eol = value.indexOf("\n", cursor);
+        const end = eol === -1 ? value.length : eol;
+        if (end === cursor) return;
+        setValue(value.slice(0, cursor) + value.slice(end));
+        exitHistory();
+        return;
+      }
+
+      // Backspace : supprime le char à GAUCHE du curseur.
+      if (key.backspace) {
         if (cursor > 0) {
           setValue(value.slice(0, cursor - 1) + value.slice(cursor));
           setCursor(cursor - 1);
+          exitHistory();
+        }
+        return;
+      }
+
+      // Delete (touche Suppr) : supprime le char à DROITE du curseur
+      // (forward delete, comportement standard). Sur macOS = Fn+Backspace.
+      if (key.delete) {
+        if (cursor < value.length) {
+          setValue(value.slice(0, cursor) + value.slice(cursor + 1));
           exitHistory();
         }
         return;
