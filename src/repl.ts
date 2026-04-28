@@ -281,29 +281,50 @@ export async function startRepl(): Promise<void> {
     },
   );
 
-  // Banner poussé dans l'historique après mount.
-  log.banner(`AI_CLI v${APP_VERSION}`);
-  log.info(
-    `${log.kicker("provider")}  ${log.ink(cleanProvider(provider.name))}   ${log.kicker("cwd")}  ${log.inkMuted(CWD)}`,
-  );
-  log.info(
-    `${log.kicker("loaded")}  ${log.inkMuted(
-      `${tools.list().length} tools · ${skills.length} skills · ${subAgents.length} agents · ${mcpServers.length} MCP`,
-    )}`,
-  );
-  const modeDisplay =
-    permConfig.mode === "bypass"
-      ? log.danger("⚠ " + permConfig.mode)
-      : permConfig.mode === "plan"
-        ? log.accentSoft(permConfig.mode)
-        : log.ink(permConfig.mode);
-  log.info(`${log.kicker("mode")}      ${modeDisplay}`);
-  // Affiche le shell détecté — utile pour que l'user sache si il est
-  // sur Git Bash, WSL, pwsh ou cmd sur Windows.
+  // Banner moderne : bande verticale accent + nom + version + tagline.
+  log.banner("AI_CLI", APP_VERSION, "agent code · terminal · tools");
+  // Specs alignés en bloc avec dots colorés selon l'état.
   const detectedShell = detectShell();
-  log.info(
-    `${log.kicker("shell")}     ${log.inkMuted(detectedShell.label)}`,
-  );
+  const home = process.env.HOME || process.env.USERPROFILE || "";
+  const cwdShort = home && CWD.startsWith(home) ? "~" + CWD.slice(home.length) : CWD;
+  const modeStatus: "ok" | "warn" | "error" =
+    permConfig.mode === "bypass"
+      ? "error"
+      : permConfig.mode === "plan"
+        ? "warn"
+        : "ok";
+  log.specs([
+    {
+      label: "model",
+      value: cleanProvider(provider.name),
+      status: "ok",
+    },
+    {
+      label: "tools",
+      value: `${tools.list().length} tools · ${skills.length} skills · ${subAgents.length} agents · ${mcpServers.length} MCP`,
+      status: "muted",
+    },
+    {
+      label: "mode",
+      value:
+        permConfig.mode === "bypass"
+          ? "⚠ bypass"
+          : permConfig.mode === "plan"
+            ? "⎔ plan"
+            : permConfig.mode,
+      status: modeStatus,
+    },
+    {
+      label: "shell",
+      value: detectedShell.label,
+      status: "muted",
+    },
+    {
+      label: "cwd",
+      value: cwdShort,
+      status: "muted",
+    },
+  ]);
   if (!currentCreds) {
     log.info(
       `${log.accentSoft("→")} tape ${log.accent.bold("/login")} ${log.inkMuted(

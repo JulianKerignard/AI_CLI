@@ -232,14 +232,49 @@ export const log = {
       ui(ATH.inkFaint(SYM.toolOut + " ") + ATH.inkMuted(line));
     }
   },
-  banner: (title: string) => {
+  // Banner moderne : bande accent verticale + nom proéminent + version en
+  // faint à droite + tagline italique. Look éditorial Athenaeum, pas de
+  // boîte ASCII (qui fait dépassé). Tu peux passer un sous-titre.
+  banner: (title: string, version?: string, tagline?: string) => {
+    const cols = Math.min(process.stdout.columns || 80, 100);
+    const bar = ATH.accent("┃");
+    const titleLine =
+      bar +
+      "  " +
+      ATH.ink.bold(title) +
+      (version
+        ? "  " + ATH.inkFaint("·") + "  " + ATH.inkFaint("v" + version)
+        : "");
+    const taglineLine = tagline
+      ? bar + "  " + ATH.inkFaint.italic(tagline)
+      : null;
     ui("");
-    ui(
-      ATH.accent(SYM.kicker + " ") +
-        ATH.inkMuted.bold(title.toUpperCase()) +
-        "  " +
-        ATH.inkFaint(SYM.kicker.repeat(Math.max(4, 40 - title.length))),
-    );
+    ui(titleLine);
+    if (taglineLine) ui(taglineLine);
+    ui(ATH.inkFaint("─".repeat(Math.min(40, cols - 4))));
+  },
+  // Bloc specs aligné : chaque item = { icon, label, value, status }.
+  // status colore le dot/icône (success vert, warn orange, error rouge).
+  specs: (
+    items: Array<{
+      label: string;
+      value: string;
+      status?: "ok" | "warn" | "error" | "muted";
+    }>,
+  ) => {
+    const labelWidth = Math.max(...items.map((i) => i.label.length)) + 2;
+    for (const item of items) {
+      const dot =
+        item.status === "warn"
+          ? ATH.accent("●")
+          : item.status === "error"
+            ? ATH.danger("●")
+            : item.status === "muted"
+              ? ATH.inkFaint("○")
+              : ATH.success("●");
+      const label = ATH.inkFaint(item.label.padEnd(labelWidth));
+      ui("  " + dot + "  " + label + ATH.ink(item.value));
+    }
   },
   status: (line: string) => {
     if (!line) return;
