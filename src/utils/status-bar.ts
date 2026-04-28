@@ -396,22 +396,22 @@ export function renderStatusLines(cols: number): string[] {
       INK(String(state.suggestedBetter.speedOutOf10)) +
       FAINT("/10");
   }
-  // Permission mode — affiché seulement si !== default (baseline muette).
-  // Couleur : bypass = danger (rouge), plan = accent-soft (orange), accept-edits
-  // = success (vert). Placé juste avant la version à droite.
+  // Permission mode — TOUJOURS visible (avant : caché si default). Comme
+  // Shift+Tab cycle sans printer dans l'historique, c'est ici la SEULE
+  // source de vérité pour savoir dans quel mode on est. Couleur : bypass
+  // = danger (rouge), plan = accent-soft (orange), accept-edits = success
+  // (vert), default = muted neutre.
   let modePart = "";
-  if (state.permissionMode && state.permissionMode !== "default") {
-    if (state.permissionMode === "bypass") {
-      modePart = chalk.hex("#e26849").bold(
-        (IS_LEGACY_CONSOLE ? "! " : "⚠ ") + "bypass",
-      ) + "  ";
-    } else if (state.permissionMode === "plan") {
-      modePart = ACCENT_SOFT((IS_LEGACY_CONSOLE ? "[P] " : "⎔ ") + "plan") + "  ";
-    } else if (state.permissionMode === "accept-edits") {
-      modePart = SUCCESS((IS_LEGACY_CONSOLE ? "[E] " : "✓ ") + "accept-edits") + "  ";
-    } else {
-      modePart = MUTED(state.permissionMode) + "  ";
-    }
+  if (state.permissionMode === "bypass") {
+    modePart = chalk.hex("#e26849").bold(
+      (IS_LEGACY_CONSOLE ? "! " : "⚠ ") + "bypass",
+    ) + "  ";
+  } else if (state.permissionMode === "plan") {
+    modePart = ACCENT_SOFT((IS_LEGACY_CONSOLE ? "[P] " : "⎔ ") + "plan") + "  ";
+  } else if (state.permissionMode === "accept-edits") {
+    modePart = SUCCESS((IS_LEGACY_CONSOLE ? "[E] " : "✓ ") + "accept-edits") + "  ";
+  } else if (state.permissionMode) {
+    modePart = MUTED((IS_LEGACY_CONSOLE ? "[D] " : "○ ") + state.permissionMode) + "  ";
   }
   const versionPart = FAINT(`v${VERSION}`);
   const leftLen = visibleLen(phaseStr);

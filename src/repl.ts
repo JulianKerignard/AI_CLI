@@ -204,17 +204,11 @@ export async function startRepl(): Promise<void> {
     const nextMode = MODE_CYCLE[(currentIdx + 1) % MODE_CYCLE.length];
     permConfig = { ...permConfig, mode: nextMode };
     savePermissions(permConfig);
+    // Le mode est affiché dans la status line (sous la barre d'input). Pas
+    // de log.info ici — sinon chaque cycle Shift+Tab pollue l'historique
+    // et masque le contenu utile (assistant, tool results).
     updateStatus({ permissionMode: nextMode });
-    // Reinjecte le system prompt avec le nouveau mode. L'agent saura
-    // qu'il est en plan mode (ou autre) dès le prochain turn.
     agent.setSystem(buildSystemPrompt(CWD, nextMode));
-    const label =
-      nextMode === "bypass"
-        ? log.danger("⚠ bypass")
-        : nextMode === "plan"
-          ? log.accentSoft("plan")
-          : log.ink(nextMode);
-    log.info(`${log.kicker("mode")} → ${label}`);
   });
 
   const skills = loadSkills();

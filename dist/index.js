@@ -32190,18 +32190,16 @@ function renderStatusLines(cols) {
     phaseStr += FAINT("  \xB7  ") + SUCCESS(starSymbol() + " ") + ACCENT_SOFT(shortId) + FAINT(" \xB7 ") + MUTED("Q") + INK(String(state.suggestedBetter.qualityOutOf10)) + FAINT("/10 ") + MUTED("V") + INK(String(state.suggestedBetter.speedOutOf10)) + FAINT("/10");
   }
   let modePart = "";
-  if (state.permissionMode && state.permissionMode !== "default") {
-    if (state.permissionMode === "bypass") {
-      modePart = import_chalk4.default.hex("#e26849").bold(
-        (IS_LEGACY_CONSOLE ? "! " : "\u26A0 ") + "bypass"
-      ) + "  ";
-    } else if (state.permissionMode === "plan") {
-      modePart = ACCENT_SOFT((IS_LEGACY_CONSOLE ? "[P] " : "\u2394 ") + "plan") + "  ";
-    } else if (state.permissionMode === "accept-edits") {
-      modePart = SUCCESS((IS_LEGACY_CONSOLE ? "[E] " : "\u2713 ") + "accept-edits") + "  ";
-    } else {
-      modePart = MUTED(state.permissionMode) + "  ";
-    }
+  if (state.permissionMode === "bypass") {
+    modePart = import_chalk4.default.hex("#e26849").bold(
+      (IS_LEGACY_CONSOLE ? "! " : "\u26A0 ") + "bypass"
+    ) + "  ";
+  } else if (state.permissionMode === "plan") {
+    modePart = ACCENT_SOFT((IS_LEGACY_CONSOLE ? "[P] " : "\u2394 ") + "plan") + "  ";
+  } else if (state.permissionMode === "accept-edits") {
+    modePart = SUCCESS((IS_LEGACY_CONSOLE ? "[E] " : "\u2713 ") + "accept-edits") + "  ";
+  } else if (state.permissionMode) {
+    modePart = MUTED((IS_LEGACY_CONSOLE ? "[D] " : "\u25CB ") + state.permissionMode) + "  ";
   }
   const versionPart = FAINT(`v${VERSION}`);
   const leftLen = visibleLen(phaseStr);
@@ -56364,8 +56362,6 @@ async function startRepl() {
     savePermissions(permConfig);
     updateStatus({ permissionMode: nextMode });
     agent.setSystem(buildSystemPrompt(CWD, nextMode));
-    const label = nextMode === "bypass" ? log.danger("\u26A0 bypass") : nextMode === "plan" ? log.accentSoft("plan") : log.ink(nextMode);
-    log.info(`${log.kicker("mode")} \u2192 ${label}`);
   });
   const skills = loadSkills();
   const subAgents = loadSubAgents();
