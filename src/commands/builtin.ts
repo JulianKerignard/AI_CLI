@@ -265,7 +265,7 @@ export function builtinCommands(allCommands: () => SlashCommand[]): SlashCommand
         // Si un favori n'est pas présent dans le catalog (provider désactivé),
         // on le skip — inutile de le proposer, l'appel échouerait.
         const byId = new Map(catalog.map((m) => [m.id, m]));
-        const favs = favorites.order
+        const favsRaw = favorites.order
           .map((alias) => {
             const fullId = favorites.aliases[alias.toLowerCase()];
             const m = fullId ? byId.get(fullId) : undefined;
@@ -274,13 +274,13 @@ export function builtinCommands(allCommands: () => SlashCommand[]): SlashCommand
           })
           .filter((m): m is NonNullable<typeof m> => m !== null);
 
-        if (favs.length === 0) {
+        if (favsRaw.length === 0) {
           log.error(
             "Aucun favori dispo. Vérifie que les providers sont activés côté serveur.",
           );
           return;
         }
-        if (favs.length < favorites.order.length) {
+        if (favsRaw.length < favorites.order.length) {
           const missing = favorites.order.filter((a) => {
             const fullId = favorites.aliases[a.toLowerCase()];
             return !fullId || !byId.has(fullId);
@@ -289,6 +289,20 @@ export function builtinCommands(allCommands: () => SlashCommand[]): SlashCommand
             `(${missing.length} favori(s) indisponible(s) : ${missing.join(", ")})`,
           );
         }
+
+        // Tri par vitesse : les plus rapides en haut. Score combine
+        // speedOutOf10Live (TTFT mesuré ou speed text) + tokPerSec en
+        // tie-break si dispo. Permet à l'user de voir d'un coup d'œil
+        // les modèles snappy.
+        const { speedOutOf10Live } = await import("../lib/model-selector.js");
+        const favs = [...favsRaw].sort((a, b) => {
+          const sa = speedOutOf10Live(a.ttftMs, a.description);
+          const sb = speedOutOf10Live(b.ttftMs, b.description);
+          if (sb !== sa) return sb - sa;
+          const ta = a.tokPerSec ?? 0;
+          const tb = b.tokPerSec ?? 0;
+          return tb - ta;
+        });
 
         const { pickerController } = await import("../ui/picker-controller.js");
         const chosen = await pickerController.open(favs, creds.model);

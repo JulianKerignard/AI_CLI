@@ -52158,18 +52158,18 @@ function ModelPicker({ items, initial, pageSize = 10, onChoose }) {
             const realIdx = start + i;
             const active = realIdx === idx;
             const speed = speedBadge(m.description);
+            const ttftColor = m.ttftMs == null ? "#4a4239" : m.ttftMs < 1500 ? "#7fa670" : m.ttftMs < 1e4 ? "#ec9470" : "#c76a5f";
+            const tpsColor = m.tokPerSec == null ? "#4a4239" : m.tokPerSec >= 100 ? "#7fa670" : m.tokPerSec >= 50 ? "#ec9470" : "#c76a5f";
             return /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)(Box_default, { children: [
               /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(Text, { color: active ? "#e27649" : "#4a4239", children: active ? "\u203A" : " " }),
               /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)(Text, { color: active ? "#f6f1e8" : "#bdb3a1", children: [
                 " ",
-                displayModelId(m.id).padEnd(55)
+                displayModelId(m.id).padEnd(40)
               ] }),
-              /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(Text, { color: "#8a8270", children: m.category }),
-              speed && /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)(Text, { color: speed.color, children: [
-                "  (",
-                speed.label,
-                ")"
-              ] })
+              /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(Text, { color: "#8a8270", children: m.category.padEnd(10) }),
+              speed && /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(Text, { color: speed.color, children: speed.label.padEnd(8) }),
+              /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(Text, { color: ttftColor, children: m.ttftMs != null ? `${m.ttftMs}ms`.padStart(8) : "      \u2014" }),
+              /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(Text, { color: tpsColor, children: m.tokPerSec != null ? `${m.tokPerSec}t/s`.padStart(9) : "        \u2014" })
             ] }, m.id);
           })
         ] }),
@@ -55231,19 +55231,19 @@ function builtinCommands(allCommands) {
           return;
         }
         const byId = new Map(catalog.map((m) => [m.id, m]));
-        const favs = favorites.order.map((alias) => {
+        const favsRaw = favorites.order.map((alias) => {
           const fullId = favorites.aliases[alias.toLowerCase()];
           const m = fullId ? byId.get(fullId) : void 0;
           if (!m) return null;
           return { ...m, alias };
         }).filter((m) => m !== null);
-        if (favs.length === 0) {
+        if (favsRaw.length === 0) {
           log.error(
             "Aucun favori dispo. V\xE9rifie que les providers sont activ\xE9s c\xF4t\xE9 serveur."
           );
           return;
         }
-        if (favs.length < favorites.order.length) {
+        if (favsRaw.length < favorites.order.length) {
           const missing = favorites.order.filter((a) => {
             const fullId = favorites.aliases[a.toLowerCase()];
             return !fullId || !byId.has(fullId);
@@ -55252,6 +55252,15 @@ function builtinCommands(allCommands) {
             `(${missing.length} favori(s) indisponible(s) : ${missing.join(", ")})`
           );
         }
+        const { speedOutOf10Live: speedOutOf10Live2 } = await Promise.resolve().then(() => (init_model_selector(), model_selector_exports));
+        const favs = [...favsRaw].sort((a, b) => {
+          const sa = speedOutOf10Live2(a.ttftMs, a.description);
+          const sb = speedOutOf10Live2(b.ttftMs, b.description);
+          if (sb !== sa) return sb - sa;
+          const ta = a.tokPerSec ?? 0;
+          const tb = b.tokPerSec ?? 0;
+          return tb - ta;
+        });
         const { pickerController: pickerController2 } = await Promise.resolve().then(() => (init_picker_controller(), picker_controller_exports));
         const chosen = await pickerController2.open(favs, creds.model);
         if (typeof chosen === "string" && chosen !== creds.model) {

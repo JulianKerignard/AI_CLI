@@ -11,9 +11,11 @@ export interface CatalogModel {
   vision?: boolean;
   web_search?: boolean;
   description?: string;
-  // Mesures live depuis le cron VPS (NVIDIA uniquement pour l'instant).
-  // Permet au watcher + /best de scorer les modèles avec le TTFT réel.
+  // Mesures live depuis le cron VPS — tous les providers (NVIDIA / Mistral /
+  // Google / OpenRouter) depuis l'extension du bridge /api/v1/models.
+  // Permet au watcher + /best + /model de scorer/trier finement.
   ttftMs?: number | null;
+  tokPerSec?: number | null;
   measuredAt?: number;
   speed?: string;
   // Alias courts exposés par le serveur (ex: ["large", "mistral"]). Le premier
