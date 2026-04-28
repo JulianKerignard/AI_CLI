@@ -34944,7 +34944,7 @@ import { fileURLToPath } from "node:url";
 import { homedir as homedir6 } from "node:os";
 function getLocalVersion() {
   if (true) {
-    return "0.3.1-dev.5";
+    return "0.3.1-dev.6";
   }
   try {
     const here = dirname4(fileURLToPath(import.meta.url));
@@ -54021,7 +54021,7 @@ var RateLimiter = class {
 
 // src/agent/http-provider.ts
 init_status_bar();
-var CLI_VERSION = true ? "0.3.1-dev.5" : "dev";
+var CLI_VERSION = true ? "0.3.1-dev.6" : "dev";
 var MISTRAL_LIMITER = new RateLimiter({ capacity: 60, windowMs: 6e4 });
 var NVIDIA_LIMITER = new RateLimiter({ capacity: 60, windowMs: 6e4 });
 function isNvidiaModel(model) {
@@ -55949,7 +55949,7 @@ function callTimeoutMs() {
   return Number.isFinite(fromEnv) && fromEnv > 0 ? fromEnv : DEFAULT_CALL_TIMEOUT_MS;
 }
 __name(callTimeoutMs, "callTimeoutMs");
-var CLI_VERSION2 = true ? "0.3.1-dev.5" : "dev";
+var CLI_VERSION2 = true ? "0.3.1-dev.6" : "dev";
 var McpClient = class {
   constructor(name, config) {
     this.name = name;
@@ -56226,12 +56226,12 @@ Si doute : CONVERSATION.
 **R\xE8gle** : si tu peux faire un choix raisonnable et le justifier en une ligne apr\xE8s coup, fais-le. AskUser coupe le flow et frustre. Pr\xE9f\xE8re la conversation libre ("Je vais utiliser X car Y, dis-moi si tu pr\xE9f\xE8res Z") au picker forc\xE9.
 
 # Style
-- **Concis par d\xE9faut** (comme Claude) : r\xE9ponse courte, droit au but. Pas de pr\xE9ambule ("Bien s\xFBr", "Voici"), pas de r\xE9sum\xE9 final ("J'ai fini de...", "En r\xE9sum\xE9..."), pas d'emojis sauf si l'user en met.
-- **D\xE9veloppe uniquement si l'user le demande explicitement** : "explique", "d\xE9taille", "pourquoi", "comment \xE7a marche", "pas \xE0 pas". Sinon tais-toi apr\xE8s avoir fait.
-- **Questions simples = r\xE9ponses courtes** : 1-3 phrases suffisent pour la majorit\xE9 des questions. Un diff ou un chemin file:line suffit souvent.
-- Direct : dis ce qui a chang\xE9, pas ce que tu vas faire.
+- **Pas de monologue** : z\xE9ro pr\xE9ambule ("Bien s\xFBr", "Voici", "Je vais commencer par..."), z\xE9ro r\xE9sum\xE9 final ("J'ai fini de...", "En r\xE9sum\xE9...", "Voil\xE0 ce que j'ai fait"). Tu fais, tu dis ce qui change. Annonce une seule fois ce que tu vas faire avant un travail multi-\xE9tapes (1 ligne max).
+- **R\xE9ponse \xE0 la mesure** : adapte la longueur \xE0 la complexit\xE9. Une question triviale \u2192 1-2 phrases. Une question d'architecture, un fix non-\xE9vident, une d\xE9cision avec trade-offs \u2192 d\xE9veloppe normalement (paragraphe, liste, exemples). Ne sacrifie pas la clart\xE9 pour la bri\xE8vet\xE9.
+- **Si l'user demande "explique", "d\xE9taille", "pourquoi"** : prends le temps qu'il faut, sois p\xE9dagogique. Sinon vise l'efficacit\xE9, pas le minimalisme.
+- Direct : dis ce qui a chang\xE9, o\xF9, et pourquoi si c'est non-obvious. Pas besoin de re-paraphraser le diff que l'user voit d\xE9j\xE0.
 - Fran\xE7ais, termes techniques en anglais.
-- Markdown l\xE9ger (code inline, blocs triple-backtick, listes si utile).
+- Markdown l\xE9ger (code inline, blocs triple-backtick, listes si utile, tableaux pour comparer).
 - Code : respecte le style du projet, noms explicites, pas de \`any\` TS, commentaires uniquement pour le "pourquoi" non-obvious.
 
 # Anti-patterns
