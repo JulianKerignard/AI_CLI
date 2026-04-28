@@ -29,7 +29,7 @@ export function subscribeStatus(cb: () => void): () => void {
 //   ... contenu qui scrolle ...
 //   ─────────────────────────────────────────  ┤ session-tag ├
 //   ◆ model (ctx) · /cwd · branch  │  ↑in ↓out  │  +add -del
-//   562k/128k ██░░░░░░░░ 2% ctx · 5h ░░░░ 0/500 0% · bucket 2/3
+//   12k/128k ██░░░░░░░░ 9% ctx · 5h ░░░░ 0/500 0% · bucket 2/3
 //   · idle                                                 v0.1.0
 //   » _
 
@@ -316,19 +316,20 @@ export function renderStatusLines(cols: number): string[] {
     (parts1.length > 3 ? sep + parts1.slice(3).join(sep) : "");
 
   const parts2: string[] = [];
-  const sessionTotal =
-    (state.sessionInTotal ?? 0) + (state.sessionOutTotal ?? 0);
+  // Taille réelle du context = input du DERNIER tour (l'API Anthropic
+  // renvoie input_tokens = totalité de la conv envoyée à chaque appel,
+  // historique inclus) + output streamé en cours. Avant on additionnait
+  // sessionInTotal cumulé sur tous les tours, ce qui comptait plusieurs
+  // fois le même historique → on arrivait à 750k affichés alors que le
+  // ctx réel tenait sous 50k.
+  const currentCtx = (state.tokensIn ?? 0) + (state.tokensOut ?? 0);
   const ctxWindow =
     state.contextWindow ??
     contextWindowFor(state.provider ?? "mistral-large-latest");
   const baseline = state.baselineTokens ?? 0;
-  // Ctx affiché = conv utilisateur / max conv dispo, EXCLUANT le coût
-  // system prompt + tools schemas (incompressible, consommé à chaque
-  // tour). Avant : "salut" affichait 3k/32k (baseline inclus). Après :
-  // affiche ~0k / 28k avec un (+4k base) en faint pour transparence.
   {
     const effectiveMax = Math.max(1, ctxWindow - baseline);
-    const convUsed = Math.max(0, sessionTotal - baseline);
+    const convUsed = Math.max(0, currentCtx - baseline);
     const pct = Math.min(1, convUsed / effectiveMax);
     const pctNum = Math.round(pct * 100);
     const bar = renderBar(pct, 10);

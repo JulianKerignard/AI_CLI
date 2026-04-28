@@ -32149,12 +32149,12 @@ function renderStatusLines(cols) {
   const softSep = FAINT("  \xB7  ");
   const line1 = parts1.slice(0, 3).join(softSep) + (parts1.length > 3 ? sep5 + parts1.slice(3).join(sep5) : "");
   const parts2 = [];
-  const sessionTotal = (state.sessionInTotal ?? 0) + (state.sessionOutTotal ?? 0);
+  const currentCtx = (state.tokensIn ?? 0) + (state.tokensOut ?? 0);
   const ctxWindow = state.contextWindow ?? contextWindowFor2(state.provider ?? "mistral-large-latest");
   const baseline = state.baselineTokens ?? 0;
   {
     const effectiveMax = Math.max(1, ctxWindow - baseline);
-    const convUsed = Math.max(0, sessionTotal - baseline);
+    const convUsed = Math.max(0, currentCtx - baseline);
     const pct = Math.min(1, convUsed / effectiveMax);
     const pctNum = Math.round(pct * 100);
     const bar = renderBar(pct, 10);
