@@ -3,12 +3,27 @@
 // a besoin de cette info pour décider si un auto-compact préventif est
 // nécessaire).
 
+// Strip total des préfixes provider et de leur owner pour l'affichage UI.
+// Choix produit (cf. PR #21 site) : on ne montre AUCUN nom de provider à
+// l'user. Le routing upstream continue d'utiliser l'ID complet via
+// `this.opts.model`, pas via cette chaîne. Aligné avec lib/format.ts
+// shortModelLabel côté site.
 export function cleanProvider(name: string): string {
   const httpMatch = /^http\((.+)\)$/.exec(name);
-  const inner = httpMatch ? httpMatch[1] : name;
-  // Strip le préfixe "nvidia/" pour l'affichage UI. Le routing upstream
-  // utilise l'ID complet via `this.opts.model`, pas via cette chaîne.
-  return inner.startsWith("nvidia/") ? inner.slice("nvidia/".length) : inner;
+  let s = httpMatch ? httpMatch[1] : name;
+  // 1. Préfixe provider (le 1er segment).
+  if (s.startsWith("nvidia/")) s = s.slice("nvidia/".length);
+  else if (s.startsWith("openrouter/")) s = s.slice("openrouter/".length);
+  else if (s.startsWith("google/")) s = s.slice("google/".length);
+  // 2. Owner restant (ex: "openai/gpt-oss-120b" → "gpt-oss-120b").
+  const slashIdx = s.indexOf("/");
+  if (slashIdx !== -1) s = s.slice(slashIdx + 1);
+  // 3. Suffixes techniques.
+  s = s.replace(/:free$/, "").replace(/-instruct$/, "");
+  // 4. Préfixes Mistral redondants + cosmétique -latest.
+  if (s.startsWith("mistral-")) s = s.slice("mistral-".length);
+  s = s.replace(/-latest$/, "");
+  return s;
 }
 
 // Estimation du coût "incompressible" envoyé à chaque requête : system

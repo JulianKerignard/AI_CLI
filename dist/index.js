@@ -31977,8 +31977,16 @@ var init_git_info = __esm({
 // src/lib/context-window.ts
 function cleanProvider(name) {
   const httpMatch = /^http\((.+)\)$/.exec(name);
-  const inner = httpMatch ? httpMatch[1] : name;
-  return inner.startsWith("nvidia/") ? inner.slice("nvidia/".length) : inner;
+  let s = httpMatch ? httpMatch[1] : name;
+  if (s.startsWith("nvidia/")) s = s.slice("nvidia/".length);
+  else if (s.startsWith("openrouter/")) s = s.slice("openrouter/".length);
+  else if (s.startsWith("google/")) s = s.slice("google/".length);
+  const slashIdx = s.indexOf("/");
+  if (slashIdx !== -1) s = s.slice(slashIdx + 1);
+  s = s.replace(/:free$/, "").replace(/-instruct$/, "");
+  if (s.startsWith("mistral-")) s = s.slice("mistral-".length);
+  s = s.replace(/-latest$/, "");
+  return s;
 }
 function estimateBaselineTokens(system, tools) {
   let chars = system.length;
@@ -32456,7 +32464,16 @@ function normalizeModelId(id) {
   return id;
 }
 function displayModelId(id) {
-  return normalizeModelId(id);
+  let s = id;
+  if (s.startsWith("nvidia/")) s = s.slice("nvidia/".length);
+  else if (s.startsWith("openrouter/")) s = s.slice("openrouter/".length);
+  else if (s.startsWith("google/")) s = s.slice("google/".length);
+  const slashIdx = s.indexOf("/");
+  if (slashIdx !== -1) s = s.slice(slashIdx + 1);
+  s = s.replace(/:free$/, "").replace(/-instruct$/, "");
+  if (s.startsWith("mistral-")) s = s.slice("mistral-".length);
+  s = s.replace(/-latest$/, "");
+  return s;
 }
 function qualityFallback(category) {
   const cat = (category || "").toLowerCase();
@@ -52093,7 +52110,6 @@ function ModelPicker({ items, initial, pageSize = 10, onChoose }) {
     Math.min(idx - Math.floor(pageSize / 2), filtered.length - pageSize)
   );
   const visible = filtered.slice(start, start + pageSize);
-  const providerColor = /* @__PURE__ */ __name((p) => p === "nvidia" ? "#7fa670" : p === "persona" ? "#ec9470" : "#e27649", "providerColor");
   const speedBadge = /* @__PURE__ */ __name((desc) => {
     if (!desc) return null;
     if (/\brapide\b/i.test(desc)) return { label: "rapide", color: "#7fa670" };
@@ -52131,11 +52147,7 @@ function ModelPicker({ items, initial, pageSize = 10, onChoose }) {
                 " ",
                 displayModelId(m.id).padEnd(55)
               ] }),
-              /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(Text, { color: providerColor(m.provider), children: m.provider }),
-              /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)(Text, { color: "#8a8270", children: [
-                "  ",
-                m.category
-              ] }),
+              /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(Text, { color: "#8a8270", children: m.category }),
               speed && /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)(Text, { color: speed.color, children: [
                 "  (",
                 speed.label,

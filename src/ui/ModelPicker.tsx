@@ -80,11 +80,8 @@ export function ModelPicker({ items, initial, pageSize = 10, onChoose }: Props) 
   );
   const visible = filtered.slice(start, start + pageSize);
 
-  const providerColor = (p: string): string =>
-    p === "nvidia" ? "#7fa670" : p === "persona" ? "#ec9470" : "#e27649";
-
   // Extrait le suffixe "rapide"/"moyen"/"lent" depuis la description
-  // server-side (format 'NVIDIA · owner · tier · speed'). Couleur :
+  // server-side (format 'tier · speed' depuis PR #21). Couleur :
   // rapide = vert, moyen = orange, lent = rouge.
   const speedBadge = (desc?: string): { label: string; color: string } | null => {
     if (!desc) return null;
@@ -124,11 +121,7 @@ export function ModelPicker({ items, initial, pageSize = 10, onChoose }: Props) 
                 {" "}
                 {displayModelId(m.id).padEnd(55)}
               </Text>
-              <Text color={providerColor(m.provider)}>{m.provider}</Text>
-              <Text color="#8a8270">
-                {"  "}
-                {m.category}
-              </Text>
+              <Text color="#8a8270">{m.category}</Text>
               {speed && (
                 <Text color={speed.color}>
                   {"  ("}
