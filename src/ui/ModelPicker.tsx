@@ -12,6 +12,8 @@ export interface ModelItem {
   category: string;
   description?: string;
   weight: number;
+  ttftMs?: number | null;
+  tokPerSec?: number | null;
 }
 
 interface Props {
@@ -112,6 +114,24 @@ export function ModelPicker({ items, initial, pageSize = 10, onChoose }: Props) 
           const realIdx = start + i;
           const active = realIdx === idx;
           const speed = speedBadge(m.description);
+          // Couleur TTFT : <1.5s vert, <10s orange, >=10s rouge.
+          const ttftColor =
+            m.ttftMs == null
+              ? "#4a4239"
+              : m.ttftMs < 1500
+                ? "#7fa670"
+                : m.ttftMs < 10_000
+                  ? "#ec9470"
+                  : "#c76a5f";
+          // Couleur tok/s : >=100 vert, >=50 orange, sinon rouge.
+          const tpsColor =
+            m.tokPerSec == null
+              ? "#4a4239"
+              : m.tokPerSec >= 100
+                ? "#7fa670"
+                : m.tokPerSec >= 50
+                  ? "#ec9470"
+                  : "#c76a5f";
           return (
             <Box key={m.id}>
               <Text color={active ? "#e27649" : "#4a4239"}>
@@ -119,16 +139,20 @@ export function ModelPicker({ items, initial, pageSize = 10, onChoose }: Props) 
               </Text>
               <Text color={active ? "#f6f1e8" : "#bdb3a1"}>
                 {" "}
-                {displayModelId(m.id).padEnd(55)}
+                {displayModelId(m.id).padEnd(40)}
               </Text>
-              <Text color="#8a8270">{m.category}</Text>
+              <Text color="#8a8270">{m.category.padEnd(10)}</Text>
               {speed && (
-                <Text color={speed.color}>
-                  {"  ("}
-                  {speed.label}
-                  {")"}
-                </Text>
+                <Text color={speed.color}>{speed.label.padEnd(8)}</Text>
               )}
+              <Text color={ttftColor}>
+                {m.ttftMs != null ? `${m.ttftMs}ms`.padStart(8) : "      —"}
+              </Text>
+              <Text color={tpsColor}>
+                {m.tokPerSec != null
+                  ? `${m.tokPerSec}t/s`.padStart(9)
+                  : "        —"}
+              </Text>
             </Box>
           );
         })}
