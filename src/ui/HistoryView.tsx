@@ -17,23 +17,28 @@ function formatItem(item: HistoryItem): React.ReactNode {
   switch (item.type) {
     case "user": {
       // Style oh-my-zsh agnoster light : `→ project git:(branch) message`.
-      // Si pas de git/cwd : juste `→ message`.
+      // Préfixé par un séparateur `────` faint pleine largeur (style
+      // éditorial — chaque tour user marque le début d'un nouveau "fil").
       const hasCtx = Boolean(item.project || item.branch);
+      const cols = Math.min(process.stdout.columns || 80, 100);
       return (
-        <Text>
-          <Text color={c.accent} bold>
-            {symbols.arrowRight}{" "}
+        <Box flexDirection="column" marginTop={1}>
+          <Text color={c.inkFaint}>{symbols.rule.repeat(cols - 4)}</Text>
+          <Text>
+            <Text color={c.accent} bold>
+              {symbols.arrowRight}{" "}
+            </Text>
+            {item.project && (
+              <Text color={c.accentSoft}>{item.project} </Text>
+            )}
+            {item.branch && (
+              <Text color={c.info}>git:({item.branch}) </Text>
+            )}
+            <Text color={hasCtx ? c.ink : c.inkMuted} bold={hasCtx}>
+              {item.text}
+            </Text>
           </Text>
-          {item.project && (
-            <Text color={c.accentSoft}>{item.project} </Text>
-          )}
-          {item.branch && (
-            <Text color={c.info}>git:({item.branch}) </Text>
-          )}
-          <Text color={hasCtx ? c.ink : c.inkMuted} bold={hasCtx}>
-            {item.text}
-          </Text>
-        </Text>
+        </Box>
       );
     }
     case "assistant": {

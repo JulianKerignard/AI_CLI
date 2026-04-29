@@ -520,26 +520,39 @@ export function InputBox({
         </Box>
       </Box>
     )}
-    {/* Bordure ronde subtile autour de l'input — style OpenCode/Crush :
-        l'input est clairement délimité comme un "panel" distinct du flux
-        conversationnel au-dessus. borderColor change selon l'état :
-        - disabled (agent travaille) → borderDim (zinc-800, presque invisible)
-        - active (saisie en cours) → border (zinc-700, visible mais discret)
-        - placeholder visible → border (idem)
-        Avant : pas de bordure du tout, l'input se confondait avec le flux
-        et le user pouvait avoir l'impression que l'app a freeze. */}
-    <Box
-      borderStyle="round"
-      borderColor={disabled ? c.borderDim : c.border}
-      paddingX={1}
-      flexDirection="column"
-    >
-      {renderInputContent({
-        disabled: !!disabled,
-        hasValue: value.length > 0,
-        placeholder,
-        rendered,
-      })}
+    {/* Look éditorial type Charm/lipgloss : préfixe vertical ▎ accent
+        à gauche de chaque ligne de l'input + kicker label `ASK`/`BUSY`
+        en petites capitales discrètes au-dessus. Plus sophistiqué que
+        la box ronde précédente — donne un vrai rythme typographique
+        sans bruit visuel. La bordure ronde reste pour les modals
+        (slash popup, pickers).
+
+        - kicker change selon l'état :
+            disabled  → BUSY  (faint)
+            active    → ASK   (accent, bold)
+        - bar verticale ▎ change de couleur de la même façon. */}
+    <Box flexDirection="row">
+      <Box flexDirection="column" marginRight={1}>
+        <Text color={c.inkFaint}>{" "}</Text>
+        {(rendered.length > 0 ? rendered : [{ text: "", caretCol: -1 }]).map(
+          (_, i) => (
+            <Text key={i} color={disabled ? c.inkFaint : c.accent}>
+              ▎
+            </Text>
+          ),
+        )}
+      </Box>
+      <Box flexDirection="column" flexGrow={1}>
+        <Text color={disabled ? c.inkDim : c.accent} bold>
+          {disabled ? "BUSY" : "ASK"}
+        </Text>
+        {renderInputContent({
+          disabled: !!disabled,
+          hasValue: value.length > 0,
+          placeholder,
+          rendered,
+        })}
+      </Box>
     </Box>
     </Box>
   );

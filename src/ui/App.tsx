@@ -151,14 +151,26 @@ export function App({ history }: AppProps = {}) {
         />
       )}
       <StatusLine columns={columns} />
-      {/* Footer keybindings persistant — style OpenCode / lazygit. Rappel
-          discret sous la status line des raccourcis clavier les plus
-          utiles. Caché si un picker / permission / ask est actif (sa
-          propre footer hint prend le relais). */}
+      {/* Footer keybindings persistant — style OpenCode / lazygit. Layout
+          structuré : kicker faible-contraste à gauche (séparant les
+          actions), keybindings en faint avec accents de couleur sur les
+          glyphes essentiels. Caché si un modal est actif. */}
       {!pickerActive && !permissionActive && !askActive && !sessionActive && (
         <Box>
-          <Text color={c.inkFaint}>
-            ⏎ send · \⏎ newline · ⇧⇥ mode · /help · Ctrl+C exit
+          <Text color={c.inkDim}>
+            <Text color={c.accent}>⏎</Text>
+            <Text color={c.inkFaint}> send</Text>
+            <Text color={c.inkFaint}>{"  ·  "}</Text>
+            <Text color={c.inkMuted}>\⏎</Text>
+            <Text color={c.inkFaint}> newline</Text>
+            <Text color={c.inkFaint}>{"  ·  "}</Text>
+            <Text color={c.inkMuted}>⇧⇥</Text>
+            <Text color={c.inkFaint}> mode</Text>
+            <Text color={c.inkFaint}>{"  ·  "}</Text>
+            <Text color={c.inkMuted}>esc</Text>
+            <Text color={c.inkFaint}> stop</Text>
+            <Text color={c.inkFaint}>{"  ·  "}</Text>
+            <Text color={c.inkMuted}>/help</Text>
           </Text>
         </Box>
       )}
