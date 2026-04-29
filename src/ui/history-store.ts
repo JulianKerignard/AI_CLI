@@ -4,6 +4,15 @@ import { EventEmitter } from "node:events";
 // courant (rendu en zone mutable au-dessus de l'input, pour que le
 // delta s'affiche live sans re-rendre toute la liste).
 
+// Lignes d'un bloc Thinking (cluster d'actions read-only avant la
+// réponse). kind oriente le glyphe + couleur :
+//   read  → '> Reading X'  (inkDim — action mécanique)
+//   find  → '! Found X'    (accentSoft — découverte importante)
+//   done  → '✓ Resolved X' (success — fin d'investigation)
+// `header: true` = première ligne du cluster, marquée par le kicker
+// `Thinking…` au-dessus dans le rendu.
+export type ThinkingKind = "read" | "find" | "done";
+
 export type HistoryItem =
   | {
       type: "user";
@@ -18,6 +27,13 @@ export type HistoryItem =
     }
   | { type: "assistant"; text: string; id: number }
   | { type: "tool"; text: string; id: number }
+  | {
+      type: "thinking";
+      kind: ThinkingKind;
+      text: string;
+      header?: boolean;
+      id: number;
+    }
   | { type: "info"; text: string; id: number }
   | { type: "warn"; text: string; id: number }
   | { type: "error"; text: string; id: number }

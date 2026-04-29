@@ -67,6 +67,12 @@ export class AgentLoop {
   // resetStats().
   private warnedNearCtxLimit = false;
 
+  // True quand on est dans un cluster de tools read-only (Read/Glob/Grep/
+  // Ls) — visuellement groupés sous un kicker `Thinking…`. Reset au
+  // début de chaque turn user et à chaque write/exec tool ou text delta
+  // qui clôt le bloc.
+  private inThinkingCluster = false;
+
   constructor(opts: AgentOptions) {
     // Default 25 (aligné Claude Code) pour laisser les tâches multi-étapes aboutir.
     // Overridable via AICLI_MAX_ITERATIONS pour les power users.
@@ -195,6 +201,9 @@ export class AgentLoop {
     let turnInputTokens = 0;
     let turnOutputTokens = 0;
     let lastQuota: ProviderQuota | undefined;
+    // Nouveau turn → bloc Thinking neuf (le prochain read-only tool
+    // affichera le kicker `Thinking…`).
+    this.inThinkingCluster = false;
 
     for (let i = 0; i < this.opts.maxIterations; i++) {
       // Compaction MANUELLE uniquement (via /compact). Avant : compaction
@@ -255,6 +264,11 @@ export class AgentLoop {
               signal: this.currentAbort.signal,
               onTextDelta: (delta) => {
                 startStream();
+                // Premier delta = l'agent passe à la rédaction de la
+                // réponse → le bloc Thinking se ferme. Le prochain
+                // read-only tool d'un futur turn ouvrira un nouveau
+                // cluster avec son kicker.
+                this.inThinkingCluster = false;
                 historyStore.appendAssistantDelta(delta);
                 streamedChars += delta.length;
                 updateStatus({ tokensOut: Math.ceil(streamedChars / 4) });
@@ -430,22 +444,65 @@ export class AgentLoop {
         this.opts.onToolUse?.(block.name, block.input);
         updateStatus({ phase: "executing-tool", toolName: block.name });
 
+        // Détecte si l'outil est "read-only" (Read/Glob/Grep/Ls et leurs
+        // équivalents MCP). Ces actions sont regroupées visuellement dans
+        // un bloc Thinking au lieu d'apparaître chacune comme un ◆ Name
+        // séparé — l'agent enchaîne souvent 5-10 read-only avant d'agir,
+        // ce qui produisait un mur de tool calls peu lisible.
+        const baseName = block.name.replace(/^mcp__[^_]+__/, "");
+        const isReadOnly =
+          baseName === "Read" ||
+          baseName === "Glob" ||
+          baseName === "Grep" ||
+          baseName === "Ls" ||
+          baseName.toLowerCase().startsWith("read") ||
+          baseName.toLowerCase().startsWith("search") ||
+          baseName.toLowerCase().startsWith("find");
+
         // Affichage compact Claude-Code-style : ◆ Name(label). Le résumé du
         // résultat est ajouté après l'exécution. Si le tool ne fournit pas de
         // formatters, fallback sur l'ancien affichage verbeux.
         const toolDef = this.opts.tools.get(block.name);
         const hasCompact = !!(toolDef?.formatInvocation || toolDef?.formatResult);
-        if (hasCompact) {
-          const label = toolDef?.formatInvocation?.(block.input) ?? "";
-          log.toolCompact(block.name, label);
+        const invocLabel = toolDef?.formatInvocation?.(block.input) ?? "";
+
+        if (isReadOnly) {
+          // Thinking line `> Reading X` ou `> Searching X` selon le verbe.
+          const verb =
+            baseName === "Read" || baseName.toLowerCase().startsWith("read")
+              ? "Reading"
+              : baseName === "Grep" || baseName.toLowerCase().startsWith("search")
+                ? "Searching"
+                : baseName === "Glob"
+                  ? "Globbing"
+                  : baseName === "Ls"
+                    ? "Listing"
+                    : "Inspecting";
+          log.thinking(
+            "read",
+            `${verb} ${invocLabel || baseName}`,
+            !this.inThinkingCluster,
+          );
+          this.inThinkingCluster = true;
+        } else if (hasCompact) {
+          // Tool action (write/exec/autre) : ferme le cluster et affiche
+          // le format standard ◆ Name(args).
+          this.inThinkingCluster = false;
+          log.toolCompact(block.name, invocLabel);
         } else {
+          this.inThinkingCluster = false;
           log.tool(block.name, JSON.stringify(block.input).slice(0, 120));
         }
 
         try {
           const output = await this.opts.tools.run(block.name, block.input, ctx);
           this.opts.onToolResult?.(block.name, output);
-          if (hasCompact && toolDef?.formatResult) {
+          if (isReadOnly) {
+            // Résumé en thinking line `done` — concise (formatResult).
+            const summary =
+              toolDef?.formatResult?.(block.input, output) ?? "ok";
+            log.thinking("done", summary);
+          } else if (hasCompact && toolDef?.formatResult) {
             log.toolResultCompact(toolDef.formatResult(block.input, output));
           } else if (!hasCompact) {
             log.toolResult(output);
@@ -456,8 +513,8 @@ export class AgentLoop {
           }
           // Confirmation `✓ Applied fix to <path>` style GLM Coding
           // Assistant pour les actions d'écriture (modification disque).
-          // Pas pour Read/Bash/Grep — le ⎿ result suffit.
-          const baseName = block.name.replace(/^mcp__[^_]+__/, "");
+          // Pas pour Read/Bash/Grep — le ⎿ result suffit. baseName déjà
+          // calculé au-dessus pour le test isReadOnly.
           if (
             baseName === "Edit" ||
             baseName === "MultiEdit" ||
@@ -477,6 +534,8 @@ export class AgentLoop {
           });
         } catch (err) {
           const msg = err instanceof Error ? err.message : String(err);
+          // Erreur sur un read-only : casse le cluster (warn classique).
+          this.inThinkingCluster = false;
           if (hasCompact) {
             log.toolResultCompact(msg, true);
           } else {
