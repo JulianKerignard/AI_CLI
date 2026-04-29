@@ -64,6 +64,38 @@ function formatItem(item: HistoryItem): React.ReactNode {
     case "tool":
     case "raw":
       return <Text>{item.text}</Text>;
+    case "thinking": {
+      // Bloc Thinking light : préfixe vertical │ faint à gauche pour
+      // donner l'effet de bordure-bloc, glyphe + couleur selon kind.
+      // header=true affiche un kicker `Thinking…` au-dessus (italique
+      // info gris-bleu) — pour la 1re ligne d'un cluster d'investigation.
+      const glyph =
+        item.kind === "find"
+          ? symbols.warn
+          : item.kind === "done"
+            ? symbols.success
+            : symbols.prompt; // `>` pour read
+      const fg =
+        item.kind === "find"
+          ? c.accentSoft
+          : item.kind === "done"
+            ? c.success
+            : c.inkDim;
+      return (
+        <Box flexDirection="column">
+          {item.header && (
+            <Text color={c.info} italic>
+              Thinking…
+            </Text>
+          )}
+          <Text>
+            <Text color={c.inkFaint}>{symbols.toolOut} </Text>
+            <Text color={fg}>{glyph} </Text>
+            <Text color={fg}>{item.text}</Text>
+          </Text>
+        </Box>
+      );
+    }
     case "info":
       return (
         <Text>

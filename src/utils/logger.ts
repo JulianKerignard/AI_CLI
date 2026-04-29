@@ -338,6 +338,20 @@ export const log = {
         ATH.ink(path),
     );
   },
+  // Pousse une ligne du bloc Thinking. kind='read' = action mécanique
+  // (couleur dim), 'find' = découverte (accent), 'done' = résolution
+  // (success). header=true uniquement sur la 1re ligne d'un cluster
+  // → affiche un kicker `Thinking…` au-dessus (cf. HistoryView).
+  // Note : on push directement dans le store comme un type:'thinking'
+  // (le rendu visuel se fait React-side, pas via chalk pré-rendu — pour
+  // pouvoir composer le préfixe │ sur 2 colonnes).
+  thinking: (
+    kind: "read" | "find" | "done",
+    text: string,
+    header = false,
+  ) => {
+    historyStore.push({ type: "thinking", kind, text, header });
+  },
   toolResultCompact: (summary: string, isError = false) => {
     // Indent 2 espaces + ⎿. Multi-lignes supporté : un \n dans summary
     // produit plusieurs lignes — la 1re préfixée par ⎿, les suivantes

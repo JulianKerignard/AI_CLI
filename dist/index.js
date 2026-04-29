@@ -31503,6 +31503,16 @@ var init_logger = __esm({
           ATH.success(symbols.success + " ") + ATH.success(action + " ") + ATH.ink(path2)
         );
       }, "applied"),
+      // Pousse une ligne du bloc Thinking. kind='read' = action mécanique
+      // (couleur dim), 'find' = découverte (accent), 'done' = résolution
+      // (success). header=true uniquement sur la 1re ligne d'un cluster
+      // → affiche un kicker `Thinking…` au-dessus (cf. HistoryView).
+      // Note : on push directement dans le store comme un type:'thinking'
+      // (le rendu visuel se fait React-side, pas via chalk pré-rendu — pour
+      // pouvoir composer le préfixe │ sur 2 colonnes).
+      thinking: /* @__PURE__ */ __name((kind, text, header = false) => {
+        historyStore.push({ type: "thinking", kind, text, header });
+      }, "thinking"),
       toolResultCompact: /* @__PURE__ */ __name((summary, isError = false) => {
         const arrow = "  " + (symbols.toolReturn || "\u23BF") + " ";
         const indent = "    ";
@@ -52244,6 +52254,24 @@ function formatItem(item) {
     case "tool":
     case "raw":
       return /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Text, { children: item.text });
+    case "thinking": {
+      const glyph = item.kind === "find" ? symbols.warn : item.kind === "done" ? symbols.success : symbols.prompt;
+      const fg = item.kind === "find" ? c.accentSoft : item.kind === "done" ? c.success : c.inkDim;
+      return /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(Box_default, { flexDirection: "column", children: [
+        item.header && /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Text, { color: c.info, italic: true, children: "Thinking\u2026" }),
+        /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(Text, { children: [
+          /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(Text, { color: c.inkFaint, children: [
+            symbols.toolOut,
+            " "
+          ] }),
+          /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(Text, { color: fg, children: [
+            glyph,
+            " "
+          ] }),
+          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Text, { color: fg, children: item.text })
+        ] })
+      ] });
+    }
     case "info":
       return /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(Text, { children: [
         /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(Text, { color: c.info, children: [
@@ -55177,6 +55205,11 @@ var AgentLoop = class {
   // continue à charger des fichiers volumineux. Reset au /clear via
   // resetStats().
   warnedNearCtxLimit = false;
+  // True quand on est dans un cluster de tools read-only (Read/Glob/Grep/
+  // Ls) — visuellement groupés sous un kicker `Thinking…`. Reset au
+  // début de chaque turn user et à chaque write/exec tool ou text delta
+  // qui clôt le bloc.
+  inThinkingCluster = false;
   constructor(opts) {
     const envLimit = Number(process.env.AICLI_MAX_ITERATIONS);
     const defaultLimit = Number.isFinite(envLimit) && envLimit > 0 ? envLimit : 25;
@@ -55276,6 +55309,7 @@ var AgentLoop = class {
     let turnInputTokens = 0;
     let turnOutputTokens = 0;
     let lastQuota;
+    this.inThinkingCluster = false;
     for (let i = 0; i < this.opts.maxIterations; i++) {
       const ctxWin = contextWindowFor(this.opts.provider.name);
       const estimated = estimateTokens(this.messages) * 1.2;
@@ -55316,6 +55350,7 @@ var AgentLoop = class {
               signal: this.currentAbort.signal,
               onTextDelta: /* @__PURE__ */ __name((delta) => {
                 startStream();
+                this.inThinkingCluster = false;
                 historyStore.appendAssistantDelta(delta);
                 streamedChars += delta.length;
                 updateStatus({ tokensOut: Math.ceil(streamedChars / 4) });
@@ -55455,18 +55490,33 @@ var AgentLoop = class {
         }
         this.opts.onToolUse?.(block.name, block.input);
         updateStatus({ phase: "executing-tool", toolName: block.name });
+        const baseName = block.name.replace(/^mcp__[^_]+__/, "");
+        const isReadOnly = baseName === "Read" || baseName === "Glob" || baseName === "Grep" || baseName === "Ls" || baseName.toLowerCase().startsWith("read") || baseName.toLowerCase().startsWith("search") || baseName.toLowerCase().startsWith("find");
         const toolDef = this.opts.tools.get(block.name);
         const hasCompact = !!(toolDef?.formatInvocation || toolDef?.formatResult);
-        if (hasCompact) {
-          const label = toolDef?.formatInvocation?.(block.input) ?? "";
-          log.toolCompact(block.name, label);
+        const invocLabel = toolDef?.formatInvocation?.(block.input) ?? "";
+        if (isReadOnly) {
+          const verb = baseName === "Read" || baseName.toLowerCase().startsWith("read") ? "Reading" : baseName === "Grep" || baseName.toLowerCase().startsWith("search") ? "Searching" : baseName === "Glob" ? "Globbing" : baseName === "Ls" ? "Listing" : "Inspecting";
+          log.thinking(
+            "read",
+            `${verb} ${invocLabel || baseName}`,
+            !this.inThinkingCluster
+          );
+          this.inThinkingCluster = true;
+        } else if (hasCompact) {
+          this.inThinkingCluster = false;
+          log.toolCompact(block.name, invocLabel);
         } else {
+          this.inThinkingCluster = false;
           log.tool(block.name, JSON.stringify(block.input).slice(0, 120));
         }
         try {
           const output = await this.opts.tools.run(block.name, block.input, ctx);
           this.opts.onToolResult?.(block.name, output);
-          if (hasCompact && toolDef?.formatResult) {
+          if (isReadOnly) {
+            const summary = toolDef?.formatResult?.(block.input, output) ?? "ok";
+            log.thinking("done", summary);
+          } else if (hasCompact && toolDef?.formatResult) {
             log.toolResultCompact(toolDef.formatResult(block.input, output));
           } else if (!hasCompact) {
             log.toolResult(output);
@@ -55474,7 +55524,6 @@ var AgentLoop = class {
             const lines = output.split("\n").length;
             log.toolResultCompact(`${lines} lines returned`);
           }
-          const baseName = block.name.replace(/^mcp__[^_]+__/, "");
           if (baseName === "Edit" || baseName === "MultiEdit" || baseName === "Write") {
             const rawPath = String(block.input.path ?? "");
             if (rawPath) {
@@ -55490,6 +55539,7 @@ var AgentLoop = class {
           });
         } catch (err) {
           const msg = err instanceof Error ? err.message : String(err);
+          this.inThinkingCluster = false;
           if (hasCompact) {
             log.toolResultCompact(msg, true);
           } else {
