@@ -17,7 +17,8 @@ const ATH = {
   accentDeep: chalk.hex(c.accentDeep),
   ink: chalk.hex(c.ink),
   inkMuted: chalk.hex(c.inkMuted),
-  inkFaint: chalk.hex(c.inkDim),
+  inkDim: chalk.hex(c.inkDim),
+  inkFaint: chalk.hex(c.inkDim), // alias pour compat
   success: chalk.hex(c.success),
   danger: chalk.hex(c.danger),
 };
@@ -73,28 +74,61 @@ function toolKind(name: string): ToolKind {
 }
 
 function toolDotColor(name: string): (s: string) => string {
+  // Avec la palette GLM (accent + success = vert vif), il faut disambiguer
+  // Bash de Write/Edit qui sont tous verts. Bash → cyan info (action
+  // distincte, lecture-écriture mélangée). Write/Edit → vert vif (mod
+  // disque). Read → vert clair (lecture).
   switch (toolKind(name)) {
     case "read":
-      return chalk.hex("#7fa8a6"); // info teal
+      return chalk.hex(c.accentSoft); // vert clair (lecture)
     case "exec":
-      return ATH.accent; // orange
+      return chalk.hex("#67e8f9"); // cyan vif (exec shell, distinct du vert)
     case "write":
-      return ATH.success; // vert
+      return ATH.accent; // vert vif (modification disque)
     default:
-      return ATH.success;
+      return ATH.accent;
   }
 }
 
+// Détection conhost legacy (Windows < 10) — bgHex y rend mal. Sur ces
+// terminaux on skip le fond coloré et on garde juste le foreground.
+const IS_LEGACY_CONSOLE =
+  process.platform === "win32" && !process.env.WT_SESSION;
+
+// Pad une ligne avec des espaces jusqu'à `cols` chars visibles, en
+// retirant les codes ANSI pour le calcul de longueur. Utilisé pour
+// produire un fond coloré plein-largeur (chalk.bgHex applique le bg
+// uniquement sur les caractères de la string).
+function padToWidth(line: string, cols: number): string {
+  const visible = line.replace(/\x1b\[[0-9;]*m/g, "");
+  const need = cols - visible.length;
+  if (need <= 0) return line;
+  return line + " ".repeat(need);
+}
+
 // Colorise une ligne de résultat de tool. Préfixes spéciaux :
-// `+ ...`  → success (ligne ajoutée dans un diff Edit)
-// `- ...`  → danger (ligne retirée dans un diff Edit)
+// `+ ...`  → success + fond vert tinted (diff add)
+// `- ...`  → danger + fond rouge tinted (diff del)
 // `exit 0` → success
 // `exit !=0` → danger
 // `$ cmd`  → ink (commande shell pour Bash)
 // sinon    → muted neutre.
-function colorizeResultLine(line: string): string {
-  if (/^\s*\+ /.test(line)) return ATH.success(line);
-  if (/^\s*- /.test(line)) return ATH.danger(line);
+//
+// indentCols = nombre de chars du préfixe d'indentation (pour calcul
+// padding bg full-width). Default 4 (= "    " indent du toolResultCompact).
+function colorizeResultLine(line: string, indentCols = 4): string {
+  // Diff lignes : fond coloré full-width (style GLM Coding Assistant).
+  // Sur conhost legacy : skip bg, juste foreground.
+  if (/^\s*\+ /.test(line)) {
+    if (IS_LEGACY_CONSOLE) return ATH.success(line);
+    const cols = (process.stdout.columns || 80) - indentCols;
+    return chalk.bgHex(c.diffAdd).hex(c.success)(padToWidth(line, cols));
+  }
+  if (/^\s*- /.test(line)) {
+    if (IS_LEGACY_CONSOLE) return ATH.danger(line);
+    const cols = (process.stdout.columns || 80) - indentCols;
+    return chalk.bgHex(c.diffDel).hex(c.danger)(padToWidth(line, cols));
+  }
   if (/^exit 0\b/.test(line)) return ATH.success(line);
   if (/^exit \S+/.test(line)) return ATH.danger(line);
   if (/^\$ /.test(line)) return ATH.ink(line);
@@ -294,6 +328,16 @@ export const log = {
           : ""),
     );
   },
+  // Confirmation success après une action Edit/Write/MultiEdit. Affiche
+  // `✓ Applied fix to <path>` en vert clair. Style GLM Coding Assistant.
+  // Pas appelé pour Read/Bash/Grep — la ligne ⎿ result suffit pour eux.
+  applied: (action: string, path: string) => {
+    ui(
+      ATH.success(symbols.success + " ") +
+        ATH.success(action + " ") +
+        ATH.ink(path),
+    );
+  },
   toolResultCompact: (summary: string, isError = false) => {
     // Indent 2 espaces + ⎿. Multi-lignes supporté : un \n dans summary
     // produit plusieurs lignes — la 1re préfixée par ⎿, les suivantes
@@ -315,9 +359,39 @@ export const log = {
       ui(ATH.inkFaint(SYM.toolOut + " ") + ATH.inkMuted(line));
     }
   },
-  // Banner moderne : bande accent verticale + nom proéminent + version en
-  // faint à droite + tagline italique. Look éditorial Athenaeum, pas de
-  // boîte ASCII (qui fait dépassé). Tu peux passer un sous-titre.
+  // Boot court style GLM Coding Assistant : 2 lignes plates, pas de
+  // bande verticale ni de rule. L'info essentielle (model, mode) tient
+  // sur la 2e ligne. Le banner riche reste accessible via /about.
+  // Format :
+  //   AI_CLI initialized.
+  //   Connected to <baseUrl> · model <id> · mode <mode>
+  //
+  //   Type /about for details · /help for commands
+  boot: (
+    title: string,
+    info: { baseUrl?: string; model?: string; mode?: string },
+  ) => {
+    ui("");
+    ui(ATH.ink.bold(title) + ATH.inkDim(" initialized."));
+    const parts: string[] = [];
+    if (info.baseUrl)
+      parts.push(ATH.inkMuted("Connected to ") + ATH.ink(info.baseUrl));
+    if (info.model)
+      parts.push(ATH.inkMuted("model ") + ATH.accent(info.model));
+    if (info.mode) parts.push(ATH.inkMuted("mode ") + ATH.ink(info.mode));
+    if (parts.length > 0)
+      ui(parts.join(ATH.inkDim(" · ")));
+    ui("");
+    ui(
+      ATH.inkDim("Type ") +
+        ATH.accent("/about") +
+        ATH.inkDim(" for details · ") +
+        ATH.accent("/help") +
+        ATH.inkDim(" for commands"),
+    );
+  },
+  // Banner riche : bande accent verticale + nom + version + tagline.
+  // Utilisé par /about, /help, /usage, /tools — gardé pour rétrocompat.
   banner: (title: string, version?: string, tagline?: string) => {
     const cols = Math.min(process.stdout.columns || 80, 100);
     const bar = ATH.accent("┃");

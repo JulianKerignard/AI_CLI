@@ -454,6 +454,22 @@ export class AgentLoop {
             const lines = output.split("\n").length;
             log.toolResultCompact(`${lines} lines returned`);
           }
+          // Confirmation `✓ Applied fix to <path>` style GLM Coding
+          // Assistant pour les actions d'écriture (modification disque).
+          // Pas pour Read/Bash/Grep — le ⎿ result suffit.
+          const baseName = block.name.replace(/^mcp__[^_]+__/, "");
+          if (
+            baseName === "Edit" ||
+            baseName === "MultiEdit" ||
+            baseName === "Write"
+          ) {
+            const rawPath = String(block.input.path ?? "");
+            if (rawPath) {
+              const action = baseName === "Write" ? "Created" : "Applied fix to";
+              const { shortPath } = await import("../utils/paths.js");
+              log.applied(action, shortPath(rawPath));
+            }
+          }
           toolResults.push({
             type: "tool_result",
             tool_use_id: block.id,

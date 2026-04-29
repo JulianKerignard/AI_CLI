@@ -5,7 +5,17 @@ import { EventEmitter } from "node:events";
 // delta s'affiche live sans re-rendre toute la liste).
 
 export type HistoryItem =
-  | { type: "user"; text: string; id: number }
+  | {
+      type: "user";
+      text: string;
+      // Contexte oh-my-zsh agnoster capturé au push-time : le rendu
+      // affiche `→ <project> git:(<branch>) <text>`. project = basename du
+      // cwd ou repoRoot, branch = git HEAD courant. Optionnels — si pas de
+      // git, on n'affiche que `→ <text>`.
+      project?: string;
+      branch?: string;
+      id: number;
+    }
   | { type: "assistant"; text: string; id: number }
   | { type: "tool"; text: string; id: number }
   | { type: "info"; text: string; id: number }
@@ -25,6 +35,14 @@ export type HistoryItem =
 // les évincer du store sans impact visuel — l'user retrouve l'historique
 // dans le scrollback. Garde un compteur pour debug/info.
 const MAX_ITEMS = 500;
+
+// Distributive Omit : préserve le narrowing par discriminant sur les
+// types union. Sans ça, `Omit<HistoryItem, "id">` collapse l'union et
+// rejette les props spécifiques à une variante (ex: `project` du type
+// `user`).
+type DistributiveOmit<T, K extends keyof T> = T extends T
+  ? Omit<T, K>
+  : never;
 
 class HistoryStore extends EventEmitter {
   private items: HistoryItem[] = [];
@@ -65,7 +83,10 @@ class HistoryStore extends EventEmitter {
 
   // Push un item "figé". S'il y avait un streaming en cours, on le fige
   // d'abord puis on ajoute le nouvel item.
-  push(item: Omit<HistoryItem, "id">): number {
+  // DistributiveOmit garde le narrowing par discriminant `type` quand on
+  // passe `{type:"user", project, branch}` — sinon Omit sur l'union
+  // collapse les variantes et perd les props spécifiques.
+  push(item: DistributiveOmit<HistoryItem, "id">): number {
     if (this.streaming) {
       this.items.push(this.streaming);
       this.streaming = null;

@@ -31169,6 +31169,9 @@ var init_history_store = __esm({
       }
       // Push un item "figé". S'il y avait un streaming en cours, on le fige
       // d'abord puis on ajoute le nouvel item.
+      // DistributiveOmit garde le narrowing par discriminant `type` quand on
+      // passe `{type:"user", project, branch}` — sinon Omit sur l'union
+      // collapse les variantes et perd les props spécifiques.
       push(item) {
         if (this.streaming) {
           this.items.push(this.streaming);
@@ -31239,24 +31242,37 @@ var init_theme = __esm({
   "src/ui/theme.ts"() {
     "use strict";
     colors = {
-      // Accents
-      accent: "#e27649",
-      accentSoft: "#ec9470",
-      accentDeep: "#b85a31",
+      // Accents — palette GLM/terminal vert vif sur fond noir profond.
+      // Avant : orange Athenaeum (#e27649) — gardé pour référence en commentaire.
+      accent: "#4ade80",
+      // vert vif (était #e27649)
+      accentSoft: "#86efac",
+      // vert clair (était #ec9470)
+      accentDeep: "#16a34a",
+      // vert foncé (était #b85a31)
       // Ink (text)
       ink: "#f6f1e8",
       inkBright: "#f6f1e8",
       inkMuted: "#bdb3a1",
       inkDim: "#8a8270",
       inkFaint: "#4a4239",
-      // Semantic
-      success: "#7fa670",
-      danger: "#c76a5f",
-      info: "#7fa8a6",
+      // Semantic — success fusionne avec accent (vert), info bascule en gris-bleu
+      // froid pour les blocs "Thinking…" (cohérent GLM).
+      success: "#4ade80",
+      // alias accent (était #7fa670)
+      danger: "#f87171",
+      // rouge tinted lisible (était #c76a5f)
+      info: "#94a3b8",
+      // gris-bleu froid pour reasoning (était #7fa8a6 teal)
+      // Backgrounds tinted pour diff inline (rouge/vert ~25% saturation).
+      diffAdd: "#14361d",
+      diffDel: "#3f1d1d",
       // Structure
       border: "#4a4239",
       borderDim: "#2a2520",
-      bgTag: "#245454"
+      bgTag: "#245454",
+      bgBlock: "#1a1a1a"
+      // fond gris foncé pour blocs "Thinking..." / code
     };
     c = colors;
     IS_LEGACY_CONSOLE = process.platform === "win32" && !process.env.WT_SESSION;
@@ -31324,21 +31340,35 @@ function toolKind(name) {
 function toolDotColor(name) {
   switch (toolKind(name)) {
     case "read":
-      return import_chalk4.default.hex("#7fa8a6");
-    // info teal
+      return import_chalk4.default.hex(c.accentSoft);
+    // vert clair (lecture)
     case "exec":
-      return ATH.accent;
-    // orange
+      return import_chalk4.default.hex("#67e8f9");
+    // cyan vif (exec shell, distinct du vert)
     case "write":
-      return ATH.success;
-    // vert
+      return ATH.accent;
+    // vert vif (modification disque)
     default:
-      return ATH.success;
+      return ATH.accent;
   }
 }
-function colorizeResultLine(line) {
-  if (/^\s*\+ /.test(line)) return ATH.success(line);
-  if (/^\s*- /.test(line)) return ATH.danger(line);
+function padToWidth(line, cols) {
+  const visible = line.replace(/\x1b\[[0-9;]*m/g, "");
+  const need = cols - visible.length;
+  if (need <= 0) return line;
+  return line + " ".repeat(need);
+}
+function colorizeResultLine(line, indentCols = 4) {
+  if (/^\s*\+ /.test(line)) {
+    if (IS_LEGACY_CONSOLE2) return ATH.success(line);
+    const cols = (process.stdout.columns || 80) - indentCols;
+    return import_chalk4.default.bgHex(c.diffAdd).hex(c.success)(padToWidth(line, cols));
+  }
+  if (/^\s*- /.test(line)) {
+    if (IS_LEGACY_CONSOLE2) return ATH.danger(line);
+    const cols = (process.stdout.columns || 80) - indentCols;
+    return import_chalk4.default.bgHex(c.diffDel).hex(c.danger)(padToWidth(line, cols));
+  }
   if (/^exit 0\b/.test(line)) return ATH.success(line);
   if (/^exit \S+/.test(line)) return ATH.danger(line);
   if (/^\$ /.test(line)) return ATH.ink(line);
@@ -31390,7 +31420,7 @@ function formatQuotaStatus(session, quota) {
   }
   return lines;
 }
-var import_chalk4, ATH, SYM, log;
+var import_chalk4, ATH, SYM, IS_LEGACY_CONSOLE2, log;
 var init_logger = __esm({
   "src/utils/logger.ts"() {
     "use strict";
@@ -31404,7 +31434,9 @@ var init_logger = __esm({
       accentDeep: import_chalk4.default.hex(c.accentDeep),
       ink: import_chalk4.default.hex(c.ink),
       inkMuted: import_chalk4.default.hex(c.inkMuted),
+      inkDim: import_chalk4.default.hex(c.inkDim),
       inkFaint: import_chalk4.default.hex(c.inkDim),
+      // alias pour compat
       success: import_chalk4.default.hex(c.success),
       danger: import_chalk4.default.hex(c.danger)
     };
@@ -31420,6 +31452,8 @@ var init_logger = __esm({
     };
     __name(toolKind, "toolKind");
     __name(toolDotColor, "toolDotColor");
+    IS_LEGACY_CONSOLE2 = process.platform === "win32" && !process.env.WT_SESSION;
+    __name(padToWidth, "padToWidth");
     __name(colorizeResultLine, "colorizeResultLine");
     __name(compact, "compact");
     __name(formatResetIn, "formatResetIn");
@@ -31457,6 +31491,14 @@ var init_logger = __esm({
           dot(SYM.tool + " ") + ATH.ink.bold(name) + (label ? ATH.inkFaint("(") + ATH.inkMuted(label) + ATH.inkFaint(")") : "")
         );
       }, "toolCompact"),
+      // Confirmation success après une action Edit/Write/MultiEdit. Affiche
+      // `✓ Applied fix to <path>` en vert clair. Style GLM Coding Assistant.
+      // Pas appelé pour Read/Bash/Grep — la ligne ⎿ result suffit pour eux.
+      applied: /* @__PURE__ */ __name((action, path2) => {
+        ui(
+          ATH.success(symbols.success + " ") + ATH.success(action + " ") + ATH.ink(path2)
+        );
+      }, "applied"),
       toolResultCompact: /* @__PURE__ */ __name((summary, isError = false) => {
         const arrow = "  " + (symbols.toolReturn || "\u23BF") + " ";
         const indent = "    ";
@@ -31474,9 +31516,32 @@ var init_logger = __esm({
           ui(ATH.inkFaint(SYM.toolOut + " ") + ATH.inkMuted(line));
         }
       }, "toolResult"),
-      // Banner moderne : bande accent verticale + nom proéminent + version en
-      // faint à droite + tagline italique. Look éditorial Athenaeum, pas de
-      // boîte ASCII (qui fait dépassé). Tu peux passer un sous-titre.
+      // Boot court style GLM Coding Assistant : 2 lignes plates, pas de
+      // bande verticale ni de rule. L'info essentielle (model, mode) tient
+      // sur la 2e ligne. Le banner riche reste accessible via /about.
+      // Format :
+      //   AI_CLI initialized.
+      //   Connected to <baseUrl> · model <id> · mode <mode>
+      //
+      //   Type /about for details · /help for commands
+      boot: /* @__PURE__ */ __name((title, info) => {
+        ui("");
+        ui(ATH.ink.bold(title) + ATH.inkDim(" initialized."));
+        const parts = [];
+        if (info.baseUrl)
+          parts.push(ATH.inkMuted("Connected to ") + ATH.ink(info.baseUrl));
+        if (info.model)
+          parts.push(ATH.inkMuted("model ") + ATH.accent(info.model));
+        if (info.mode) parts.push(ATH.inkMuted("mode ") + ATH.ink(info.mode));
+        if (parts.length > 0)
+          ui(parts.join(ATH.inkDim(" \xB7 ")));
+        ui("");
+        ui(
+          ATH.inkDim("Type ") + ATH.accent("/about") + ATH.inkDim(" for details \xB7 ") + ATH.accent("/help") + ATH.inkDim(" for commands")
+        );
+      }, "boot"),
+      // Banner riche : bande accent verticale + nom + version + tagline.
+      // Utilisé par /about, /help, /usage, /tools — gardé pour rétrocompat.
       banner: /* @__PURE__ */ __name((title, version, tagline) => {
         const cols = Math.min(process.stdout.columns || 80, 100);
         const bar = ATH.accent("\u2503");
@@ -32074,6 +32139,10 @@ var init_model_catalog = __esm({
 });
 
 // src/utils/git-info.ts
+var git_info_exports = {};
+__export(git_info_exports, {
+  getGitInfo: () => getGitInfo
+});
 import { readFileSync as readFileSync4, existsSync as existsSync4, statSync } from "node:fs";
 import { join as join3, dirname as dirname3 } from "node:path";
 import { spawnSync } from "node:child_process";
@@ -32341,13 +32410,13 @@ function renderStatusLines(cols) {
   }
   let modePart = "";
   if (state.permissionMode === "bypass") {
-    modePart = import_chalk4.default.hex(c.danger).bold((IS_LEGACY_CONSOLE2 ? "! " : "\u26A0 ") + "bypass") + "  ";
+    modePart = import_chalk4.default.hex(c.danger).bold((IS_LEGACY_CONSOLE3 ? "! " : "\u26A0 ") + "bypass") + "  ";
   } else if (state.permissionMode === "plan") {
-    modePart = ACCENT_SOFT((IS_LEGACY_CONSOLE2 ? "[P] " : "\u2394 ") + "plan") + "  ";
+    modePart = ACCENT_SOFT((IS_LEGACY_CONSOLE3 ? "[P] " : "\u2394 ") + "plan") + "  ";
   } else if (state.permissionMode === "accept-edits") {
-    modePart = SUCCESS((IS_LEGACY_CONSOLE2 ? "[E] " : "\u2713 ") + "accept-edits") + "  ";
+    modePart = SUCCESS((IS_LEGACY_CONSOLE3 ? "[E] " : "\u2713 ") + "accept-edits") + "  ";
   } else if (state.permissionMode) {
-    modePart = MUTED((IS_LEGACY_CONSOLE2 ? "[D] " : "\u25CB ") + state.permissionMode) + "  ";
+    modePart = MUTED((IS_LEGACY_CONSOLE3 ? "[D] " : "\u25CB ") + state.permissionMode) + "  ";
   }
   const versionPart = FAINT(`v${VERSION}`);
   const leftLen = visibleLen(phaseStr);
@@ -32390,7 +32459,7 @@ function resetTurn() {
   state.phase = "idle";
   scheduleRender();
 }
-var emitter, state, enabled, VERSION, PHASE_LABEL, IS_LEGACY_CONSOLE2, PHASE_SYM, ANIM_FRAMES, ANIMATED_PHASES, TICK_INTERVAL_MS, frame, tickTimer, STAR_FRAMES, GLYPH, PHASE_COLOR, FAINT, MUTED, INK, INK_BRIGHT, ACCENT, ACCENT_SOFT, DANGER, SUCCESS, TEAL, cleanProvider2, contextWindowFor2;
+var emitter, state, enabled, VERSION, PHASE_LABEL, IS_LEGACY_CONSOLE3, PHASE_SYM, ANIM_FRAMES, ANIMATED_PHASES, TICK_INTERVAL_MS, frame, tickTimer, STAR_FRAMES, GLYPH, PHASE_COLOR, FAINT, MUTED, INK, INK_BRIGHT, ACCENT, ACCENT_SOFT, DANGER, SUCCESS, TEAL, cleanProvider2, contextWindowFor2;
 var init_status_bar = __esm({
   "src/utils/status-bar.ts"() {
     "use strict";
@@ -32414,8 +32483,8 @@ var init_status_bar = __esm({
       compacting: "compacting\u2026",
       offline: "offline"
     };
-    IS_LEGACY_CONSOLE2 = process.platform === "win32" && !process.env.WT_SESSION;
-    PHASE_SYM = IS_LEGACY_CONSOLE2 ? {
+    IS_LEGACY_CONSOLE3 = process.platform === "win32" && !process.env.WT_SESSION;
+    PHASE_SYM = IS_LEGACY_CONSOLE3 ? {
       idle: ".",
       loading: "~",
       thinking: "*",
@@ -32434,7 +32503,7 @@ var init_status_bar = __esm({
       compacting: "\u21BB",
       offline: "\u25CB"
     };
-    ANIM_FRAMES = IS_LEGACY_CONSOLE2 ? {} : {
+    ANIM_FRAMES = IS_LEGACY_CONSOLE3 ? {} : {
       thinking: ["\u280B", "\u2819", "\u2839", "\u2838", "\u283C", "\u2834", "\u2826", "\u2827", "\u2807", "\u280F"],
       streaming: ["\u25CF", "\u25D0", "\u25D1", "\u25D2", "\u25D3", "\u25D4", "\u25D5"],
       loading: ["\u25DC", "\u25E0", "\u25DD", "\u25DE", "\u25E1", "\u25DF"],
@@ -32456,9 +32525,9 @@ var init_status_bar = __esm({
     __name(startTick, "startTick");
     __name(stopTick, "stopTick");
     __name(phaseSymbol, "phaseSymbol");
-    STAR_FRAMES = IS_LEGACY_CONSOLE2 ? ["*"] : ["\u2605", "\u2726", "\u2727", "\u2726"];
+    STAR_FRAMES = IS_LEGACY_CONSOLE3 ? ["*"] : ["\u2605", "\u2726", "\u2727", "\u2726"];
     __name(starSymbol, "starSymbol");
-    GLYPH = IS_LEGACY_CONSOLE2 ? { diamond: "#", sepLine: "-", midDot: ".", arrowUp: "^", arrowDown: "v", star: "*" } : { diamond: "\u25C6", sepLine: "\u2500", midDot: "\xB7", arrowUp: "\u2191", arrowDown: "\u2193", star: "\u2605" };
+    GLYPH = IS_LEGACY_CONSOLE3 ? { diamond: "#", sepLine: "-", midDot: ".", arrowUp: "^", arrowDown: "v", star: "*" } : { diamond: "\u25C6", sepLine: "\u2500", midDot: "\xB7", arrowUp: "\u2191", arrowDown: "\u2193", star: "\u2605" };
     PHASE_COLOR = {
       idle: import_chalk4.default.hex(c.inkDim),
       loading: import_chalk4.default.hex(c.info),
@@ -51764,14 +51833,25 @@ init_theme();
 var import_jsx_runtime = __toESM(require_jsx_runtime(), 1);
 function formatItem(item) {
   switch (item.type) {
-    case "user":
+    case "user": {
+      const hasCtx = Boolean(item.project || item.branch);
       return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Text, { children: [
         /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Text, { color: c.accent, bold: true, children: [
-          symbols.user,
+          symbols.arrowRight,
           " "
         ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Text, { color: c.inkMuted, children: item.text })
+        item.project && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Text, { color: c.accentSoft, children: [
+          item.project,
+          " "
+        ] }),
+        item.branch && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Text, { color: c.info, children: [
+          "git:(",
+          item.branch,
+          ") "
+        ] }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Text, { color: hasCtx ? c.ink : c.inkMuted, bold: hasCtx, children: item.text })
       ] });
+    }
     case "assistant":
       return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Text, { children: item.text });
     case "tool":
@@ -54980,6 +55060,15 @@ var AgentLoop = class {
             const lines = output.split("\n").length;
             log.toolResultCompact(`${lines} lines returned`);
           }
+          const baseName = block.name.replace(/^mcp__[^_]+__/, "");
+          if (baseName === "Edit" || baseName === "MultiEdit" || baseName === "Write") {
+            const rawPath = String(block.input.path ?? "");
+            if (rawPath) {
+              const action = baseName === "Write" ? "Created" : "Applied fix to";
+              const { shortPath: shortPath2 } = await Promise.resolve().then(() => (init_paths(), paths_exports));
+              log.applied(action, shortPath2(rawPath));
+            }
+          }
           toolResults.push({
             type: "tool_result",
             tool_use_id: block.id,
@@ -55125,6 +55214,7 @@ __name(checkCredentialsPerms, "checkCredentialsPerms");
 
 // src/auth/login.ts
 init_logger();
+init_theme();
 var DEFAULT_WEB_URL = "https://chat.juliankerignard.fr";
 var TIMEOUT_MS = 18e4;
 async function runLoginFlow(opts = {}) {
@@ -55174,7 +55264,7 @@ async function runLoginFlow(opts = {}) {
       res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" }).end(`
 <!doctype html>
 <html lang="fr"><head><meta charset="utf-8"><title>AI_CLI autoris\xE9</title>
-<style>body{font-family:-apple-system,system-ui,sans-serif;background:#2b2621;color:#f6f1e8;display:flex;min-height:100vh;align-items:center;justify-content:center;margin:0}.c{text-align:center;padding:40px;max-width:420px}.t{color:#e27649;font-size:18px;margin-bottom:10px}.d{color:#bdb3a1;font-size:14px;line-height:1.5}</style>
+<style>body{font-family:-apple-system,system-ui,sans-serif;background:#0a0a0a;color:#f6f1e8;display:flex;min-height:100vh;align-items:center;justify-content:center;margin:0}.c{text-align:center;padding:40px;max-width:420px}.t{color:#4ade80;font-size:18px;margin-bottom:10px}.d{color:#bdb3a1;font-size:14px;line-height:1.5}</style>
 </head><body><div class="c"><div class="t">\u2713 AI_CLI autoris\xE9</div><div class="d">Tu peux fermer cet onglet et revenir au terminal.</div></div></body></html>
       `);
       const creds = { token, baseUrl: apiUrl, model };
@@ -55194,7 +55284,7 @@ async function runLoginFlow(opts = {}) {
       const authUrl = `${webUrl}/cli/auth?redirect=${encodeURIComponent(redirect)}&state=${state2}`;
       console.log();
       log.info("Ouvre ce lien pour autoriser AI_CLI :");
-      console.log("  " + import_chalk4.default.hex("#e27649").underline(authUrl));
+      console.log("  " + import_chalk4.default.hex(c.accent).underline(authUrl));
       console.log();
       log.faint(
         "  (\xE9coute sur 127.0.0.1:" + port + ", timeout 3 min)"
@@ -55248,6 +55338,7 @@ __name(runLoginFlow, "runLoginFlow");
 // src/commands/builtin.ts
 init_paths();
 init_context_window();
+init_theme();
 function builtinCommands(allCommands) {
   return [
     {
@@ -55465,7 +55556,7 @@ function builtinCommands(allCommands) {
           const updated = { ...creds, model: match.id };
           auth.onLogin(updated);
           log.info(
-            `Mod\xE8le \u2192 ${import_chalk4.default.hex("#e27649")(match.id)} ${import_chalk4.default.hex("#8a8270")(`(${match.provider})`)}`
+            `Mod\xE8le \u2192 ${import_chalk4.default.hex(c.accent)(match.id)} ${import_chalk4.default.hex(c.inkDim)(`(${match.provider})`)}`
           );
           return;
         }
@@ -55507,7 +55598,7 @@ function builtinCommands(allCommands) {
           auth.onLogin(updated);
           const picked = favs.find((m) => m.id === chosen);
           log.info(
-            `Mod\xE8le \u2192 ${import_chalk4.default.hex("#e27649")(picked?.alias ?? chosen)} ${import_chalk4.default.hex("#8a8270")(`(${picked?.provider ?? "?"})`)}`
+            `Mod\xE8le \u2192 ${import_chalk4.default.hex(c.accent)(picked?.alias ?? chosen)} ${import_chalk4.default.hex(c.inkDim)(`(${picked?.provider ?? "?"})`)}`
           );
         }
       }
@@ -55544,13 +55635,13 @@ function builtinCommands(allCommands) {
         const ranked = pickBest2(models, mode);
         const top = ranked[0];
         log.info(
-          `Meilleurs mod\xE8les (mode ${import_chalk4.default.hex("#e27649")(mode)}) :`
+          `Meilleurs mod\xE8les (mode ${import_chalk4.default.hex(c.accent)(mode)}) :`
         );
         for (let i = 0; i < Math.min(5, ranked.length); i++) {
           const r = ranked[i];
           const marker = i === 0 ? import_chalk4.default.hex("#7fa670")("\u2605") : " ";
           log.dim(
-            `  ${marker} ${r.model.id.padEnd(55)}  ${import_chalk4.default.hex("#8a8270")(
+            `  ${marker} ${r.model.id.padEnd(55)}  ${import_chalk4.default.hex(c.inkDim)(
               `Q ${r.qualityOutOf10}/10 \xB7 V ${r.speedOutOf10}/10 \xB7 score ${r.score.toFixed(1)}`
             )}`
           );
@@ -55562,7 +55653,7 @@ function builtinCommands(allCommands) {
         const updated = { ...creds, model: top.model.id };
         auth.onLogin(updated);
         log.info(
-          `Switch \u2192 ${import_chalk4.default.hex("#e27649")(top.model.id)} ${import_chalk4.default.hex("#8a8270")(`(${top.model.provider} \xB7 Q ${top.qualityOutOf10}/10 \xB7 V ${top.speedOutOf10}/10)`)}`
+          `Switch \u2192 ${import_chalk4.default.hex(c.accent)(top.model.id)} ${import_chalk4.default.hex(c.inkDim)(`(${top.model.provider} \xB7 Q ${top.qualityOutOf10}/10 \xB7 V ${top.speedOutOf10}/10)`)}`
         );
       }
     },
@@ -55586,12 +55677,12 @@ function builtinCommands(allCommands) {
           return;
         }
         log.info(
-          `Mise \xE0 jour dispo (canal ${status.channel}) : ${import_chalk4.default.hex("#8a8270")(status.current)} \u2192 ${import_chalk4.default.hex("#e27649")(status.latest ?? "?")}`
+          `Mise \xE0 jour dispo (canal ${status.channel}) : ${import_chalk4.default.hex(c.inkDim)(status.current)} \u2192 ${import_chalk4.default.hex(c.accent)(status.latest ?? "?")}`
         );
         log.dim(`Versions : ${npmInfoUrl2()}`);
         if (arg === "check") {
           log.info(
-            `Tape ${import_chalk4.default.hex("#e27649").bold("/update")} (sans arg) pour installer et relancer.`
+            `Tape ${import_chalk4.default.hex(c.accent).bold("/update")} (sans arg) pour installer et relancer.`
           );
           return;
         }
@@ -56613,10 +56704,13 @@ async function startRepl() {
       patchConsole: false
     }
   );
-  log.banner("AI_CLI", APP_VERSION, "agent code \xB7 terminal \xB7 tools");
-  log.faint(
-    `tape ${log.accent("/about")} pour voir le d\xE9tail \xB7 ${log.accent("/help")} pour les commandes`
-  );
+  const baseUrl = currentCreds?.baseUrl ?? "demo (offline)";
+  log.boot("AI_CLI", {
+    baseUrl,
+    model: provider.name.replace(/^http\(|\)$/g, ""),
+    mode: permConfig.mode
+  });
+  log.faint(`v${APP_VERSION}`);
   if (!currentCreds) {
     log.info(
       `${log.accentSoft("\u2192")} tape ${log.accent.bold("/login")} ${log.inkMuted(
@@ -56767,7 +56861,15 @@ async function startRepl() {
     if (!input) continue;
     history.add(input);
     const { historyStore: historyStore2 } = await Promise.resolve().then(() => (init_history_store(), history_store_exports));
-    historyStore2.push({ type: "user", text: input });
+    const { getGitInfo: getGitInfo2 } = await Promise.resolve().then(() => (init_git_info(), git_info_exports));
+    const { basename: basename4 } = await import("node:path");
+    const git = getGitInfo2(CWD);
+    historyStore2.push({
+      type: "user",
+      text: input,
+      project: basename4(git?.repoRoot ?? CWD),
+      branch: git?.branch ?? void 0
+    });
     inputController.setDisabled(true);
     try {
       if (input.startsWith("/")) {

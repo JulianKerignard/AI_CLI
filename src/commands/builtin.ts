@@ -11,6 +11,7 @@ import {
 import { CWD, getAppVersion } from "../utils/paths.js";
 import { cleanProvider } from "../lib/context-window.js";
 import { detectShell } from "../tools/shell-detect.js";
+import { c } from "../ui/theme.js";
 
 export function builtinCommands(allCommands: () => SlashCommand[]): SlashCommand[] {
   return [
@@ -298,7 +299,7 @@ export function builtinCommands(allCommands: () => SlashCommand[]): SlashCommand
           const updated = { ...creds, model: match.id };
           auth.onLogin(updated);
           log.info(
-            `Modèle → ${chalk.hex("#e27649")(match.id)} ${chalk.hex("#8a8270")(`(${match.provider})`)}`,
+            `Modèle → ${chalk.hex(c.accent)(match.id)} ${chalk.hex(c.inkDim)(`(${match.provider})`)}`,
           );
           return;
         }
@@ -354,7 +355,7 @@ export function builtinCommands(allCommands: () => SlashCommand[]): SlashCommand
           auth.onLogin(updated);
           const picked = favs.find((m) => m.id === chosen);
           log.info(
-            `Modèle → ${chalk.hex("#e27649")(picked?.alias ?? chosen)} ${chalk.hex("#8a8270")(`(${picked?.provider ?? "?"})`)}`,
+            `Modèle → ${chalk.hex(c.accent)(picked?.alias ?? chosen)} ${chalk.hex(c.inkDim)(`(${picked?.provider ?? "?"})`)}`,
           );
         }
       },
@@ -415,13 +416,13 @@ export function builtinCommands(allCommands: () => SlashCommand[]): SlashCommand
 
         // Affiche le top 5 avec indices qualité/vitesse sur 10.
         log.info(
-          `Meilleurs modèles (mode ${chalk.hex("#e27649")(mode)}) :`,
+          `Meilleurs modèles (mode ${chalk.hex(c.accent)(mode)}) :`,
         );
         for (let i = 0; i < Math.min(5, ranked.length); i++) {
           const r = ranked[i];
           const marker = i === 0 ? chalk.hex("#7fa670")("★") : " ";
           log.dim(
-            `  ${marker} ${r.model.id.padEnd(55)}  ${chalk.hex("#8a8270")(
+            `  ${marker} ${r.model.id.padEnd(55)}  ${chalk.hex(c.inkDim)(
               `Q ${r.qualityOutOf10}/10 · V ${r.speedOutOf10}/10 · score ${r.score.toFixed(1)}`,
             )}`,
           );
@@ -436,7 +437,7 @@ export function builtinCommands(allCommands: () => SlashCommand[]): SlashCommand
         const updated = { ...creds, model: top.model.id };
         auth.onLogin(updated);
         log.info(
-          `Switch → ${chalk.hex("#e27649")(top.model.id)} ${chalk.hex("#8a8270")(`(${top.model.provider} · Q ${top.qualityOutOf10}/10 · V ${top.speedOutOf10}/10)`)}`,
+          `Switch → ${chalk.hex(c.accent)(top.model.id)} ${chalk.hex(c.inkDim)(`(${top.model.provider} · Q ${top.qualityOutOf10}/10 · V ${top.speedOutOf10}/10)`)}`,
         );
       },
     },
@@ -463,14 +464,14 @@ export function builtinCommands(allCommands: () => SlashCommand[]): SlashCommand
           return;
         }
         log.info(
-          `Mise à jour dispo (canal ${status.channel}) : ${chalk.hex("#8a8270")(status.current)} → ${chalk.hex("#e27649")(status.latest ?? "?")}`,
+          `Mise à jour dispo (canal ${status.channel}) : ${chalk.hex(c.inkDim)(status.current)} → ${chalk.hex(c.accent)(status.latest ?? "?")}`,
         );
         log.dim(`Versions : ${npmInfoUrl()}`);
 
         // `/update check` = juste afficher la dispo sans installer.
         if (arg === "check") {
           log.info(
-            `Tape ${chalk.hex("#e27649").bold("/update")} (sans arg) pour installer et relancer.`,
+            `Tape ${chalk.hex(c.accent).bold("/update")} (sans arg) pour installer et relancer.`,
           );
           return;
         }

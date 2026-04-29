@@ -4,24 +4,30 @@
 // Une seule source de vérité ici.
 
 export const colors = {
-  // Accents
-  accent: "#e27649",
-  accentSoft: "#ec9470",
-  accentDeep: "#b85a31",
+  // Accents — palette GLM/terminal vert vif sur fond noir profond.
+  // Avant : orange Athenaeum (#e27649) — gardé pour référence en commentaire.
+  accent: "#4ade80", // vert vif (était #e27649)
+  accentSoft: "#86efac", // vert clair (était #ec9470)
+  accentDeep: "#16a34a", // vert foncé (était #b85a31)
   // Ink (text)
   ink: "#f6f1e8",
   inkBright: "#f6f1e8",
   inkMuted: "#bdb3a1",
   inkDim: "#8a8270",
   inkFaint: "#4a4239",
-  // Semantic
-  success: "#7fa670",
-  danger: "#c76a5f",
-  info: "#7fa8a6",
+  // Semantic — success fusionne avec accent (vert), info bascule en gris-bleu
+  // froid pour les blocs "Thinking…" (cohérent GLM).
+  success: "#4ade80", // alias accent (était #7fa670)
+  danger: "#f87171", // rouge tinted lisible (était #c76a5f)
+  info: "#94a3b8", // gris-bleu froid pour reasoning (était #7fa8a6 teal)
+  // Backgrounds tinted pour diff inline (rouge/vert ~25% saturation).
+  diffAdd: "#14361d",
+  diffDel: "#3f1d1d",
   // Structure
   border: "#4a4239",
   borderDim: "#2a2520",
   bgTag: "#245454",
+  bgBlock: "#1a1a1a", // fond gris foncé pour blocs "Thinking..." / code
 } as const;
 
 // Alias court pour les composants Ink qui consomment souvent.

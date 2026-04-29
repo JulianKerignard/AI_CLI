@@ -8,6 +8,7 @@ import {
   type Credentials,
 } from "./store.js";
 import { log, chalk } from "../utils/logger.js";
+import { c } from "../ui/theme.js";
 
 // Le baseUrl du site web (sans /api). Utilisé pour construire l'URL
 // d'approbation https://chat.juliankerignard.fr/cli/auth?redirect=...
@@ -77,7 +78,7 @@ export async function runLoginFlow(opts: LoginOptions = {}): Promise<Credentials
       res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" }).end(`
 <!doctype html>
 <html lang="fr"><head><meta charset="utf-8"><title>AI_CLI autorisé</title>
-<style>body{font-family:-apple-system,system-ui,sans-serif;background:#2b2621;color:#f6f1e8;display:flex;min-height:100vh;align-items:center;justify-content:center;margin:0}.c{text-align:center;padding:40px;max-width:420px}.t{color:#e27649;font-size:18px;margin-bottom:10px}.d{color:#bdb3a1;font-size:14px;line-height:1.5}</style>
+<style>body{font-family:-apple-system,system-ui,sans-serif;background:#0a0a0a;color:#f6f1e8;display:flex;min-height:100vh;align-items:center;justify-content:center;margin:0}.c{text-align:center;padding:40px;max-width:420px}.t{color:#4ade80;font-size:18px;margin-bottom:10px}.d{color:#bdb3a1;font-size:14px;line-height:1.5}</style>
 </head><body><div class="c"><div class="t">✓ AI_CLI autorisé</div><div class="d">Tu peux fermer cet onglet et revenir au terminal.</div></div></body></html>
       `);
       const creds: Credentials = { token, baseUrl: apiUrl, model };
@@ -100,7 +101,7 @@ export async function runLoginFlow(opts: LoginOptions = {}): Promise<Credentials
 
       console.log();
       log.info("Ouvre ce lien pour autoriser AI_CLI :");
-      console.log("  " + chalk.hex("#e27649").underline(authUrl));
+      console.log("  " + chalk.hex(c.accent).underline(authUrl));
       console.log();
       log.faint(
         "  (écoute sur 127.0.0.1:" + port + ", timeout 3 min)",

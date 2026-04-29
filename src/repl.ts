@@ -274,16 +274,17 @@ export async function startRepl(): Promise<void> {
     },
   );
 
-  // Banner court au boot : 2 lignes éditoriales, juste le nom + version
-  // + 1 ligne d'info. Avant : 8 lignes (banner + 5 specs) qui scrollaient
-  // hors écran après quelques tours et n'étaient plus visibles. Maintenant
-  // les specs détaillées (model, tools, mode, shell, cwd) sont à la
-  // demande via /about — l'info importante (mode, model) reste visible
-  // en permanence dans la status line en bas.
-  log.banner("AI_CLI", APP_VERSION, "agent code · terminal · tools");
-  log.faint(
-    `tape ${log.accent("/about")} pour voir le détail · ${log.accent("/help")} pour les commandes`,
-  );
+  // Boot allégé style GLM : 2 lignes plates, aucune bande décorative.
+  // Avant : 8 lignes (banner + 5 specs) qui scrollaient hors écran. Le
+  // banner riche reste accessible via /about à la demande.
+  const baseUrl = currentCreds?.baseUrl ?? "demo (offline)";
+  log.boot("AI_CLI", {
+    baseUrl,
+    model: provider.name.replace(/^http\(|\)$/g, ""),
+    mode: permConfig.mode,
+  });
+  // Indique APP_VERSION en faint pour rester accessible sans `/about`.
+  log.faint(`v${APP_VERSION}`);
   if (!currentCreds) {
     log.info(
       `${log.accentSoft("→")} tape ${log.accent.bold("/login")} ${log.inkMuted(
@@ -469,7 +470,18 @@ export async function startRepl(): Promise<void> {
     if (!input) continue;
     history.add(input);
     const { historyStore } = await import("./ui/history-store.js");
-    historyStore.push({ type: "user", text: input });
+    // Capture project + branch pour le rendu agnoster `→ project git:(main)
+    // <text>`. getGitInfo() est synchrone avec cache 10s — déjà appelé
+    // au render status-bar sans souci.
+    const { getGitInfo } = await import("./utils/git-info.js");
+    const { basename } = await import("node:path");
+    const git = getGitInfo(CWD);
+    historyStore.push({
+      type: "user",
+      text: input,
+      project: basename(git?.repoRoot ?? CWD),
+      branch: git?.branch ?? undefined,
+    });
 
     // Désactive l'InputBox pendant l'exécution pour éviter les saisies
     // parallèles. L'user ne peut pas envoyer un nouveau message tant

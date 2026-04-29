@@ -13,15 +13,27 @@ import { c, symbols } from "./theme.js";
 
 function formatItem(item: HistoryItem): React.ReactNode {
   switch (item.type) {
-    case "user":
+    case "user": {
+      // Style oh-my-zsh agnoster light : `→ project git:(branch) message`.
+      // Si pas de git/cwd : juste `→ message`.
+      const hasCtx = Boolean(item.project || item.branch);
       return (
         <Text>
           <Text color={c.accent} bold>
-            {symbols.user}{" "}
+            {symbols.arrowRight}{" "}
           </Text>
-          <Text color={c.inkMuted}>{item.text}</Text>
+          {item.project && (
+            <Text color={c.accentSoft}>{item.project} </Text>
+          )}
+          {item.branch && (
+            <Text color={c.info}>git:({item.branch}) </Text>
+          )}
+          <Text color={hasCtx ? c.ink : c.inkMuted} bold={hasCtx}>
+            {item.text}
+          </Text>
         </Text>
       );
+    }
     case "assistant":
       return <Text>{item.text}</Text>;
     case "tool":
