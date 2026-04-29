@@ -16,28 +16,27 @@ import { splitAssistantText, CodeBlock } from "./highlight.js";
 function formatItem(item: HistoryItem): React.ReactNode {
   switch (item.type) {
     case "user": {
-      // Style oh-my-zsh agnoster light : `→ project git:(branch) message`.
-      // Préfixé par un séparateur `────` faint pleine largeur (style
-      // éditorial — chaque tour user marque le début d'un nouveau "fil").
-      const hasCtx = Boolean(item.project || item.branch);
-      const cols = Math.min(process.stdout.columns || 80, 100);
+      // Style app shell : pilule `YOU` sur fond accent (texte noir bold)
+      // suivie du message. Une 2e ligne en faint affiche le contexte
+      // (project · branch) sous la pilule. Pas de divider — la pilule
+      // marque le début du tour suffisamment fort visuellement.
+      const ctx: string[] = [];
+      if (item.project) ctx.push(item.project);
+      if (item.branch) ctx.push(`git:(${item.branch})`);
       return (
         <Box flexDirection="column" marginTop={1}>
-          <Text color={c.inkFaint}>{symbols.rule.repeat(cols - 4)}</Text>
-          <Text>
-            <Text color={c.accent} bold>
-              {symbols.arrowRight}{" "}
+          <Box flexDirection="row">
+            <Text backgroundColor={c.accent} color="#0a0a0a" bold>
+              {" YOU "}
             </Text>
-            {item.project && (
-              <Text color={c.accentSoft}>{item.project} </Text>
-            )}
-            {item.branch && (
-              <Text color={c.info}>git:({item.branch}) </Text>
-            )}
-            <Text color={hasCtx ? c.ink : c.inkMuted} bold={hasCtx}>
-              {item.text}
+            <Text>  {item.text}</Text>
+          </Box>
+          {ctx.length > 0 && (
+            <Text color={c.inkFaint}>
+              {"       "}
+              {ctx.join(" · ")}
             </Text>
-          </Text>
+          )}
         </Box>
       );
     }

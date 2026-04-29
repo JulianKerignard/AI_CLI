@@ -520,32 +520,32 @@ export function InputBox({
         </Box>
       </Box>
     )}
-    {/* Look éditorial type Charm/lipgloss : préfixe vertical ▎ accent
-        à gauche de chaque ligne de l'input + kicker label `ASK`/`BUSY`
-        en petites capitales discrètes au-dessus. Plus sophistiqué que
-        la box ronde précédente — donne un vrai rythme typographique
-        sans bruit visuel. La bordure ronde reste pour les modals
-        (slash popup, pickers).
+    {/* Style app shell : bordure ronde accent autour de l'input avec une
+        pilule kicker `ASK`/`BUSY` collée sur la bordure haute (style
+        OpenCode/Bubbletea). La bordure passe en accent quand l'agent
+        attend une saisie, en faint pendant la génération.
 
-        - kicker change selon l'état :
-            disabled  → BUSY  (faint)
-            active    → ASK   (accent, bold)
-        - bar verticale ▎ change de couleur de la même façon. */}
-    <Box flexDirection="row">
-      <Box flexDirection="column" marginRight={1}>
-        <Text color={c.inkFaint}>{" "}</Text>
-        {(rendered.length > 0 ? rendered : [{ text: "", caretCol: -1 }]).map(
-          (_, i) => (
-            <Text key={i} color={disabled ? c.inkFaint : c.accent}>
-              ▎
-            </Text>
-          ),
-        )}
-      </Box>
-      <Box flexDirection="column" flexGrow={1}>
-        <Text color={disabled ? c.inkDim : c.accent} bold>
-          {disabled ? "BUSY" : "ASK"}
+        Trick Ink pour la pilule sur la bordure : un Box `marginTop=-1`
+        en `flexDirection=row` placé entre le composant et son parent
+        absorbe la première ligne de la bordure et superpose le label
+        à la place du `─` du haut-gauche. Padding gauche 2 pour aligner
+        avec la zone de texte interne. */}
+    <Box flexDirection="column" marginTop={0}>
+      <Box marginBottom={-1} marginLeft={2}>
+        <Text>
+          <Text color={disabled ? c.inkFaint : c.borderDim}>{"["}</Text>
+          <Text color={disabled ? c.inkDim : c.accent} bold>
+            {disabled ? " BUSY " : " ASK "}
+          </Text>
+          <Text color={disabled ? c.inkFaint : c.borderDim}>{"]"}</Text>
         </Text>
+      </Box>
+      <Box
+        borderStyle="round"
+        borderColor={disabled ? c.inkFaint : c.accent}
+        paddingX={1}
+        flexDirection="column"
+      >
         {renderInputContent({
           disabled: !!disabled,
           hasValue: value.length > 0,
