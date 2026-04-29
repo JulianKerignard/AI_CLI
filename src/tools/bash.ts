@@ -28,19 +28,25 @@ export const bashTool: Tool = {
   description: "Exécute une commande shell (timeout 30s). Stdout/stderr capés à 8k chars chacun (tail) pour préserver l'historique agent.",
   formatInvocation: (input) => {
     const cmd = String(input.command ?? "");
-    return cmd.length > 60 ? cmd.slice(0, 60) + "…" : cmd;
+    // Préfixe `$ ` pour évoquer un prompt shell — disambig visuel
+    // immédiat avec les autres tools (path file vs commande).
+    const trimmed = cmd.length > 70 ? cmd.slice(0, 70) + "…" : cmd;
+    return "$ " + trimmed;
   },
   formatResult: (_input, output) => {
     // output = "exit N\nstdout:\n…\nstderr:\n…"
     const exitMatch = /^exit (\S+)/m.exec(output);
     const code = exitMatch ? exitMatch[1] : "?";
-    const stdoutBlock = output.split("stdout:\n")[1]?.split("\nstderr:")[0] ?? "";
+    const stdoutBlock =
+      output.split("stdout:\n")[1]?.split("\nstderr:")[0] ?? "";
     const stderrBlock = output.split("stderr:\n")[1] ?? "";
-    const stdoutLines = stdoutBlock ? stdoutBlock.split(/\r?\n/).filter(Boolean).length : 0;
+    const stdoutLines = stdoutBlock
+      ? stdoutBlock.split(/\r?\n/).filter(Boolean).length
+      : 0;
     const hasStderr = stderrBlock.trim().length > 0;
     const truncated = /\[(stdout|stderr) tronqué/.test(output);
     const timeout = /^\[timeout/.test(output);
-    if (timeout) return "timeout";
+    if (timeout) return "exit timeout";
     // Inline le stdout si court (≤5 lignes, ≤300 chars) pour que l'user
     // voie directement le résultat de `echo`, `pwd`, `date`, etc.
     const stdoutTrimmed = stdoutBlock.trim();
@@ -49,11 +55,12 @@ export const bashTool: Tool = {
       !hasStderr &&
       !truncated &&
       stdoutLines > 0 &&
-      stdoutLines <= 5 &&
-      stdoutTrimmed.length <= 300
+      stdoutTrimmed.length <= 300 &&
+      stdoutLines <= 5
     ) {
-      const indented = stdoutTrimmed.split(/\r?\n/).map((l) => "  " + l).join("\n");
-      return `exit 0\n${indented}`;
+      // Multi-lignes : header `exit 0` + chaque ligne stdout. Le logger
+      // colorise `exit 0` en success vert et `$ cmd` en ink.
+      return `exit 0\n${stdoutTrimmed}`;
     }
     const parts: string[] = [`exit ${code}`];
     if (stdoutLines > 0) parts.push(`${stdoutLines} stdout lines`);

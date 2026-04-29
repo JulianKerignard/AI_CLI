@@ -24,7 +24,10 @@ export const globTool: Tool = {
   name: "Glob",
   description:
     "Trouve des fichiers par pattern glob (ex: '**/*.ts', 'src/**/*.{ts,tsx}'). Triés par date de modification décroissante. Ignore node_modules, .git, dist, etc. par défaut.",
-  formatInvocation: (input) => String(input.pattern ?? ""),
+  formatInvocation: (input) => {
+    const pat = String(input.pattern ?? "");
+    return pat.length > 50 ? pat.slice(0, 50) + "…" : pat;
+  },
   formatResult: (_input, output) => {
     if (output.startsWith("(aucun")) return "0 matches";
     const lines = output.split("\n").filter((l) => l && !l.startsWith("…"));

@@ -15,8 +15,12 @@ export const grepTool: Tool = {
     "Recherche un pattern regex dans les fichiers. Utilise ripgrep si disponible (ignore .gitignore par défaut). Modes : files_with_matches | content | count.",
   formatInvocation: (input) => {
     const pattern = String(input.pattern ?? "");
+    const truncated =
+      pattern.length > 40 ? pattern.slice(0, 40) + "…" : pattern;
     const glob = input.glob ? ` in ${String(input.glob)}` : "";
-    return pattern.length > 40 ? pattern.slice(0, 40) + "…" : pattern + glob;
+    // Préfixe '/' pour évoquer un pattern de recherche (style :/cmd vim
+    // ou regex inline). Disambig visuel avec les paths Read/Write/Edit.
+    return "/" + truncated + glob;
   },
   formatResult: (input, output) => {
     if (output.startsWith("(aucun")) return "0 matches";

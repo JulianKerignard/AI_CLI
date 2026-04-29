@@ -21,6 +21,25 @@ export function subdirs(name: string): string[] {
     .filter(existsSync);
 }
 
+// Raccourcit un chemin pour affichage : remplace $HOME par ~, et le cwd
+// courant par '.'. Utilisé par les formatInvocation des tools (Read,
+// Write, Edit) pour que '◆ Read(/Users/me/projets/foo/src/x.ts)' ne soit
+// pas une ligne entière. Sortie typique : '~/projets/foo/src/x.ts' ou
+// './src/x.ts'. Si le path n'est ni dans home ni dans cwd, retourné tel
+// quel (paths absolus système comme /etc/hosts restent visibles).
+export function shortPath(p: string): string {
+  if (!p) return "";
+  const home = process.env.HOME || process.env.USERPROFILE || "";
+  if (p.startsWith(CWD + "/") || p === CWD) {
+    const rest = p.slice(CWD.length);
+    return rest.length === 0 ? "." : "." + rest;
+  }
+  if (home && (p.startsWith(home + "/") || p === home)) {
+    return "~" + p.slice(home.length);
+  }
+  return p;
+}
+
 // Lit la version depuis le package.json. Tente plusieurs paths pour
 // couvrir le mode dev (src/utils/paths.ts → ../../package.json) et le
 // mode bundle esbuild (dist/index.js → ../package.json). Sans ça,

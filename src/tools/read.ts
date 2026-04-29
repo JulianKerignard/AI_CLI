@@ -1,16 +1,17 @@
 import { readFile } from "node:fs/promises";
 import type { Tool } from "./types.js";
 import { resolvePath, guardPath } from "../utils/path-guard.js";
+import { shortPath } from "../utils/paths.js";
 
 export const readTool: Tool = {
   name: "Read",
   description: "Lit un fichier du système de fichiers local.",
-  formatInvocation: (input) => String(input.path ?? ""),
+  formatInvocation: (input) => shortPath(String(input.path ?? "")),
   formatResult: (_input, output) => {
     // Sortie : N lignes numérotées + potentiel "… (N tronquées)". Compte les \n.
     const lines = output.split("\n").length;
     const chars = output.length;
-    const kb = chars >= 1024 ? `, ${(chars / 1024).toFixed(1)}K` : "";
+    const kb = chars >= 1024 ? ` · ${(chars / 1024).toFixed(1)} kB` : "";
     return `${lines} lines${kb}`;
   },
   schema: {

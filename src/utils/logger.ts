@@ -37,6 +37,70 @@ const SYM = {
   kicker: symbols.rule,
 };
 
+// Catégorise le tool par nom pour piloter la couleur de la puce ◆.
+// Lecture (info/teal) / exécution (accent orange) / écriture (success vert).
+// Les MCP préfixés `mcp__server__name` sont traités selon le suffix.
+type ToolKind = "read" | "exec" | "write" | "default";
+function toolKind(name: string): ToolKind {
+  const n = name.replace(/^mcp__[^_]+__/, "").toLowerCase();
+  if (
+    n === "read" ||
+    n === "glob" ||
+    n === "ls" ||
+    n === "grep" ||
+    n === "list" ||
+    n.startsWith("read") ||
+    n.startsWith("get") ||
+    n.startsWith("list") ||
+    n.startsWith("search") ||
+    n.startsWith("find")
+  )
+    return "read";
+  if (n === "bash" || n === "shell" || n.includes("exec")) return "exec";
+  if (
+    n === "write" ||
+    n === "edit" ||
+    n === "multiedit" ||
+    n.startsWith("write") ||
+    n.startsWith("edit") ||
+    n.startsWith("create") ||
+    n.startsWith("delete") ||
+    n.startsWith("update") ||
+    n.startsWith("patch")
+  )
+    return "write";
+  return "default";
+}
+
+function toolDotColor(name: string): (s: string) => string {
+  switch (toolKind(name)) {
+    case "read":
+      return chalk.hex("#7fa8a6"); // info teal
+    case "exec":
+      return ATH.accent; // orange
+    case "write":
+      return ATH.success; // vert
+    default:
+      return ATH.success;
+  }
+}
+
+// Colorise une ligne de résultat de tool. Préfixes spéciaux :
+// `+ ...`  → success (ligne ajoutée dans un diff Edit)
+// `- ...`  → danger (ligne retirée dans un diff Edit)
+// `exit 0` → success
+// `exit !=0` → danger
+// `$ cmd`  → ink (commande shell pour Bash)
+// sinon    → muted neutre.
+function colorizeResultLine(line: string): string {
+  if (/^\s*\+ /.test(line)) return ATH.success(line);
+  if (/^\s*- /.test(line)) return ATH.danger(line);
+  if (/^exit 0\b/.test(line)) return ATH.success(line);
+  if (/^exit \S+/.test(line)) return ATH.danger(line);
+  if (/^\$ /.test(line)) return ATH.ink(line);
+  return ATH.inkMuted(line);
+}
+
 // Compactage de nombres type 1234 → "1.2k", 15678 → "15.7k".
 function compact(n: number): string {
   if (n < 1000) return String(n);
@@ -202,20 +266,28 @@ export const log = {
       ATH.accent(SYM.assistant + " ") +
         ATH.ink(msg.replace(/\n/g, "\n  ")),
     ),
-  // Format tool style Claude Code : puce success (vert) + nom en
-  // ink.bold + arguments entre parenthèses dim. Avant on avait tout en
-  // accentSoft orange (puce + nom + parenthèses) — trop lourd visuellement.
-  // Maintenant le name "respire" sur fond ink, et la puce verte = "tool
-  // call going through OK".
-  tool: (name: string, detail: string) =>
+  // Format tool style Claude Code : puce colorée selon catégorie + nom
+  // ink.bold + args en parenthèses dim. La puce indique la nature de
+  // l'action :
+  //   Read/Glob/Ls           → info teal (lecture/exploration)
+  //   Grep                   → info teal (recherche)
+  //   Bash                   → accent orange (exécution shell)
+  //   Write/Edit/MultiEdit   → success vert (modification disque)
+  //   autre/inconnu          → success vert par défaut
+  // Permet de disambiguer visuellement "il a juste lu" vs "il vient
+  // d'écrire sur disque" sans avoir à parser le name.
+  tool: (name: string, detail: string) => {
+    const dot = toolDotColor(name);
     ui(
-      ATH.success(SYM.tool + " ") +
+      dot(SYM.tool + " ") +
         ATH.ink.bold(name) +
         (detail ? " " + ATH.inkMuted(detail) : ""),
-    ),
+    );
+  },
   toolCompact: (name: string, label: string) => {
+    const dot = toolDotColor(name);
     ui(
-      ATH.success(SYM.tool + " ") +
+      dot(SYM.tool + " ") +
         ATH.ink.bold(name) +
         (label
           ? ATH.inkFaint("(") + ATH.inkMuted(label) + ATH.inkFaint(")")
@@ -223,11 +295,18 @@ export const log = {
     );
   },
   toolResultCompact: (summary: string, isError = false) => {
-    // Indent 2 espaces + ⎿ (style Claude Code). Erreur = danger, sinon
-    // arrow faint + summary muted.
+    // Indent 2 espaces + ⎿. Multi-lignes supporté : un \n dans summary
+    // produit plusieurs lignes — la 1re préfixée par ⎿, les suivantes
+    // par 4 espaces (continuations style Claude Code, ex: diff inline
+    // d'un Edit ou stdout court d'un Bash).
     const arrow = "  " + (symbols.toolReturn || "⎿") + " ";
-    if (isError) ui(ATH.danger(arrow) + ATH.danger(summary), "error");
-    else ui(ATH.inkFaint(arrow) + ATH.inkMuted(summary));
+    const indent = "    ";
+    const lines = summary.split("\n");
+    lines.forEach((line, i) => {
+      const prefix = i === 0 ? arrow : indent;
+      if (isError) ui(ATH.danger(prefix) + ATH.danger(line), "error");
+      else ui(ATH.inkFaint(prefix) + colorizeResultLine(line));
+    });
   },
   toolResult: (text: string) => {
     const trimmed = text.length > 400 ? text.slice(0, 400) + "…" : text;

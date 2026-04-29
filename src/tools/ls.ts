@@ -1,6 +1,7 @@
 import { readdir, stat } from "node:fs/promises";
 import { isAbsolute, join, resolve } from "node:path";
 import type { Tool } from "./types.js";
+import { shortPath } from "../utils/paths.js";
 
 const MAX_ENTRIES = 200;
 const IGNORED = new Set([
@@ -17,7 +18,10 @@ export const lsTool: Tool = {
   name: "Ls",
   description:
     "Liste le contenu d'un répertoire avec taille et type (d=dir, f=fichier). Ignore node_modules/.git par défaut.",
-  formatInvocation: (input) => String(input.path ?? "."),
+  formatInvocation: (input) => {
+    const p = String(input.path ?? ".");
+    return p === "." ? "." : shortPath(p);
+  },
   formatResult: (_input, output) => {
     // 1 ligne header + "  d/f  size  name" lignes. On compte les types.
     const lines = output.split("\n").slice(1).filter(Boolean);

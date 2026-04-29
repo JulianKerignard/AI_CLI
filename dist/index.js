@@ -31052,6 +31052,7 @@ __export(paths_exports, {
   USER_AICLI: () => USER_AICLI,
   aicliDirs: () => aicliDirs,
   getAppVersion: () => getAppVersion,
+  shortPath: () => shortPath,
   subdirs: () => subdirs
 });
 import { homedir } from "node:os";
@@ -31067,6 +31068,18 @@ function aicliDirs() {
 }
 function subdirs(name) {
   return aicliDirs().map((d) => join(d, name)).filter(existsSync2);
+}
+function shortPath(p) {
+  if (!p) return "";
+  const home = process.env.HOME || process.env.USERPROFILE || "";
+  if (p.startsWith(CWD + "/") || p === CWD) {
+    const rest = p.slice(CWD.length);
+    return rest.length === 0 ? "." : "." + rest;
+  }
+  if (home && (p.startsWith(home + "/") || p === home)) {
+    return "~" + p.slice(home.length);
+  }
+  return p;
 }
 function getAppVersion() {
   if (cachedVersion !== void 0) return cachedVersion;
@@ -31093,6 +31106,7 @@ var init_paths = __esm({
     USER_AICLI = join(homedir(), ".aicli");
     __name(aicliDirs, "aicliDirs");
     __name(subdirs, "subdirs");
+    __name(shortPath, "shortPath");
     __name(getAppVersion, "getAppVersion");
   }
 });
@@ -31298,6 +31312,38 @@ var init_theme = __esm({
 function ui(text, level = "raw") {
   historyStore.push({ type: level, text });
 }
+function toolKind(name) {
+  const n = name.replace(/^mcp__[^_]+__/, "").toLowerCase();
+  if (n === "read" || n === "glob" || n === "ls" || n === "grep" || n === "list" || n.startsWith("read") || n.startsWith("get") || n.startsWith("list") || n.startsWith("search") || n.startsWith("find"))
+    return "read";
+  if (n === "bash" || n === "shell" || n.includes("exec")) return "exec";
+  if (n === "write" || n === "edit" || n === "multiedit" || n.startsWith("write") || n.startsWith("edit") || n.startsWith("create") || n.startsWith("delete") || n.startsWith("update") || n.startsWith("patch"))
+    return "write";
+  return "default";
+}
+function toolDotColor(name) {
+  switch (toolKind(name)) {
+    case "read":
+      return import_chalk4.default.hex("#7fa8a6");
+    // info teal
+    case "exec":
+      return ATH.accent;
+    // orange
+    case "write":
+      return ATH.success;
+    // vert
+    default:
+      return ATH.success;
+  }
+}
+function colorizeResultLine(line) {
+  if (/^\s*\+ /.test(line)) return ATH.success(line);
+  if (/^\s*- /.test(line)) return ATH.danger(line);
+  if (/^exit 0\b/.test(line)) return ATH.success(line);
+  if (/^exit \S+/.test(line)) return ATH.danger(line);
+  if (/^\$ /.test(line)) return ATH.ink(line);
+  return ATH.inkMuted(line);
+}
 function compact(n) {
   if (n < 1e3) return String(n);
   if (n < 1e4) return (n / 1e3).toFixed(1) + "k";
@@ -31372,6 +31418,9 @@ var init_logger = __esm({
       toolOut: symbols.toolOut,
       kicker: symbols.rule
     };
+    __name(toolKind, "toolKind");
+    __name(toolDotColor, "toolDotColor");
+    __name(colorizeResultLine, "colorizeResultLine");
     __name(compact, "compact");
     __name(formatResetIn, "formatResetIn");
     __name(formatQuotaStatus, "formatQuotaStatus");
@@ -31386,23 +31435,37 @@ var init_logger = __esm({
       assistant: /* @__PURE__ */ __name((msg) => ui(
         ATH.accent(SYM.assistant + " ") + ATH.ink(msg.replace(/\n/g, "\n  "))
       ), "assistant"),
-      // Format tool style Claude Code : puce success (vert) + nom en
-      // ink.bold + arguments entre parenthèses dim. Avant on avait tout en
-      // accentSoft orange (puce + nom + parenthèses) — trop lourd visuellement.
-      // Maintenant le name "respire" sur fond ink, et la puce verte = "tool
-      // call going through OK".
-      tool: /* @__PURE__ */ __name((name, detail) => ui(
-        ATH.success(SYM.tool + " ") + ATH.ink.bold(name) + (detail ? " " + ATH.inkMuted(detail) : "")
-      ), "tool"),
-      toolCompact: /* @__PURE__ */ __name((name, label) => {
+      // Format tool style Claude Code : puce colorée selon catégorie + nom
+      // ink.bold + args en parenthèses dim. La puce indique la nature de
+      // l'action :
+      //   Read/Glob/Ls           → info teal (lecture/exploration)
+      //   Grep                   → info teal (recherche)
+      //   Bash                   → accent orange (exécution shell)
+      //   Write/Edit/MultiEdit   → success vert (modification disque)
+      //   autre/inconnu          → success vert par défaut
+      // Permet de disambiguer visuellement "il a juste lu" vs "il vient
+      // d'écrire sur disque" sans avoir à parser le name.
+      tool: /* @__PURE__ */ __name((name, detail) => {
+        const dot = toolDotColor(name);
         ui(
-          ATH.success(SYM.tool + " ") + ATH.ink.bold(name) + (label ? ATH.inkFaint("(") + ATH.inkMuted(label) + ATH.inkFaint(")") : "")
+          dot(SYM.tool + " ") + ATH.ink.bold(name) + (detail ? " " + ATH.inkMuted(detail) : "")
+        );
+      }, "tool"),
+      toolCompact: /* @__PURE__ */ __name((name, label) => {
+        const dot = toolDotColor(name);
+        ui(
+          dot(SYM.tool + " ") + ATH.ink.bold(name) + (label ? ATH.inkFaint("(") + ATH.inkMuted(label) + ATH.inkFaint(")") : "")
         );
       }, "toolCompact"),
       toolResultCompact: /* @__PURE__ */ __name((summary, isError = false) => {
         const arrow = "  " + (symbols.toolReturn || "\u23BF") + " ";
-        if (isError) ui(ATH.danger(arrow) + ATH.danger(summary), "error");
-        else ui(ATH.inkFaint(arrow) + ATH.inkMuted(summary));
+        const indent = "    ";
+        const lines = summary.split("\n");
+        lines.forEach((line, i) => {
+          const prefix = i === 0 ? arrow : indent;
+          if (isError) ui(ATH.danger(prefix) + ATH.danger(line), "error");
+          else ui(ATH.inkFaint(prefix) + colorizeResultLine(line));
+        });
       }, "toolResultCompact"),
       toolResult: /* @__PURE__ */ __name((text) => {
         const trimmed = text.length > 400 ? text.slice(0, 400) + "\u2026" : text;
@@ -53049,14 +53112,15 @@ function guardPath(absPath, opts) {
 __name(guardPath, "guardPath");
 
 // src/tools/read.ts
+init_paths();
 var readTool = {
   name: "Read",
   description: "Lit un fichier du syst\xE8me de fichiers local.",
-  formatInvocation: /* @__PURE__ */ __name((input) => String(input.path ?? ""), "formatInvocation"),
+  formatInvocation: /* @__PURE__ */ __name((input) => shortPath(String(input.path ?? "")), "formatInvocation"),
   formatResult: /* @__PURE__ */ __name((_input, output) => {
     const lines = output.split("\n").length;
     const chars = output.length;
-    const kb = chars >= 1024 ? `, ${(chars / 1024).toFixed(1)}K` : "";
+    const kb = chars >= 1024 ? ` \xB7 ${(chars / 1024).toFixed(1)} kB` : "";
     return `${lines} lines${kb}`;
   }, "formatResult"),
   schema: {
@@ -53083,15 +53147,16 @@ var readTool = {
 // src/tools/write.ts
 import { mkdir, writeFile } from "node:fs/promises";
 import { dirname as dirname4 } from "node:path";
+init_paths();
 var writeTool = {
   name: "Write",
   description: "\xC9crit (ou \xE9crase) un fichier avec le contenu fourni.",
-  formatInvocation: /* @__PURE__ */ __name((input) => String(input.path ?? ""), "formatInvocation"),
+  formatInvocation: /* @__PURE__ */ __name((input) => shortPath(String(input.path ?? "")), "formatInvocation"),
   formatResult: /* @__PURE__ */ __name((input, _output) => {
     const content = String(input.content ?? "");
     const lines = content.split("\n").length;
-    const kb = content.length >= 1024 ? `${(content.length / 1024).toFixed(1)}K` : `${content.length} chars`;
-    return `wrote ${lines} lines, ${kb}`;
+    const size = content.length >= 1024 ? `${(content.length / 1024).toFixed(1)} kB` : `${content.length} chars`;
+    return `+${lines} lines \xB7 ${size}`;
   }, "formatResult"),
   schema: {
     type: "object",
@@ -53131,7 +53196,8 @@ var bashTool = {
   description: "Ex\xE9cute une commande shell (timeout 30s). Stdout/stderr cap\xE9s \xE0 8k chars chacun (tail) pour pr\xE9server l'historique agent.",
   formatInvocation: /* @__PURE__ */ __name((input) => {
     const cmd = String(input.command ?? "");
-    return cmd.length > 60 ? cmd.slice(0, 60) + "\u2026" : cmd;
+    const trimmed = cmd.length > 70 ? cmd.slice(0, 70) + "\u2026" : cmd;
+    return "$ " + trimmed;
   }, "formatInvocation"),
   formatResult: /* @__PURE__ */ __name((_input, output) => {
     const exitMatch = /^exit (\S+)/m.exec(output);
@@ -53142,12 +53208,11 @@ var bashTool = {
     const hasStderr = stderrBlock.trim().length > 0;
     const truncated = /\[(stdout|stderr) tronqué/.test(output);
     const timeout = /^\[timeout/.test(output);
-    if (timeout) return "timeout";
+    if (timeout) return "exit timeout";
     const stdoutTrimmed = stdoutBlock.trim();
-    if (code === "0" && !hasStderr && !truncated && stdoutLines > 0 && stdoutLines <= 5 && stdoutTrimmed.length <= 300) {
-      const indented = stdoutTrimmed.split(/\r?\n/).map((l) => "  " + l).join("\n");
+    if (code === "0" && !hasStderr && !truncated && stdoutLines > 0 && stdoutTrimmed.length <= 300 && stdoutLines <= 5) {
       return `exit 0
-${indented}`;
+${stdoutTrimmed}`;
     }
     const parts = [`exit ${code}`];
     if (stdoutLines > 0) parts.push(`${stdoutLines} stdout lines`);
@@ -53249,14 +53314,36 @@ ${body}`.trim());
 
 // src/tools/edit.ts
 import { readFile as readFile3, writeFile as writeFile2 } from "node:fs/promises";
+init_paths();
+function previewLine(s, maxChars = 80) {
+  const lines = s.split("\n");
+  if (lines.length === 1) {
+    const single = lines[0];
+    return single.length > maxChars ? single.slice(0, maxChars) + "\u2026" : single;
+  }
+  const first = lines[0];
+  const head = first.length > maxChars ? first.slice(0, maxChars) + "\u2026" : first;
+  return `${head} (+${lines.length - 1} lignes)`;
+}
+__name(previewLine, "previewLine");
 var editTool = {
   name: "Edit",
   description: "Remplace une cha\xEEne exacte par une autre dans un fichier existant. old_string doit \xEAtre unique dans le fichier (sinon entourer de plus de contexte). replace_all=true remplace toutes les occurrences.",
-  formatInvocation: /* @__PURE__ */ __name((input) => String(input.path ?? ""), "formatInvocation"),
-  formatResult: /* @__PURE__ */ __name((_input, output) => {
+  formatInvocation: /* @__PURE__ */ __name((input) => shortPath(String(input.path ?? "")), "formatInvocation"),
+  formatResult: /* @__PURE__ */ __name((input, output) => {
     const m = /\((\d+) remplacement/.exec(output);
     const count = m ? Number(m[1]) : 1;
-    return `${count} replacement${count > 1 ? "s" : ""}`;
+    const oldStr = String(input.old_string ?? "");
+    const newStr = String(input.new_string ?? "");
+    const header = `${count} replacement${count > 1 ? "s" : ""}`;
+    if (oldStr || newStr) {
+      return [
+        header,
+        `- ${previewLine(oldStr)}`,
+        `+ ${previewLine(newStr)}`
+      ].join("\n");
+    }
+    return header;
   }, "formatResult"),
   schema: {
     type: "object",
@@ -53336,7 +53423,10 @@ var MAX_RESULTS = 500;
 var globTool = {
   name: "Glob",
   description: "Trouve des fichiers par pattern glob (ex: '**/*.ts', 'src/**/*.{ts,tsx}'). Tri\xE9s par date de modification d\xE9croissante. Ignore node_modules, .git, dist, etc. par d\xE9faut.",
-  formatInvocation: /* @__PURE__ */ __name((input) => String(input.pattern ?? ""), "formatInvocation"),
+  formatInvocation: /* @__PURE__ */ __name((input) => {
+    const pat = String(input.pattern ?? "");
+    return pat.length > 50 ? pat.slice(0, 50) + "\u2026" : pat;
+  }, "formatInvocation"),
   formatResult: /* @__PURE__ */ __name((_input, output) => {
     if (output.startsWith("(aucun")) return "0 matches";
     const lines = output.split("\n").filter((l) => l && !l.startsWith("\u2026"));
@@ -53516,8 +53606,9 @@ var grepTool = {
   description: "Recherche un pattern regex dans les fichiers. Utilise ripgrep si disponible (ignore .gitignore par d\xE9faut). Modes : files_with_matches | content | count.",
   formatInvocation: /* @__PURE__ */ __name((input) => {
     const pattern = String(input.pattern ?? "");
+    const truncated = pattern.length > 40 ? pattern.slice(0, 40) + "\u2026" : pattern;
     const glob = input.glob ? ` in ${String(input.glob)}` : "";
-    return pattern.length > 40 ? pattern.slice(0, 40) + "\u2026" : pattern + glob;
+    return "/" + truncated + glob;
   }, "formatInvocation"),
   formatResult: /* @__PURE__ */ __name((input, output) => {
     if (output.startsWith("(aucun")) return "0 matches";
@@ -53738,6 +53829,7 @@ function simpleGlobMatch(path2, pattern) {
 __name(simpleGlobMatch, "simpleGlobMatch");
 
 // src/tools/ls.ts
+init_paths();
 import { readdir as readdir3, stat as stat3 } from "node:fs/promises";
 import { isAbsolute as isAbsolute5, join as join7, resolve as resolve5 } from "node:path";
 var MAX_ENTRIES = 200;
@@ -53753,7 +53845,10 @@ var IGNORED = /* @__PURE__ */ new Set([
 var lsTool = {
   name: "Ls",
   description: "Liste le contenu d'un r\xE9pertoire avec taille et type (d=dir, f=fichier). Ignore node_modules/.git par d\xE9faut.",
-  formatInvocation: /* @__PURE__ */ __name((input) => String(input.path ?? "."), "formatInvocation"),
+  formatInvocation: /* @__PURE__ */ __name((input) => {
+    const p = String(input.path ?? ".");
+    return p === "." ? "." : shortPath(p);
+  }, "formatInvocation"),
   formatResult: /* @__PURE__ */ __name((_input, output) => {
     const lines = output.split("\n").slice(1).filter(Boolean);
     let dirs = 0;
