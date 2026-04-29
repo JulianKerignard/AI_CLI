@@ -31242,37 +31242,41 @@ var init_theme = __esm({
   "src/ui/theme.ts"() {
     "use strict";
     colors = {
-      // Accents — palette GLM/terminal vert vif sur fond noir profond.
-      // Avant : orange Athenaeum (#e27649) — gardé pour référence en commentaire.
+      // Accent vert GLM (inchangé) sur palette gris FROID neutre (Tailwind zinc).
+      // Avant : tons chauds beige/brun (#f6f1e8, #bdb3a1, #8a8270, #4a4239) qui
+      // donnaient un look 'café/papier'. Maintenant : gris neutres froids type
+      // GLM Coding Assistant — texte argenté, fonds zinc presque noirs.
       accent: "#4ade80",
-      // vert vif (était #e27649)
       accentSoft: "#86efac",
-      // vert clair (était #ec9470)
       accentDeep: "#16a34a",
-      // vert foncé (était #b85a31)
-      // Ink (text)
-      ink: "#f6f1e8",
-      inkBright: "#f6f1e8",
-      inkMuted: "#bdb3a1",
-      inkDim: "#8a8270",
-      inkFaint: "#4a4239",
-      // Semantic — success fusionne avec accent (vert), info bascule en gris-bleu
-      // froid pour les blocs "Thinking…" (cohérent GLM).
+      // Ink (text) — palette zinc froide
+      ink: "#e4e4e7",
+      // gris très clair (zinc-200) — texte principal
+      inkBright: "#fafafa",
+      // blanc cassé froid (zinc-50) — emphasis
+      inkMuted: "#a1a1aa",
+      // gris medium (zinc-400) — texte secondaire
+      inkDim: "#71717a",
+      // gris dim (zinc-500) — meta, hints
+      inkFaint: "#3f3f46",
+      // gris très sombre (zinc-700) — séparateurs, indents
+      // Semantic
       success: "#4ade80",
-      // alias accent (était #7fa670)
       danger: "#f87171",
-      // rouge tinted lisible (était #c76a5f)
-      info: "#94a3b8",
-      // gris-bleu froid pour reasoning (était #7fa8a6 teal)
-      // Backgrounds tinted pour diff inline (rouge/vert ~25% saturation).
+      info: "#a1a1aa",
+      // aligné sur inkMuted (gris froid pour Thinking)
+      // Backgrounds tinted pour diff inline.
       diffAdd: "#14361d",
       diffDel: "#3f1d1d",
-      // Structure
-      border: "#4a4239",
-      borderDim: "#2a2520",
-      bgTag: "#245454",
-      bgBlock: "#1a1a1a"
-      // fond gris foncé pour blocs "Thinking..." / code
+      // Structure — bordures et fonds gris froids
+      border: "#3f3f46",
+      // zinc-700
+      borderDim: "#27272a",
+      // zinc-800
+      bgTag: "#3f3f46",
+      // tag de session : gris zinc neutre (était teal)
+      bgBlock: "#18181b"
+      // zinc-900 — bloc Thinking, code blocks
     };
     c = colors;
     IS_LEGACY_CONSOLE = process.platform === "win32" && !process.env.WT_SESSION;
@@ -55264,7 +55268,7 @@ async function runLoginFlow(opts = {}) {
       res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" }).end(`
 <!doctype html>
 <html lang="fr"><head><meta charset="utf-8"><title>AI_CLI autoris\xE9</title>
-<style>body{font-family:-apple-system,system-ui,sans-serif;background:#0a0a0a;color:#f6f1e8;display:flex;min-height:100vh;align-items:center;justify-content:center;margin:0}.c{text-align:center;padding:40px;max-width:420px}.t{color:#4ade80;font-size:18px;margin-bottom:10px}.d{color:#bdb3a1;font-size:14px;line-height:1.5}</style>
+<style>body{font-family:-apple-system,system-ui,sans-serif;background:#0a0a0a;color:#e4e4e7;display:flex;min-height:100vh;align-items:center;justify-content:center;margin:0}.c{text-align:center;padding:40px;max-width:420px}.t{color:#4ade80;font-size:18px;margin-bottom:10px}.d{color:#a1a1aa;font-size:14px;line-height:1.5}</style>
 </head><body><div class="c"><div class="t">\u2713 AI_CLI autoris\xE9</div><div class="d">Tu peux fermer cet onglet et revenir au terminal.</div></div></body></html>
       `);
       const creds = { token, baseUrl: apiUrl, model };

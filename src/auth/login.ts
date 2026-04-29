@@ -78,7 +78,7 @@ export async function runLoginFlow(opts: LoginOptions = {}): Promise<Credentials
       res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" }).end(`
 <!doctype html>
 <html lang="fr"><head><meta charset="utf-8"><title>AI_CLI autorisé</title>
-<style>body{font-family:-apple-system,system-ui,sans-serif;background:#0a0a0a;color:#f6f1e8;display:flex;min-height:100vh;align-items:center;justify-content:center;margin:0}.c{text-align:center;padding:40px;max-width:420px}.t{color:#4ade80;font-size:18px;margin-bottom:10px}.d{color:#bdb3a1;font-size:14px;line-height:1.5}</style>
+<style>body{font-family:-apple-system,system-ui,sans-serif;background:#0a0a0a;color:#e4e4e7;display:flex;min-height:100vh;align-items:center;justify-content:center;margin:0}.c{text-align:center;padding:40px;max-width:420px}.t{color:#4ade80;font-size:18px;margin-bottom:10px}.d{color:#a1a1aa;font-size:14px;line-height:1.5}</style>
 </head><body><div class="c"><div class="t">✓ AI_CLI autorisé</div><div class="d">Tu peux fermer cet onglet et revenir au terminal.</div></div></body></html>
       `);
       const creds: Credentials = { token, baseUrl: apiUrl, model };
