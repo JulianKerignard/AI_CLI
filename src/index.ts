@@ -12,6 +12,8 @@ Usage:
   aicli                    lance le REPL
   aicli --mode=<name>      force un mode de permissions pour cette session
                            (default | accept-edits | bypass | plan)
+  aicli --tui=<mode>       fullscreen (alt-screen, layout panneaux) ou
+                           default (scrollback classique, par défaut)
   aicli --version          affiche la version
   aicli --help             affiche cette aide
 
@@ -20,6 +22,8 @@ Environnement :
   AICLI_BASE_URL           https://chat.juliankerignard.fr/api par défaut
   AICLI_MODEL              mistral-large-latest par défaut
   AICLI_MODE               mode permissions (idem --mode=)
+  AICLI_TUI=fullscreen     active le mode fullscreen (idem --tui=fullscreen)
+  AICLI_NO_FULLSCREEN=1    force le mode legacy même si --tui=fullscreen
 
 Dans le REPL :
   /help                    liste des slash commands
@@ -71,6 +75,11 @@ process.on("unhandledRejection", (err) => {
   if (process.env.AICLI_DEBUG && err instanceof Error)
     log.error(err.stack ?? "");
 });
+
+// Cleanup alt-screen sur signal/exit. À installer AVANT le 1er render
+// pour qu'un crash très tôt restaure quand même le terminal.
+const { installSignalHandlers } = await import("./ui/tui/screen.js");
+installSignalHandlers();
 
 startRepl().catch((err) => {
   log.error((err as Error).stack ?? (err as Error).message);

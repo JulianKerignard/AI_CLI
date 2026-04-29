@@ -262,17 +262,39 @@ export async function startRepl(): Promise<void> {
   // console.log direct) vers le store — sinon Ink capte mais masque.
   const { installConsolePatch } = await import("./ui/history-store.js");
   installConsolePatch();
+  // Décide fullscreen (alt-screen) vs legacy (scrollback). Opt-in via
+  // --tui=fullscreen ou AICLI_TUI=fullscreen ; fallback automatique si
+  // pas TTY, conhost legacy, ou terminal trop petit.
+  const { shouldUseFullscreen } = await import("./ui/tui/env.js");
+  const fsDecision = shouldUseFullscreen();
+  const { registerScreenCleanup } = await import("./ui/tui/screen.js");
+  const { AppFullscreen } = await import("./ui/AppFullscreen.js");
+  const RootComponent = fsDecision.enabled ? AppFullscreen : App;
   // InputHistory est instantiée tôt pour pouvoir être passée à l'App.
   const history = new InputHistory();
   const inkInstance = render(
-    React.createElement(App as React.ComponentType<{ history: InputHistory }>, {
-      history,
-    }),
+    React.createElement(
+      RootComponent as React.ComponentType<{ history: InputHistory }>,
+      { history },
+    ),
     {
       exitOnCtrlC: false,
       patchConsole: false,
+      // Ink 7 natif : `\x1b[?1049h` au mount, `\x1b[?1049l` au unmount.
+      // Ink l'ignore automatiquement si interactive=false (CI / pipe stdout).
+      alternateScreen: fsDecision.enabled,
     },
   );
+  // Câble la cleanup pour les signal handlers globaux (cf. screen.ts).
+  // En cas de crash/SIGINT/SIGTERM, on sort proprement de l'alt-screen
+  // sinon le terminal reste cassé.
+  registerScreenCleanup(() => {
+    try {
+      inkInstance.cleanup();
+    } catch {
+      // Ink déjà unmount ou stdout fermé : rien à faire.
+    }
+  });
 
   // Boot allégé style GLM : 2 lignes plates, aucune bande décorative.
   // Avant : 8 lignes (banner + 5 specs) qui scrollaient hors écran. Le
