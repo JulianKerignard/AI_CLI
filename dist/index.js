@@ -51834,49 +51834,102 @@ var import_react41 = __toESM(require_react(), 1);
 var import_react34 = __toESM(require_react(), 1);
 init_history_store();
 init_theme();
+
+// src/ui/markdown-inline.tsx
+init_theme();
 var import_jsx_runtime = __toESM(require_jsx_runtime(), 1);
+var RE = /(`[^`\n]+`)|(\*\*[^\s*][^*\n]*?\*\*|\*\*[^*\n]+?\*\*)|(\*[^\s*][^*\n]*?[^\s*]\*|\*[^\s*]\*)|(_[^\s_][^_\n]*?[^\s_]_|_[^\s_]_)/g;
+function tokenizeInline(text) {
+  const tokens = [];
+  let lastIndex = 0;
+  RE.lastIndex = 0;
+  let m;
+  while ((m = RE.exec(text)) !== null) {
+    if (m.index > lastIndex) {
+      tokens.push({ kind: "text", content: text.slice(lastIndex, m.index) });
+    }
+    if (m[1]) {
+      tokens.push({ kind: "code", content: m[1].slice(1, -1) });
+    } else if (m[2]) {
+      tokens.push({ kind: "bold", content: m[2].slice(2, -2) });
+    } else if (m[3]) {
+      tokens.push({ kind: "italic", content: m[3].slice(1, -1) });
+    } else if (m[4]) {
+      tokens.push({ kind: "italic", content: m[4].slice(1, -1) });
+    }
+    lastIndex = m.index + m[0].length;
+  }
+  if (lastIndex < text.length) {
+    tokens.push({ kind: "text", content: text.slice(lastIndex) });
+  }
+  return tokens;
+}
+__name(tokenizeInline, "tokenizeInline");
+function renderInlineMarkdown(text) {
+  if (!text) return null;
+  const tokens = tokenizeInline(text);
+  if (tokens.length === 1 && tokens[0].kind === "text") {
+    return text;
+  }
+  return tokens.map((tok, i) => {
+    switch (tok.kind) {
+      case "text":
+        return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Text, { children: tok.content }, i);
+      case "code":
+        return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Text, { backgroundColor: c.bgBlock, color: c.accentSoft, children: " " + tok.content + " " }, i);
+      case "bold":
+        return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Text, { bold: true, children: tok.content }, i);
+      case "italic":
+        return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Text, { italic: true, children: tok.content }, i);
+    }
+  });
+}
+__name(renderInlineMarkdown, "renderInlineMarkdown");
+
+// src/ui/HistoryView.tsx
+var import_jsx_runtime2 = __toESM(require_jsx_runtime(), 1);
 function formatItem(item) {
   switch (item.type) {
     case "user": {
       const hasCtx = Boolean(item.project || item.branch);
-      return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Text, { children: [
-        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Text, { color: c.accent, bold: true, children: [
+      return /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(Text, { children: [
+        /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(Text, { color: c.accent, bold: true, children: [
           symbols.arrowRight,
           " "
         ] }),
-        item.project && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Text, { color: c.accentSoft, children: [
+        item.project && /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(Text, { color: c.accentSoft, children: [
           item.project,
           " "
         ] }),
-        item.branch && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Text, { color: c.info, children: [
+        item.branch && /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(Text, { color: c.info, children: [
           "git:(",
           item.branch,
           ") "
         ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Text, { color: hasCtx ? c.ink : c.inkMuted, bold: hasCtx, children: item.text })
+        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Text, { color: hasCtx ? c.ink : c.inkMuted, bold: hasCtx, children: item.text })
       ] });
     }
     case "assistant":
-      return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Text, { children: item.text });
+      return /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Text, { children: renderInlineMarkdown(item.text) });
     case "tool":
     case "raw":
-      return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Text, { children: item.text });
+      return /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Text, { children: item.text });
     case "info":
-      return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Text, { children: [
-        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Text, { color: c.info, children: [
+      return /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(Text, { children: [
+        /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(Text, { color: c.info, children: [
           symbols.info,
           " "
         ] }),
         item.text
       ] });
     case "warn":
-      return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Text, { color: c.accentSoft, children: [
+      return /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(Text, { color: c.accentSoft, children: [
         symbols.warn,
         " ",
         item.text
       ] });
     case "error":
-      return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Text, { color: c.danger, children: [
+      return /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(Text, { color: c.danger, children: [
         symbols.error,
         " ",
         item.text
@@ -51895,7 +51948,7 @@ function HistoryView() {
       historyStore.off("items-change", update);
     };
   }, []);
-  return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Static, { items, children: (item) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Box_default, { paddingLeft: 0, children: formatItem(item) }, item.id) });
+  return /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Static, { items, children: (item) => /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Box_default, { paddingLeft: 0, children: formatItem(item) }, item.id) });
 }
 __name(HistoryView, "HistoryView");
 function StreamingView() {
@@ -51914,7 +51967,7 @@ function StreamingView() {
     };
   }, []);
   if (!streaming) return null;
-  return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Box_default, { children: formatItem(streaming) });
+  return /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Box_default, { children: formatItem(streaming) });
 }
 __name(StreamingView, "StreamingView");
 
@@ -51922,7 +51975,7 @@ __name(StreamingView, "StreamingView");
 var import_react35 = __toESM(require_react(), 1);
 init_theme();
 init_slash_store();
-var import_jsx_runtime2 = __toESM(require_jsx_runtime(), 1);
+var import_jsx_runtime3 = __toESM(require_jsx_runtime(), 1);
 var MAX_SLASH_ROWS = 8;
 var MAX_VISIBLE_ROWS = 10;
 function cursorRowCol(value, cursor) {
@@ -51963,34 +52016,34 @@ function renderInputContent(args2) {
   const { disabled, hasValue, placeholder, rendered } = args2;
   const arrow = symbols.prompt;
   if (disabled && !hasValue) {
-    return /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(Box_default, { flexDirection: "row", children: [
-      /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(Text, { color: colors.inkFaint, children: [
+    return /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(Box_default, { flexDirection: "row", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(Text, { color: colors.inkFaint, children: [
         arrow,
         "  "
       ] }),
-      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Text, { color: colors.inkFaint, children: "\u2026en cours \u2014 attend la fin de g\xE9n\xE9ration" })
+      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Text, { color: colors.inkFaint, children: "\u2026en cours \u2014 attend la fin de g\xE9n\xE9ration" })
     ] });
   }
   if (disabled) {
-    return rendered.map((line, i) => /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(Box_default, { flexDirection: "row", children: [
-      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Text, { color: colors.inkFaint, children: i === 0 ? arrow + "  " : "   " }),
-      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Text, { color: colors.inkFaint, children: line.text || " " })
+    return rendered.map((line, i) => /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(Box_default, { flexDirection: "row", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Text, { color: colors.inkFaint, children: i === 0 ? arrow + "  " : "   " }),
+      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Text, { color: colors.inkFaint, children: line.text || " " })
     ] }, i));
   }
   if (!hasValue && placeholder) {
-    return /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(Box_default, { flexDirection: "row", children: [
-      /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(Text, { color: colors.accent, children: [
+    return /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(Box_default, { flexDirection: "row", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(Text, { color: colors.accent, children: [
         arrow,
         "  "
       ] }),
-      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Text, { color: colors.inkFaint, children: placeholder })
+      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Text, { color: colors.inkFaint, children: placeholder })
     ] });
   }
-  return rendered.map((line, i) => /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(Box_default, { flexDirection: "row", children: [
-    /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Text, { color: colors.accent, children: i === 0 ? arrow + "  " : "   " }),
-    line.caretCol < 0 ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Text, { children: line.text || " " }) : /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(Text, { children: [
+  return rendered.map((line, i) => /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(Box_default, { flexDirection: "row", children: [
+    /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Text, { color: colors.accent, children: i === 0 ? arrow + "  " : "   " }),
+    line.caretCol < 0 ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Text, { children: line.text || " " }) : /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(Text, { children: [
       line.text.slice(0, line.caretCol),
-      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Text, { inverse: true, children: line.text.slice(line.caretCol, line.caretCol + 1) || " " }),
+      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Text, { inverse: true, children: line.text.slice(line.caretCol, line.caretCol + 1) || " " }),
       line.text.slice(line.caretCol + 1)
     ] })
   ] }, i));
@@ -52262,8 +52315,8 @@ function InputBox({
       Math.max(0, slashMatches.length - MAX_SLASH_ROWS)
     )
   ) : 0;
-  return /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(Box_default, { flexDirection: "column", children: [
-    slashActive && /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(
+  return /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(Box_default, { flexDirection: "column", children: [
+    slashActive && /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(
       Box_default,
       {
         borderStyle: "round",
@@ -52275,21 +52328,21 @@ function InputBox({
           slashWindow.map((cmd, i) => {
             const absIdx = slashWindowStart + i;
             const active = absIdx === currentSlashIdx;
-            return /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(Box_default, { flexDirection: "row", children: [
-              /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Text, { color: active ? colors.accent : colors.inkFaint, children: active ? symbols.cursor : " " }),
-              /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(Text, { color: active ? colors.ink : colors.inkMuted, children: [
+            return /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(Box_default, { flexDirection: "row", children: [
+              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Text, { color: active ? colors.accent : colors.inkFaint, children: active ? symbols.cursor : " " }),
+              /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(Text, { color: active ? colors.ink : colors.inkMuted, children: [
                 " ",
                 "/",
                 cmd.name.padEnd(16)
               ] }),
-              /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Text, { color: colors.inkFaint, children: cmd.description })
+              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Text, { color: colors.inkFaint, children: cmd.description })
             ] }, cmd.name);
           }),
-          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Box_default, { children: /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Text, { color: colors.inkFaint, children: "\u2191\u2193 naviguer \xB7 Tab/Enter compl\xE9ter \xB7 Esc fermer" }) })
+          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Box_default, { children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Text, { color: colors.inkFaint, children: "\u2191\u2193 naviguer \xB7 Tab/Enter compl\xE9ter \xB7 Esc fermer" }) })
         ]
       }
     ),
-    /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Box_default, { flexDirection: "column", children: renderInputContent({
+    /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Box_default, { flexDirection: "column", children: renderInputContent({
       disabled: !!disabled,
       hasValue: value.length > 0,
       placeholder,
@@ -52302,7 +52355,7 @@ __name(InputBox, "InputBox");
 // src/ui/StatusLine.tsx
 var import_react36 = __toESM(require_react(), 1);
 init_status_bar();
-var import_jsx_runtime3 = __toESM(require_jsx_runtime(), 1);
+var import_jsx_runtime4 = __toESM(require_jsx_runtime(), 1);
 function StatusLine({ columns }) {
   const [lines, setLines] = (0, import_react36.useState)(
     () => renderStatusLines(Math.min(columns, 140))
@@ -52314,7 +52367,7 @@ function StatusLine({ columns }) {
     const unsub = subscribeStatus(update);
     return unsub;
   }, [columns]);
-  return /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Box_default, { flexDirection: "column", children: lines.map((line, i) => /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Text, { children: line }, i)) });
+  return /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(Box_default, { flexDirection: "column", children: lines.map((line, i) => /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(Text, { children: line }, i)) });
 }
 __name(StatusLine, "StatusLine");
 
@@ -52326,7 +52379,7 @@ init_picker_controller();
 var import_react37 = __toESM(require_react(), 1);
 init_model_selector();
 init_theme();
-var import_jsx_runtime4 = __toESM(require_jsx_runtime(), 1);
+var import_jsx_runtime5 = __toESM(require_jsx_runtime(), 1);
 function ModelPicker({ items, initial, pageSize = 10, onChoose }) {
   const [query, setQuery] = (0, import_react37.useState)("");
   const [idx, setIdx] = (0, import_react37.useState)(() => {
@@ -52382,7 +52435,7 @@ function ModelPicker({ items, initial, pageSize = 10, onChoose }) {
     if (/\blent\b/i.test(desc)) return { label: "lent", color: c.danger };
     return null;
   }, "speedBadge");
-  return /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)(
+  return /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)(
     Box_default,
     {
       flexDirection: "column",
@@ -52390,17 +52443,17 @@ function ModelPicker({ items, initial, pageSize = 10, onChoose }) {
       borderColor: c.accent,
       paddingX: 1,
       children: [
-        /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)(Box_default, { children: [
-          /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(Text, { color: c.inkMuted, children: "model " }),
-          /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)(Text, { color: c.inkDim, children: [
+        /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)(Box_default, { children: [
+          /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(Text, { color: c.inkMuted, children: "model " }),
+          /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)(Text, { color: c.inkDim, children: [
             symbols.prompt,
             " "
           ] }),
-          /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(Text, { children: query }),
-          /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(Text, { inverse: true, children: " " })
+          /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(Text, { children: query }),
+          /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(Text, { inverse: true, children: " " })
         ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)(Box_default, { flexDirection: "column", marginTop: 1, children: [
-          visible.length === 0 && /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)(Text, { color: c.inkDim, children: [
+        /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)(Box_default, { flexDirection: "column", marginTop: 1, children: [
+          visible.length === 0 && /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)(Text, { color: c.inkDim, children: [
             'aucun match pour "',
             query,
             '"'
@@ -52411,20 +52464,20 @@ function ModelPicker({ items, initial, pageSize = 10, onChoose }) {
             const speed = speedBadge(m.description);
             const ttftColor = m.ttftMs == null ? c.inkFaint : m.ttftMs < 1500 ? c.success : m.ttftMs < 1e4 ? c.accentSoft : c.danger;
             const tpsColor = m.tokPerSec == null ? c.inkFaint : m.tokPerSec >= 100 ? c.success : m.tokPerSec >= 50 ? c.accentSoft : c.danger;
-            return /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)(Box_default, { children: [
-              /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(Text, { color: active ? c.accent : c.inkFaint, children: active ? symbols.cursor : " " }),
-              /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)(Text, { color: active ? c.ink : c.inkMuted, children: [
+            return /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)(Box_default, { children: [
+              /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(Text, { color: active ? c.accent : c.inkFaint, children: active ? symbols.cursor : " " }),
+              /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)(Text, { color: active ? c.ink : c.inkMuted, children: [
                 " ",
                 displayModelId(m.id).padEnd(40)
               ] }),
-              /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(Text, { color: c.inkDim, children: m.category.padEnd(10) }),
-              speed && /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(Text, { color: speed.color, children: speed.label.padEnd(8) }),
-              /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(Text, { color: ttftColor, children: m.ttftMs != null ? `${m.ttftMs}ms`.padStart(8) : "      \u2014" }),
-              /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(Text, { color: tpsColor, children: m.tokPerSec != null ? `${m.tokPerSec}t/s`.padStart(9) : "        \u2014" })
+              /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(Text, { color: c.inkDim, children: m.category.padEnd(10) }),
+              speed && /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(Text, { color: speed.color, children: speed.label.padEnd(8) }),
+              /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(Text, { color: ttftColor, children: m.ttftMs != null ? `${m.ttftMs}ms`.padStart(8) : "      \u2014" }),
+              /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(Text, { color: tpsColor, children: m.tokPerSec != null ? `${m.tokPerSec}t/s`.padStart(9) : "        \u2014" })
             ] }, m.id);
           })
         ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(Box_default, { marginTop: 1, children: /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)(Text, { color: c.inkDim, children: [
+        /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(Box_default, { marginTop: 1, children: /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)(Text, { color: c.inkDim, children: [
           filtered.length,
           " match \xB7 \u2191\u2193 naviguer \xB7 Enter valider \xB7 Esc annuler"
         ] }) })
@@ -52472,7 +52525,7 @@ var permissionController = new PermissionController();
 // src/ui/PermissionPicker.tsx
 var import_react38 = __toESM(require_react(), 1);
 init_theme();
-var import_jsx_runtime5 = __toESM(require_jsx_runtime(), 1);
+var import_jsx_runtime6 = __toESM(require_jsx_runtime(), 1);
 var CHOICES = [
   { value: "allow", label: "Yes", hint: "une fois" },
   { value: "allow-session", label: "Always this session", hint: "pour tout ce REPL" },
@@ -52513,7 +52566,7 @@ function PermissionPicker({ toolName, category, input, onChoose }) {
     const val = typeof v === "string" ? v.length > 120 ? v.slice(0, 120) + "\u2026" : v.replace(/\n/g, "\u23CE") : JSON.stringify(v).slice(0, 120);
     return { k, v: val };
   });
-  return /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)(
+  return /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)(
     Box_default,
     {
       flexDirection: "column",
@@ -52521,27 +52574,27 @@ function PermissionPicker({ toolName, category, input, onChoose }) {
       borderColor: c.accent,
       paddingX: 1,
       children: [
-        /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)(Box_default, { children: [
-          /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)(Text, { color: c.accent, children: [
+        /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)(Box_default, { children: [
+          /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)(Text, { color: c.accent, children: [
             symbols.warn,
             " "
           ] }),
-          /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(Text, { color: c.ink, bold: true, children: "Permission requise" }),
-          /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(Text, { color: c.inkDim, children: " \xB7 " }),
-          /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(Text, { color: categoryColor(category), children: category }),
-          /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(Text, { color: c.inkDim, children: " \xB7 " }),
-          /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(Text, { color: c.accentSoft, bold: true, children: toolName })
+          /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(Text, { color: c.ink, bold: true, children: "Permission requise" }),
+          /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(Text, { color: c.inkDim, children: " \xB7 " }),
+          /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(Text, { color: categoryColor(category), children: category }),
+          /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(Text, { color: c.inkDim, children: " \xB7 " }),
+          /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(Text, { color: c.accentSoft, bold: true, children: toolName })
         ] }),
-        inputLines.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(Box_default, { flexDirection: "column", marginTop: 1, children: inputLines.map(({ k, v }) => /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)(Box_default, { children: [
-          /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(Text, { color: c.inkMuted, children: "  " + k + "  " }),
-          /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(Text, { color: c.ink, children: v })
+        inputLines.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(Box_default, { flexDirection: "column", marginTop: 1, children: inputLines.map(({ k, v }) => /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)(Box_default, { children: [
+          /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(Text, { color: c.inkMuted, children: "  " + k + "  " }),
+          /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(Text, { color: c.ink, children: v })
         ] }, k)) }),
-        /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(Box_default, { flexDirection: "column", marginTop: 1, children: CHOICES.map((choice, i) => /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)(Box_default, { children: [
-          /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(Text, { color: i === idx ? c.accent : c.inkFaint, children: i === idx ? symbols.cursor : " " }),
-          /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(Text, { color: i === idx ? c.ink : c.inkMuted, children: " " + choice.label.padEnd(22) }),
-          /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(Text, { color: c.inkDim, children: choice.hint })
+        /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(Box_default, { flexDirection: "column", marginTop: 1, children: CHOICES.map((choice, i) => /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)(Box_default, { children: [
+          /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(Text, { color: i === idx ? c.accent : c.inkFaint, children: i === idx ? symbols.cursor : " " }),
+          /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(Text, { color: i === idx ? c.ink : c.inkMuted, children: " " + choice.label.padEnd(22) }),
+          /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(Text, { color: c.inkDim, children: choice.hint })
         ] }, choice.value)) }),
-        /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(Box_default, { marginTop: 1, children: /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(Text, { color: c.inkDim, children: "\u2191\u2193 \xB7 Enter valider \xB7 Esc refuser \xB7 raccourcis y / a / p / n" }) })
+        /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(Box_default, { marginTop: 1, children: /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(Text, { color: c.inkDim, children: "\u2191\u2193 \xB7 Enter valider \xB7 Esc refuser \xB7 raccourcis y / a / p / n" }) })
       ]
     }
   );
@@ -52554,7 +52607,7 @@ init_session_controller();
 // src/ui/SessionPicker.tsx
 var import_react39 = __toESM(require_react(), 1);
 init_theme();
-var import_jsx_runtime6 = __toESM(require_jsx_runtime(), 1);
+var import_jsx_runtime7 = __toESM(require_jsx_runtime(), 1);
 function shortenCwd(cwd2) {
   const home = process.env.HOME ?? process.env.USERPROFILE ?? "";
   let s = cwd2;
@@ -52634,7 +52687,7 @@ function SessionPicker({ items, onChoose, showCwd = false }) {
     Math.min(idx - Math.floor(pageSize / 2), filtered.length - pageSize)
   );
   const visible = filtered.slice(start, start + pageSize);
-  return /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)(
+  return /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)(
     Box_default,
     {
       flexDirection: "column",
@@ -52642,47 +52695,47 @@ function SessionPicker({ items, onChoose, showCwd = false }) {
       borderColor: colors.accent,
       paddingX: 1,
       children: [
-        /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)(Box_default, { children: [
-          /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(Text, { color: colors.ink, bold: true, children: showCwd ? "Reprendre une session (tous dossiers)" : "Reprendre une session" }),
-          /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(Text, { color: colors.inkDim, children: ` (${filtered.length}/${items.length})` })
+        /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)(Box_default, { children: [
+          /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(Text, { color: colors.ink, bold: true, children: showCwd ? "Reprendre une session (tous dossiers)" : "Reprendre une session" }),
+          /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(Text, { color: colors.inkDim, children: ` (${filtered.length}/${items.length})` })
         ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)(Box_default, { marginTop: 1, children: [
-          /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(Text, { color: colors.inkMuted, children: "filter " }),
-          /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(Text, { color: colors.inkDim, children: "\u203A " }),
-          /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(Text, { children: query }),
-          /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(Text, { inverse: true, children: " " })
+        /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)(Box_default, { marginTop: 1, children: [
+          /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(Text, { color: colors.inkMuted, children: "filter " }),
+          /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(Text, { color: colors.inkDim, children: "\u203A " }),
+          /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(Text, { children: query }),
+          /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(Text, { inverse: true, children: " " })
         ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)(Box_default, { flexDirection: "column", marginTop: 1, children: [
-          filtered.length === 0 && /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(Text, { color: colors.inkDim, children: items.length === 0 ? "aucune session pour ce dossier \u2014 lance juste une conversation" : `aucun match pour "${query}"` }),
+        /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)(Box_default, { flexDirection: "column", marginTop: 1, children: [
+          filtered.length === 0 && /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(Text, { color: colors.inkDim, children: items.length === 0 ? "aucune session pour ce dossier \u2014 lance juste une conversation" : `aucun match pour "${query}"` }),
           visible.map((s, i) => {
             const realIdx = start + i;
             const active = realIdx === idx;
             const titleWidth = showCwd ? 32 : 50;
-            return /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)(Box_default, { flexDirection: "column", children: [
-              /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)(Box_default, { children: [
-                /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(Text, { color: active ? colors.accent : colors.inkFaint, children: active ? "\u203A" : " " }),
-                /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)(Text, { color: active ? colors.ink : colors.inkMuted, children: [
+            return /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)(Box_default, { flexDirection: "column", children: [
+              /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)(Box_default, { children: [
+                /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(Text, { color: active ? colors.accent : colors.inkFaint, children: active ? "\u203A" : " " }),
+                /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)(Text, { color: active ? colors.ink : colors.inkMuted, children: [
                   " ",
                   s.title.padEnd(titleWidth).slice(0, titleWidth)
                 ] }),
-                /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)(Text, { color: colors.inkDim, children: [
+                /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)(Text, { color: colors.inkDim, children: [
                   "  ",
                   formatDate(s.startedAt),
                   " (il y a ",
                   formatRelative(s.startedAt),
                   ")"
                 ] }),
-                /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)(Text, { color: colors.success, children: [
+                /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)(Text, { color: colors.success, children: [
                   "  ",
                   s.messageCount,
                   " msg"
                 ] })
               ] }),
-              showCwd && /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(Box_default, { marginLeft: 2, children: /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(Text, { color: colors.inkFaint, children: shortenCwd(s.cwd) }) })
+              showCwd && /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(Box_default, { marginLeft: 2, children: /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(Text, { color: colors.inkFaint, children: shortenCwd(s.cwd) }) })
             ] }, s.id);
           })
         ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(Box_default, { marginTop: 1, children: /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(Text, { color: colors.inkDim, children: "tape pour filtrer \xB7 \u2191\u2193 naviguer \xB7 Enter reprendre \xB7 Esc annuler" }) })
+        /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(Box_default, { marginTop: 1, children: /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(Text, { color: colors.inkDim, children: "tape pour filtrer \xB7 \u2191\u2193 naviguer \xB7 Enter reprendre \xB7 Esc annuler" }) })
       ]
     }
   );
@@ -52724,7 +52777,7 @@ var askController = new AskController();
 // src/ui/AskPicker.tsx
 var import_react40 = __toESM(require_react(), 1);
 init_theme();
-var import_jsx_runtime7 = __toESM(require_jsx_runtime(), 1);
+var import_jsx_runtime8 = __toESM(require_jsx_runtime(), 1);
 function AskPicker({ question, options, onAnswer }) {
   const hasOptions = Array.isArray(options) && options.length > 0;
   const [idx, setIdx] = (0, import_react40.useState)(0);
@@ -52759,7 +52812,7 @@ function AskPicker({ question, options, onAnswer }) {
       setTyped((t) => t + input);
     }
   });
-  return /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)(
+  return /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)(
     Box_default,
     {
       flexDirection: "column",
@@ -52767,32 +52820,32 @@ function AskPicker({ question, options, onAnswer }) {
       borderColor: c.accent,
       paddingX: 1,
       children: [
-        /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)(Box_default, { children: [
-          /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)(Text, { color: c.accentSoft, children: [
+        /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)(Box_default, { children: [
+          /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)(Text, { color: c.accentSoft, children: [
             symbols.tool,
             " "
           ] }),
-          /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(Text, { color: c.ink, children: question })
+          /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(Text, { color: c.ink, children: question })
         ] }),
-        hasOptions ? /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(Box_default, { flexDirection: "column", marginTop: 1, children: options.map((opt, i) => {
+        hasOptions ? /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(Box_default, { flexDirection: "column", marginTop: 1, children: options.map((opt, i) => {
           const active = i === idx;
-          return /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)(Box_default, { children: [
-            /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(Text, { color: active ? c.accent : c.inkFaint, children: active ? symbols.cursor : " " }),
-            /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)(Text, { color: active ? c.ink : c.inkMuted, children: [
+          return /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)(Box_default, { children: [
+            /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(Text, { color: active ? c.accent : c.inkFaint, children: active ? symbols.cursor : " " }),
+            /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)(Text, { color: active ? c.ink : c.inkMuted, children: [
               " ",
               opt
             ] })
           ] }, i);
-        }) }) : /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)(Box_default, { marginTop: 1, children: [
-          /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)(Text, { color: c.inkDim, children: [
+        }) }) : /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)(Box_default, { marginTop: 1, children: [
+          /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)(Text, { color: c.inkDim, children: [
             "r\xE9ponse ",
             symbols.prompt,
             " "
           ] }),
-          /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(Text, { children: typed }),
-          /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(Text, { inverse: true, children: " " })
+          /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(Text, { children: typed }),
+          /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(Text, { inverse: true, children: " " })
         ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(Box_default, { marginTop: 1, children: /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(Text, { color: c.inkDim, children: hasOptions ? "\u2191\u2193 naviguer \xB7 Enter valider \xB7 Esc annuler" : "tape ta r\xE9ponse \xB7 Enter valider \xB7 Esc annuler" }) })
+        /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(Box_default, { marginTop: 1, children: /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(Text, { color: c.inkDim, children: hasOptions ? "\u2191\u2193 naviguer \xB7 Enter valider \xB7 Esc annuler" : "tape ta r\xE9ponse \xB7 Enter valider \xB7 Esc annuler" }) })
       ]
     }
   );
@@ -52801,7 +52854,7 @@ __name(AskPicker, "AskPicker");
 
 // src/ui/App.tsx
 init_interrupt_controller();
-var import_jsx_runtime8 = __toESM(require_jsx_runtime(), 1);
+var import_jsx_runtime9 = __toESM(require_jsx_runtime(), 1);
 function App2({ history } = {}) {
   const { stdout } = use_stdout_default();
   const [columns, setColumns] = (0, import_react41.useState)(stdout?.columns ?? 100);
@@ -52864,10 +52917,10 @@ function App2({ history } = {}) {
       interruptController.request();
     }
   }, { isActive: !permissionActive && !askActive && !sessionActive && !pickerActive });
-  return /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)(Box_default, { flexDirection: "column", children: [
-    /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(HistoryView, {}),
-    /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(StreamingView, {}),
-    permissionActive ? /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(
+  return /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)(Box_default, { flexDirection: "column", children: [
+    /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(HistoryView, {}),
+    /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(StreamingView, {}),
+    permissionActive ? /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(
       PermissionPicker,
       {
         toolName: permissionActive.toolName,
@@ -52875,28 +52928,28 @@ function App2({ history } = {}) {
         input: permissionActive.input,
         onChoose: (d) => permissionController.close(d)
       }
-    ) : askActive ? /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(
+    ) : askActive ? /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(
       AskPicker,
       {
         question: askActive.question,
         options: askActive.options,
         onAnswer: (a) => askController.close(a)
       }
-    ) : sessionActive ? /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(
+    ) : sessionActive ? /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(
       SessionPicker,
       {
         items: sessionActive.items,
         showCwd: sessionActive.showCwd,
         onChoose: (p) => sessionController.close(p)
       }
-    ) : pickerActive ? /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(
+    ) : pickerActive ? /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(
       ModelPicker,
       {
         items: pickerActive.items,
         initial: pickerActive.initial,
         onChoose: (id) => pickerController.close(id)
       }
-    ) : /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(
+    ) : /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(
       InputBox,
       {
         disabled: inputDisabled,
@@ -52907,7 +52960,7 @@ function App2({ history } = {}) {
         onCyclePermissionMode: () => inputController.cyclePermissionMode()
       }
     ),
-    /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(StatusLine, { columns })
+    /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(StatusLine, { columns })
   ] });
 }
 __name(App2, "App");

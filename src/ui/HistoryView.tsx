@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { Box, Static, Text } from "ink";
 import { historyStore, type HistoryItem } from "./history-store.js";
 import { c, symbols } from "./theme.js";
+import { renderInlineMarkdown } from "./markdown-inline.js";
 
 // Affiche les items FIGÉS via <Static> : chaque item rendu une seule
 // fois quand ajouté, puis laissé scroller par le terminal. Pattern
@@ -35,7 +36,10 @@ function formatItem(item: HistoryItem): React.ReactNode {
       );
     }
     case "assistant":
-      return <Text>{item.text}</Text>;
+      // Markdown inline (bold/italic/code) parsé pour rendre la sortie LLM
+      // plus lisible. Les code blocks ``` ``` multi-ligne ne sont pas
+      // touchés (étape E à venir) — restent tels quels comme texte brut.
+      return <Text>{renderInlineMarkdown(item.text)}</Text>;
     case "tool":
     case "raw":
       return <Text>{item.text}</Text>;
