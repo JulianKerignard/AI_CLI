@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Box, useInput, useStdout } from "ink";
+import { Box, Text, useInput, useStdout } from "ink";
 import { HistoryView, StreamingView } from "./HistoryView.js";
 import { InputBox } from "./InputBox.js";
 import { StatusLine } from "./StatusLine.js";
@@ -14,6 +14,7 @@ import { SessionPicker } from "./SessionPicker.js";
 import { askController } from "./ask-controller.js";
 import { AskPicker } from "./AskPicker.js";
 import { interruptController } from "./interrupt-controller.js";
+import { c } from "./theme.js";
 
 // Layout :
 // ┌───────────────────────────┐
@@ -150,6 +151,17 @@ export function App({ history }: AppProps = {}) {
         />
       )}
       <StatusLine columns={columns} />
+      {/* Footer keybindings persistant — style OpenCode / lazygit. Rappel
+          discret sous la status line des raccourcis clavier les plus
+          utiles. Caché si un picker / permission / ask est actif (sa
+          propre footer hint prend le relais). */}
+      {!pickerActive && !permissionActive && !askActive && !sessionActive && (
+        <Box>
+          <Text color={c.inkFaint}>
+            ⏎ send · \⏎ newline · ⇧⇥ mode · /help · Ctrl+C exit
+          </Text>
+        </Box>
+      )}
     </Box>
   );
 }

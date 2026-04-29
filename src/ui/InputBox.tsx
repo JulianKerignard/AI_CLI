@@ -520,11 +520,20 @@ export function InputBox({
         </Box>
       </Box>
     )}
-    {/* Pas de bordure autour de l'input principal — style Claude Code /
-        OpenCode : juste un prompt > en début de ligne. La bordure ne reste
-        que pour le popup slash (qui est une vraie modal). Réduit le bruit
-        visuel et donne plus d'air au flux conversationnel. */}
-    <Box flexDirection="column">
+    {/* Bordure ronde subtile autour de l'input — style OpenCode/Crush :
+        l'input est clairement délimité comme un "panel" distinct du flux
+        conversationnel au-dessus. borderColor change selon l'état :
+        - disabled (agent travaille) → borderDim (zinc-800, presque invisible)
+        - active (saisie en cours) → border (zinc-700, visible mais discret)
+        - placeholder visible → border (idem)
+        Avant : pas de bordure du tout, l'input se confondait avec le flux
+        et le user pouvait avoir l'impression que l'app a freeze. */}
+    <Box
+      borderStyle="round"
+      borderColor={disabled ? c.borderDim : c.border}
+      paddingX={1}
+      flexDirection="column"
+    >
       {renderInputContent({
         disabled: !!disabled,
         hasValue: value.length > 0,
