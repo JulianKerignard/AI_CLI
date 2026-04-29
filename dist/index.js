@@ -52214,21 +52214,25 @@ function formatItem(item) {
   switch (item.type) {
     case "user": {
       const hasCtx = Boolean(item.project || item.branch);
-      return /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(Text, { children: [
-        /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(Text, { color: c.accent, bold: true, children: [
-          symbols.arrowRight,
-          " "
-        ] }),
-        item.project && /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(Text, { color: c.accentSoft, children: [
-          item.project,
-          " "
-        ] }),
-        item.branch && /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(Text, { color: c.info, children: [
-          "git:(",
-          item.branch,
-          ") "
-        ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Text, { color: hasCtx ? c.ink : c.inkMuted, bold: hasCtx, children: item.text })
+      const cols = Math.min(process.stdout.columns || 80, 100);
+      return /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(Box_default, { flexDirection: "column", marginTop: 1, children: [
+        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Text, { color: c.inkFaint, children: symbols.rule.repeat(cols - 4) }),
+        /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(Text, { children: [
+          /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(Text, { color: c.accent, bold: true, children: [
+            symbols.arrowRight,
+            " "
+          ] }),
+          item.project && /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(Text, { color: c.accentSoft, children: [
+            item.project,
+            " "
+          ] }),
+          item.branch && /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(Text, { color: c.info, children: [
+            "git:(",
+            item.branch,
+            ") "
+          ] }),
+          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Text, { color: hasCtx ? c.ink : c.inkMuted, bold: hasCtx, children: item.text })
+        ] })
       ] });
     }
     case "assistant": {
@@ -52668,12 +52672,23 @@ function InputBox({
         ]
       }
     ),
-    /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(Box_default, { flexDirection: "column", children: renderInputContent({
-      disabled: !!disabled,
-      hasValue: value.length > 0,
-      placeholder,
-      rendered
-    }) })
+    /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)(Box_default, { flexDirection: "row", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)(Box_default, { flexDirection: "column", marginRight: 1, children: [
+        /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(Text, { color: colors.inkFaint, children: " " }),
+        (rendered.length > 0 ? rendered : [{ text: "", caretCol: -1 }]).map(
+          (_, i) => /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(Text, { color: disabled ? colors.inkFaint : colors.accent, children: "\u258E" }, i)
+        )
+      ] }),
+      /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)(Box_default, { flexDirection: "column", flexGrow: 1, children: [
+        /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(Text, { color: disabled ? colors.inkDim : colors.accent, bold: true, children: disabled ? "BUSY" : "ASK" }),
+        renderInputContent({
+          disabled: !!disabled,
+          hasValue: value.length > 0,
+          placeholder,
+          rendered
+        })
+      ] })
+    ] })
   ] });
 }
 __name(InputBox, "InputBox");
@@ -53180,6 +53195,7 @@ __name(AskPicker, "AskPicker");
 
 // src/ui/App.tsx
 init_interrupt_controller();
+init_theme();
 var import_jsx_runtime10 = __toESM(require_jsx_runtime(), 1);
 function App2({ history } = {}) {
   const { stdout } = use_stdout_default();
@@ -53286,7 +53302,22 @@ function App2({ history } = {}) {
         onCyclePermissionMode: () => inputController.cyclePermissionMode()
       }
     ),
-    /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(StatusLine, { columns })
+    /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(StatusLine, { columns }),
+    !pickerActive && !permissionActive && !askActive && !sessionActive && /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(Box_default, { children: /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)(Text, { color: c.inkDim, children: [
+      /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(Text, { color: c.accent, children: "\u23CE" }),
+      /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(Text, { color: c.inkFaint, children: " send" }),
+      /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(Text, { color: c.inkFaint, children: "  \xB7  " }),
+      /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(Text, { color: c.inkMuted, children: "\\\u23CE" }),
+      /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(Text, { color: c.inkFaint, children: " newline" }),
+      /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(Text, { color: c.inkFaint, children: "  \xB7  " }),
+      /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(Text, { color: c.inkMuted, children: "\u21E7\u21E5" }),
+      /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(Text, { color: c.inkFaint, children: " mode" }),
+      /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(Text, { color: c.inkFaint, children: "  \xB7  " }),
+      /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(Text, { color: c.inkMuted, children: "esc" }),
+      /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(Text, { color: c.inkFaint, children: " stop" }),
+      /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(Text, { color: c.inkFaint, children: "  \xB7  " }),
+      /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(Text, { color: c.inkMuted, children: "/help" })
+    ] }) })
   ] });
 }
 __name(App2, "App");

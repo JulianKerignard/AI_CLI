@@ -520,17 +520,39 @@ export function InputBox({
         </Box>
       </Box>
     )}
-    {/* Pas de bordure autour de l'input principal — style Claude Code /
-        OpenCode : juste un prompt > en début de ligne. La bordure ne reste
-        que pour le popup slash (qui est une vraie modal). Réduit le bruit
-        visuel et donne plus d'air au flux conversationnel. */}
-    <Box flexDirection="column">
-      {renderInputContent({
-        disabled: !!disabled,
-        hasValue: value.length > 0,
-        placeholder,
-        rendered,
-      })}
+    {/* Look éditorial type Charm/lipgloss : préfixe vertical ▎ accent
+        à gauche de chaque ligne de l'input + kicker label `ASK`/`BUSY`
+        en petites capitales discrètes au-dessus. Plus sophistiqué que
+        la box ronde précédente — donne un vrai rythme typographique
+        sans bruit visuel. La bordure ronde reste pour les modals
+        (slash popup, pickers).
+
+        - kicker change selon l'état :
+            disabled  → BUSY  (faint)
+            active    → ASK   (accent, bold)
+        - bar verticale ▎ change de couleur de la même façon. */}
+    <Box flexDirection="row">
+      <Box flexDirection="column" marginRight={1}>
+        <Text color={c.inkFaint}>{" "}</Text>
+        {(rendered.length > 0 ? rendered : [{ text: "", caretCol: -1 }]).map(
+          (_, i) => (
+            <Text key={i} color={disabled ? c.inkFaint : c.accent}>
+              ▎
+            </Text>
+          ),
+        )}
+      </Box>
+      <Box flexDirection="column" flexGrow={1}>
+        <Text color={disabled ? c.inkDim : c.accent} bold>
+          {disabled ? "BUSY" : "ASK"}
+        </Text>
+        {renderInputContent({
+          disabled: !!disabled,
+          hasValue: value.length > 0,
+          placeholder,
+          rendered,
+        })}
+      </Box>
     </Box>
     </Box>
   );

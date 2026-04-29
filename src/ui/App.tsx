@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Box, useInput, useStdout } from "ink";
+import { Box, Text, useInput, useStdout } from "ink";
 import { HistoryView, StreamingView } from "./HistoryView.js";
 import { InputBox } from "./InputBox.js";
 import { StatusLine } from "./StatusLine.js";
@@ -14,6 +14,7 @@ import { SessionPicker } from "./SessionPicker.js";
 import { askController } from "./ask-controller.js";
 import { AskPicker } from "./AskPicker.js";
 import { interruptController } from "./interrupt-controller.js";
+import { c } from "./theme.js";
 
 // Layout :
 // ┌───────────────────────────┐
@@ -150,6 +151,29 @@ export function App({ history }: AppProps = {}) {
         />
       )}
       <StatusLine columns={columns} />
+      {/* Footer keybindings persistant — style OpenCode / lazygit. Layout
+          structuré : kicker faible-contraste à gauche (séparant les
+          actions), keybindings en faint avec accents de couleur sur les
+          glyphes essentiels. Caché si un modal est actif. */}
+      {!pickerActive && !permissionActive && !askActive && !sessionActive && (
+        <Box>
+          <Text color={c.inkDim}>
+            <Text color={c.accent}>⏎</Text>
+            <Text color={c.inkFaint}> send</Text>
+            <Text color={c.inkFaint}>{"  ·  "}</Text>
+            <Text color={c.inkMuted}>\⏎</Text>
+            <Text color={c.inkFaint}> newline</Text>
+            <Text color={c.inkFaint}>{"  ·  "}</Text>
+            <Text color={c.inkMuted}>⇧⇥</Text>
+            <Text color={c.inkFaint}> mode</Text>
+            <Text color={c.inkFaint}>{"  ·  "}</Text>
+            <Text color={c.inkMuted}>esc</Text>
+            <Text color={c.inkFaint}> stop</Text>
+            <Text color={c.inkFaint}>{"  ·  "}</Text>
+            <Text color={c.inkMuted}>/help</Text>
+          </Text>
+        </Box>
+      )}
     </Box>
   );
 }
