@@ -3,6 +3,7 @@ import { Box, Static, Text } from "ink";
 import { historyStore, type HistoryItem } from "./history-store.js";
 import { c, symbols } from "./theme.js";
 import { renderInlineMarkdown } from "./markdown-inline.js";
+import { splitAssistantText, CodeBlock } from "./highlight.js";
 
 // Affiche les items FIGÉS via <Static> : chaque item rendu une seule
 // fois quand ajouté, puis laissé scroller par le terminal. Pattern
@@ -35,11 +36,26 @@ function formatItem(item: HistoryItem): React.ReactNode {
         </Text>
       );
     }
-    case "assistant":
-      // Markdown inline (bold/italic/code) parsé pour rendre la sortie LLM
-      // plus lisible. Les code blocks ``` ``` multi-ligne ne sont pas
-      // touchés (étape E à venir) — restent tels quels comme texte brut.
-      return <Text>{renderInlineMarkdown(item.text)}</Text>;
+    case "assistant": {
+      // Split le texte en segments alternés text / code block. Le
+      // markdown inline (bold/italic/code) s'applique aux segments
+      // text, le syntax highlighting aux segments code (CodeBlock).
+      // Streaming-safe : un fence ```lang sans fermeture reste un
+      // segment text → rendu en texte brut tant que le ``` fermant
+      // n'arrive pas (re-coloration au push final).
+      const segments = splitAssistantText(item.text);
+      return (
+        <Box flexDirection="column">
+          {segments.map((seg, i) =>
+            seg.kind === "code" ? (
+              <CodeBlock key={i} code={seg.content} lang={seg.lang ?? ""} />
+            ) : (
+              <Text key={i}>{renderInlineMarkdown(seg.content)}</Text>
+            ),
+          )}
+        </Box>
+      );
+    }
     case "tool":
     case "raw":
       return <Text>{item.text}</Text>;
