@@ -95,6 +95,25 @@ function toolDotColor(name: string): (s: string) => string {
 const IS_LEGACY_CONSOLE =
   process.platform === "win32" && !process.env.WT_SESSION;
 
+// Pilule typée par tool kind : ` READ `, ` BASH `, ` EDIT ` avec fond
+// coloré et texte noir bold (style OpenCode/Bubbletea). Sur conhost
+// legacy : fallback ASCII sans bg, juste `[READ]` en couleur fg.
+const PILL_BG: Record<ToolKind, string> = {
+  read: c.accentSoft,
+  exec: "#67e8f9",
+  write: c.accent,
+  default: c.accent,
+};
+
+function toolPill(name: string): string {
+  const short = name.replace(/^mcp__[^_]+__/, "").toUpperCase();
+  const bg = PILL_BG[toolKind(name)];
+  if (IS_LEGACY_CONSOLE) {
+    return chalk.hex(bg).bold(`[${short}]`);
+  }
+  return chalk.bgHex(bg).hex("#0a0a0a").bold(` ${short} `);
+}
+
 // Pad une ligne avec des espaces jusqu'à `cols` chars visibles, en
 // retirant les codes ANSI pour le calcul de longueur. Utilisé pour
 // produire un fond coloré plein-largeur (chalk.bgHex applique le bg
@@ -300,32 +319,23 @@ export const log = {
       ATH.accent(SYM.assistant + " ") +
         ATH.ink(msg.replace(/\n/g, "\n  ")),
     ),
-  // Format tool style Claude Code : puce colorée selon catégorie + nom
-  // ink.bold + args en parenthèses dim. La puce indique la nature de
-  // l'action :
-  //   Read/Glob/Ls           → info teal (lecture/exploration)
-  //   Grep                   → info teal (recherche)
-  //   Bash                   → accent orange (exécution shell)
-  //   Write/Edit/MultiEdit   → success vert (modification disque)
-  //   autre/inconnu          → success vert par défaut
-  // Permet de disambiguer visuellement "il a juste lu" vs "il vient
-  // d'écrire sur disque" sans avoir à parser le name.
+  // Format tool en pilule typée par catégorie (style OpenCode/Bubbletea).
+  // Le nom du tool est affiché sur fond coloré pleine largeur du label,
+  // le détail (path, commande) suit en muted. Catégorisation :
+  //   Read/Glob/Ls/Grep → bg accentSoft (lecture)
+  //   Bash/Shell        → bg cyan (exec)
+  //   Write/Edit        → bg accent (mod disque)
+  //   default           → bg accent
   tool: (name: string, detail: string) => {
-    const dot = toolDotColor(name);
     ui(
-      dot(SYM.tool + " ") +
-        ATH.ink.bold(name) +
-        (detail ? " " + ATH.inkMuted(detail) : ""),
+      toolPill(name) +
+        (detail ? "  " + ATH.inkMuted(detail) : ""),
     );
   },
   toolCompact: (name: string, label: string) => {
-    const dot = toolDotColor(name);
     ui(
-      dot(SYM.tool + " ") +
-        ATH.ink.bold(name) +
-        (label
-          ? ATH.inkFaint("(") + ATH.inkMuted(label) + ATH.inkFaint(")")
-          : ""),
+      toolPill(name) +
+        (label ? "  " + ATH.inkMuted(label) : ""),
     );
   },
   // Confirmation success après une action Edit/Write/MultiEdit. Affiche
@@ -373,36 +383,66 @@ export const log = {
       ui(ATH.inkFaint(SYM.toolOut + " ") + ATH.inkMuted(line));
     }
   },
-  // Boot court style GLM Coding Assistant : 2 lignes plates, pas de
-  // bande verticale ni de rule. L'info essentielle (model, mode) tient
-  // sur la 2e ligne. Le banner riche reste accessible via /about.
+  // Header card style app shell (OpenCode-like) : bordure ronde pleine
+  // largeur (capée à 80 cols) avec pilule de marque sur la bordure haute,
+  // 2 lignes internes (info + hint), bordure basse en faint.
   // Format :
-  //   AI_CLI initialized.
-  //   Connected to <baseUrl> · model <id> · mode <mode>
-  //
-  //   Type /about for details · /help for commands
+  //   ╭─[ ◆ AICLI ]──────────────────────────────────────╮
+  //   │  ●  mistral-large-latest · ~/path · accept-edits  │
+  //   │  /about · /help · ⏎ send · ⇧⇥ mode                │
+  //   ╰───────────────────────────────────────────────────╯
   boot: (
     title: string,
     info: { baseUrl?: string; model?: string; mode?: string },
   ) => {
+    const cols = Math.min(process.stdout.columns || 80, 90);
+    const inner = cols - 2; // espace entre les deux ─ verticaux
+
+    const brand = ` ${SYM.tool} ${title.toUpperCase()} `;
+    // Bordure haute : ╭─[ ◆ AICLI ]──...─╮ — pilule collée à 2 cols.
+    const padBefore = "─".repeat(2);
+    const padAfter = "─".repeat(Math.max(1, inner - padBefore.length - brand.length - 2));
+    const top =
+      ATH.inkFaint("╭") +
+      ATH.inkFaint(padBefore) +
+      ATH.inkFaint("[") +
+      ATH.accent.bold(brand) +
+      ATH.inkFaint("]") +
+      ATH.inkFaint(padAfter) +
+      ATH.inkFaint("╮");
+
+    // Ligne 1 : ●  modèle · cwd · mode
+    const dot = ATH.success("●");
+    const segments: string[] = [];
+    if (info.model) segments.push(ATH.ink.bold(info.model));
+    if (info.baseUrl) segments.push(ATH.inkMuted(info.baseUrl));
+    if (info.mode) segments.push(ATH.accentSoft(info.mode));
+    const line1Content = "  " + dot + "  " + segments.join(ATH.inkFaint(" · "));
+    const line1Visible = line1Content.replace(/\x1b\[[0-9;]*m/g, "");
+    const line1Pad = " ".repeat(Math.max(0, inner - line1Visible.length));
+    const line1 = ATH.inkFaint("│") + line1Content + line1Pad + ATH.inkFaint("│");
+
+    // Ligne 2 : raccourcis essentiels
+    const hint =
+      "  " +
+      ATH.accent("/about") +
+      ATH.inkFaint(" · ") +
+      ATH.accent("/help") +
+      ATH.inkFaint(" · ") +
+      ATH.inkMuted("⏎ send") +
+      ATH.inkFaint(" · ") +
+      ATH.inkMuted("⇧⇥ mode");
+    const hintVisible = hint.replace(/\x1b\[[0-9;]*m/g, "");
+    const hintPad = " ".repeat(Math.max(0, inner - hintVisible.length));
+    const line2 = ATH.inkFaint("│") + hint + hintPad + ATH.inkFaint("│");
+
+    const bottom = ATH.inkFaint("╰" + "─".repeat(inner) + "╯");
+
     ui("");
-    ui(ATH.ink.bold(title) + ATH.inkDim(" initialized."));
-    const parts: string[] = [];
-    if (info.baseUrl)
-      parts.push(ATH.inkMuted("Connected to ") + ATH.ink(info.baseUrl));
-    if (info.model)
-      parts.push(ATH.inkMuted("model ") + ATH.accent(info.model));
-    if (info.mode) parts.push(ATH.inkMuted("mode ") + ATH.ink(info.mode));
-    if (parts.length > 0)
-      ui(parts.join(ATH.inkDim(" · ")));
-    ui("");
-    ui(
-      ATH.inkDim("Type ") +
-        ATH.accent("/about") +
-        ATH.inkDim(" for details · ") +
-        ATH.accent("/help") +
-        ATH.inkDim(" for commands"),
-    );
+    ui(top);
+    ui(line1);
+    ui(line2);
+    ui(bottom);
   },
   // Banner riche : bande accent verticale + nom + version + tagline.
   // Utilisé par /about, /help, /usage, /tools — gardé pour rétrocompat.

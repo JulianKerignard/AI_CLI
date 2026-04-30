@@ -31341,20 +31341,13 @@ function toolKind(name) {
     return "write";
   return "default";
 }
-function toolDotColor(name) {
-  switch (toolKind(name)) {
-    case "read":
-      return import_chalk4.default.hex(c.accentSoft);
-    // vert clair (lecture)
-    case "exec":
-      return import_chalk4.default.hex("#67e8f9");
-    // cyan vif (exec shell, distinct du vert)
-    case "write":
-      return ATH.accent;
-    // vert vif (modification disque)
-    default:
-      return ATH.accent;
+function toolPill(name) {
+  const short = name.replace(/^mcp__[^_]+__/, "").toUpperCase();
+  const bg = PILL_BG[toolKind(name)];
+  if (IS_LEGACY_CONSOLE2) {
+    return import_chalk4.default.hex(bg).bold(`[${short}]`);
   }
+  return import_chalk4.default.bgHex(bg).hex("#0a0a0a").bold(` ${short} `);
 }
 function padToWidth(line, cols) {
   const visible = line.replace(/\x1b\[[0-9;]*m/g, "");
@@ -31424,7 +31417,7 @@ function formatQuotaStatus(session, quota) {
   }
   return lines;
 }
-var import_chalk4, ATH, SYM, IS_LEGACY_CONSOLE2, log;
+var import_chalk4, ATH, SYM, IS_LEGACY_CONSOLE2, PILL_BG, log;
 var init_logger = __esm({
   "src/utils/logger.ts"() {
     "use strict";
@@ -31455,8 +31448,14 @@ var init_logger = __esm({
       kicker: symbols.rule
     };
     __name(toolKind, "toolKind");
-    __name(toolDotColor, "toolDotColor");
     IS_LEGACY_CONSOLE2 = process.platform === "win32" && !process.env.WT_SESSION;
+    PILL_BG = {
+      read: c.accentSoft,
+      exec: "#67e8f9",
+      write: c.accent,
+      default: c.accent
+    };
+    __name(toolPill, "toolPill");
     __name(padToWidth, "padToWidth");
     __name(colorizeResultLine, "colorizeResultLine");
     __name(compact, "compact");
@@ -31473,26 +31472,21 @@ var init_logger = __esm({
       assistant: /* @__PURE__ */ __name((msg) => ui(
         ATH.accent(SYM.assistant + " ") + ATH.ink(msg.replace(/\n/g, "\n  "))
       ), "assistant"),
-      // Format tool style Claude Code : puce colorée selon catégorie + nom
-      // ink.bold + args en parenthèses dim. La puce indique la nature de
-      // l'action :
-      //   Read/Glob/Ls           → info teal (lecture/exploration)
-      //   Grep                   → info teal (recherche)
-      //   Bash                   → accent orange (exécution shell)
-      //   Write/Edit/MultiEdit   → success vert (modification disque)
-      //   autre/inconnu          → success vert par défaut
-      // Permet de disambiguer visuellement "il a juste lu" vs "il vient
-      // d'écrire sur disque" sans avoir à parser le name.
+      // Format tool en pilule typée par catégorie (style OpenCode/Bubbletea).
+      // Le nom du tool est affiché sur fond coloré pleine largeur du label,
+      // le détail (path, commande) suit en muted. Catégorisation :
+      //   Read/Glob/Ls/Grep → bg accentSoft (lecture)
+      //   Bash/Shell        → bg cyan (exec)
+      //   Write/Edit        → bg accent (mod disque)
+      //   default           → bg accent
       tool: /* @__PURE__ */ __name((name, detail) => {
-        const dot = toolDotColor(name);
         ui(
-          dot(SYM.tool + " ") + ATH.ink.bold(name) + (detail ? " " + ATH.inkMuted(detail) : "")
+          toolPill(name) + (detail ? "  " + ATH.inkMuted(detail) : "")
         );
       }, "tool"),
       toolCompact: /* @__PURE__ */ __name((name, label) => {
-        const dot = toolDotColor(name);
         ui(
-          dot(SYM.tool + " ") + ATH.ink.bold(name) + (label ? ATH.inkFaint("(") + ATH.inkMuted(label) + ATH.inkFaint(")") : "")
+          toolPill(name) + (label ? "  " + ATH.inkMuted(label) : "")
         );
       }, "toolCompact"),
       // Confirmation success après une action Edit/Write/MultiEdit. Affiche
@@ -31530,29 +31524,40 @@ var init_logger = __esm({
           ui(ATH.inkFaint(SYM.toolOut + " ") + ATH.inkMuted(line));
         }
       }, "toolResult"),
-      // Boot court style GLM Coding Assistant : 2 lignes plates, pas de
-      // bande verticale ni de rule. L'info essentielle (model, mode) tient
-      // sur la 2e ligne. Le banner riche reste accessible via /about.
+      // Header card style app shell (OpenCode-like) : bordure ronde pleine
+      // largeur (capée à 80 cols) avec pilule de marque sur la bordure haute,
+      // 2 lignes internes (info + hint), bordure basse en faint.
       // Format :
-      //   AI_CLI initialized.
-      //   Connected to <baseUrl> · model <id> · mode <mode>
-      //
-      //   Type /about for details · /help for commands
+      //   ╭─[ ◆ AICLI ]──────────────────────────────────────╮
+      //   │  ●  mistral-large-latest · ~/path · accept-edits  │
+      //   │  /about · /help · ⏎ send · ⇧⇥ mode                │
+      //   ╰───────────────────────────────────────────────────╯
       boot: /* @__PURE__ */ __name((title, info) => {
+        const cols = Math.min(process.stdout.columns || 80, 90);
+        const inner = cols - 2;
+        const brand = ` ${SYM.tool} ${title.toUpperCase()} `;
+        const padBefore = "\u2500".repeat(2);
+        const padAfter = "\u2500".repeat(Math.max(1, inner - padBefore.length - brand.length - 2));
+        const top = ATH.inkFaint("\u256D") + ATH.inkFaint(padBefore) + ATH.inkFaint("[") + ATH.accent.bold(brand) + ATH.inkFaint("]") + ATH.inkFaint(padAfter) + ATH.inkFaint("\u256E");
+        const dot = ATH.success("\u25CF");
+        const segments = [];
+        if (info.model) segments.push(ATH.ink.bold(info.model));
+        if (info.baseUrl) segments.push(ATH.inkMuted(info.baseUrl));
+        if (info.mode) segments.push(ATH.accentSoft(info.mode));
+        const line1Content = "  " + dot + "  " + segments.join(ATH.inkFaint(" \xB7 "));
+        const line1Visible = line1Content.replace(/\x1b\[[0-9;]*m/g, "");
+        const line1Pad = " ".repeat(Math.max(0, inner - line1Visible.length));
+        const line1 = ATH.inkFaint("\u2502") + line1Content + line1Pad + ATH.inkFaint("\u2502");
+        const hint = "  " + ATH.accent("/about") + ATH.inkFaint(" \xB7 ") + ATH.accent("/help") + ATH.inkFaint(" \xB7 ") + ATH.inkMuted("\u23CE send") + ATH.inkFaint(" \xB7 ") + ATH.inkMuted("\u21E7\u21E5 mode");
+        const hintVisible = hint.replace(/\x1b\[[0-9;]*m/g, "");
+        const hintPad = " ".repeat(Math.max(0, inner - hintVisible.length));
+        const line2 = ATH.inkFaint("\u2502") + hint + hintPad + ATH.inkFaint("\u2502");
+        const bottom = ATH.inkFaint("\u2570" + "\u2500".repeat(inner) + "\u256F");
         ui("");
-        ui(ATH.ink.bold(title) + ATH.inkDim(" initialized."));
-        const parts = [];
-        if (info.baseUrl)
-          parts.push(ATH.inkMuted("Connected to ") + ATH.ink(info.baseUrl));
-        if (info.model)
-          parts.push(ATH.inkMuted("model ") + ATH.accent(info.model));
-        if (info.mode) parts.push(ATH.inkMuted("mode ") + ATH.ink(info.mode));
-        if (parts.length > 0)
-          ui(parts.join(ATH.inkDim(" \xB7 ")));
-        ui("");
-        ui(
-          ATH.inkDim("Type ") + ATH.accent("/about") + ATH.inkDim(" for details \xB7 ") + ATH.accent("/help") + ATH.inkDim(" for commands")
-        );
+        ui(top);
+        ui(line1);
+        ui(line2);
+        ui(bottom);
       }, "boot"),
       // Banner riche : bande accent verticale + nom + version + tagline.
       // Utilisé par /about, /help, /usage, /tools — gardé pour rétrocompat.
@@ -52223,25 +52228,20 @@ var import_jsx_runtime3 = __toESM(require_jsx_runtime(), 1);
 function formatItem(item) {
   switch (item.type) {
     case "user": {
-      const hasCtx = Boolean(item.project || item.branch);
-      const cols = Math.min(process.stdout.columns || 80, 100);
+      const ctx = [];
+      if (item.project) ctx.push(item.project);
+      if (item.branch) ctx.push(`git:(${item.branch})`);
       return /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(Box_default, { flexDirection: "column", marginTop: 1, children: [
-        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Text, { color: c.inkFaint, children: symbols.rule.repeat(cols - 4) }),
-        /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(Text, { children: [
-          /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(Text, { color: c.accent, bold: true, children: [
-            symbols.arrowRight,
-            " "
-          ] }),
-          item.project && /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(Text, { color: c.accentSoft, children: [
-            item.project,
-            " "
-          ] }),
-          item.branch && /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(Text, { color: c.info, children: [
-            "git:(",
-            item.branch,
-            ") "
-          ] }),
-          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Text, { color: hasCtx ? c.ink : c.inkMuted, bold: hasCtx, children: item.text })
+        /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(Box_default, { flexDirection: "row", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Text, { backgroundColor: c.accent, color: "#0a0a0a", bold: true, children: " YOU " }),
+          /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(Text, { children: [
+            "  ",
+            item.text
+          ] })
+        ] }),
+        ctx.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(Text, { color: c.inkFaint, children: [
+          "       ",
+          ctx.join(" \xB7 ")
         ] })
       ] });
     }
@@ -52700,22 +52700,27 @@ function InputBox({
         ]
       }
     ),
-    /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)(Box_default, { flexDirection: "row", children: [
-      /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)(Box_default, { flexDirection: "column", marginRight: 1, children: [
-        /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(Text, { color: colors.inkFaint, children: " " }),
-        (rendered.length > 0 ? rendered : [{ text: "", caretCol: -1 }]).map(
-          (_, i) => /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(Text, { color: disabled ? colors.inkFaint : colors.accent, children: "\u258E" }, i)
-        )
-      ] }),
-      /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)(Box_default, { flexDirection: "column", flexGrow: 1, children: [
-        /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(Text, { color: disabled ? colors.inkDim : colors.accent, bold: true, children: disabled ? "BUSY" : "ASK" }),
-        renderInputContent({
-          disabled: !!disabled,
-          hasValue: value.length > 0,
-          placeholder,
-          rendered
-        })
-      ] })
+    /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)(Box_default, { flexDirection: "column", marginTop: 0, children: [
+      /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(Box_default, { marginBottom: -1, marginLeft: 2, children: /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)(Text, { children: [
+        /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(Text, { color: disabled ? colors.inkFaint : colors.borderDim, children: "[" }),
+        /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(Text, { color: disabled ? colors.inkDim : colors.accent, bold: true, children: disabled ? " BUSY " : " ASK " }),
+        /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(Text, { color: disabled ? colors.inkFaint : colors.borderDim, children: "]" })
+      ] }) }),
+      /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(
+        Box_default,
+        {
+          borderStyle: "round",
+          borderColor: disabled ? colors.inkFaint : colors.accent,
+          paddingX: 1,
+          flexDirection: "column",
+          children: renderInputContent({
+            disabled: !!disabled,
+            hasValue: value.length > 0,
+            placeholder,
+            rendered
+          })
+        }
+      )
     ] })
   ] });
 }
