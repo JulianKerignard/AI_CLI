@@ -35195,7 +35195,7 @@ import { fileURLToPath as fileURLToPath2 } from "node:url";
 import { homedir as homedir6 } from "node:os";
 function getLocalVersion() {
   if (true) {
-    return "0.3.1-dev.20";
+    return "0.3.1-dev.21";
   }
   try {
     const here = dirname5(fileURLToPath2(import.meta.url));
@@ -54774,7 +54774,7 @@ var RateLimiter = class {
 
 // src/agent/http-provider.ts
 init_status_bar();
-var CLI_VERSION = true ? "0.3.1-dev.20" : "dev";
+var CLI_VERSION = true ? "0.3.1-dev.21" : "dev";
 var MISTRAL_LIMITER = new RateLimiter({ capacity: 60, windowMs: 6e4 });
 var NVIDIA_LIMITER = new RateLimiter({ capacity: 60, windowMs: 6e4 });
 function isNvidiaModel(model) {
@@ -56774,7 +56774,7 @@ function callTimeoutMs() {
   return Number.isFinite(fromEnv) && fromEnv > 0 ? fromEnv : DEFAULT_CALL_TIMEOUT_MS;
 }
 __name(callTimeoutMs, "callTimeoutMs");
-var CLI_VERSION2 = true ? "0.3.1-dev.20" : "dev";
+var CLI_VERSION2 = true ? "0.3.1-dev.21" : "dev";
 var McpClient = class {
   constructor(name, config) {
     this.name = name;
