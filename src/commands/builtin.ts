@@ -255,6 +255,59 @@ export function builtinCommands(allCommands: () => SlashCommand[]): SlashCommand
       },
     },
     {
+      name: "shells",
+      description:
+        "Liste les shells lancés en arrière-plan (Bash run_in_background). " +
+        "/shells kill <id> tue un shell, /shells clean évince les terminés.",
+      async run(_ctx, args) {
+        const { shellManager } = await import("../tools/shell-manager.js");
+        const trimmed = args.trim();
+        if (trimmed.startsWith("kill ")) {
+          const id = trimmed.slice("kill ".length).trim();
+          const r = shellManager.kill(id);
+          if (!r.found) log.warn(`shell_id ${id} introuvable`);
+          else log.info(`shell ${id} → ${r.status}`);
+          return;
+        }
+        if (trimmed === "clean") {
+          const removed = shellManager.prune(0);
+          log.info(`${removed} shell${removed > 1 ? "s" : ""} évincé(s).`);
+          return;
+        }
+        const items = shellManager.list();
+        if (items.length === 0) {
+          log.info("Aucun shell en arrière-plan.");
+          return;
+        }
+        log.banner("Shells", undefined, "background");
+        for (const s of items) {
+          const cmd =
+            s.command.length > 60 ? s.command.slice(0, 60) + "…" : s.command;
+          const runtime =
+            s.runtimeMs < 1000
+              ? `${s.runtimeMs}ms`
+              : s.runtimeMs < 60_000
+                ? `${(s.runtimeMs / 1000).toFixed(1)}s`
+                : `${Math.round(s.runtimeMs / 60_000)}m`;
+          const exit =
+            s.exitCode !== null ? ` exit ${s.exitCode}` : "";
+          console.log(
+            "  " +
+              chalk.hex(c.accent).bold(s.id) +
+              "  " +
+              chalk.hex(c.inkDim)(s.status.padEnd(8)) +
+              chalk.hex(c.inkMuted)(runtime.padEnd(8)) +
+              chalk.hex(c.inkDim)(exit.padEnd(10)) +
+              chalk.hex(c.ink)(cmd),
+          );
+        }
+        console.log();
+        log.faint(
+          "  /shells kill <id>  · /shells clean  · BashOutput shell_id=<id> pour les logs",
+        );
+      },
+    },
+    {
       name: "model",
       description:
         "Change le modèle actif (picker restreint aux favoris). /model <alias> → switch direct.",

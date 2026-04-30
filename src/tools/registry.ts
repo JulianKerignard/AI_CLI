@@ -2,6 +2,8 @@ import type { Tool, ToolContext } from "./types.js";
 import { readTool } from "./read.js";
 import { writeTool } from "./write.js";
 import { bashTool } from "./bash.js";
+import { bashOutputTool } from "./bash-output.js";
+import { killShellTool } from "./kill-shell.js";
 import { editTool } from "./edit.js";
 import { globTool } from "./glob.js";
 import { grepTool } from "./grep.js";
@@ -43,6 +45,8 @@ export function createBaseRegistry(): ToolRegistry {
   registry.register(grepTool);
   registry.register(lsTool);
   registry.register(bashTool);
+  registry.register(bashOutputTool);
+  registry.register(killShellTool);
   registry.register(askTool);
   return registry;
 }
