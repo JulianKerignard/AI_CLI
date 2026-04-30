@@ -19,9 +19,16 @@ const SAFE_TOOLS: ReadonlySet<string> = new Set([
   // AskUser = pose une question à l'user via Ink picker. Aucune IO système,
   // doit passer en plan mode (l'agent a besoin de clarifier pour son plan).
   "AskUser",
+  // BashOutput = lecture seule des logs d'un shell background lancé via
+  // Bash run_in_background. Aucune IO disque, juste un read d'un buffer
+  // mémoire — safe en plan mode pour que l'agent puisse monitor.
+  "BashOutput",
 ]);
 const EDIT_TOOLS: ReadonlySet<string> = new Set(["Write", "Edit"]);
-const EXECUTE_TOOLS: ReadonlySet<string> = new Set(["Bash"]);
+// KillShell = action destructive (tue un process). Catégorie execute,
+// même politique que Bash : ask en default, auto en accept-edits/bypass,
+// deny en plan.
+const EXECUTE_TOOLS: ReadonlySet<string> = new Set(["Bash", "KillShell"]);
 
 // Categorize un tool par nom. Pour les tools MCP / skills / sub-agents (noms
 // arbitraires), fallback sur "safe" — l'user peut toujours refuser via le prompt

@@ -1,6 +1,7 @@
 import { spawn } from "node:child_process";
 import type { Tool } from "./types.js";
 import { detectShell } from "./shell-detect.js";
+import { shellManager } from "./shell-manager.js";
 
 // Cap output pour éviter qu'un `npm install` / `npm test` verbeux pollue
 // l'historique de l'agent (renvoyé à chaque turn suivant = coût exponentiel).
@@ -25,15 +26,25 @@ function tailCap(text: string, label: string): string {
 
 export const bashTool: Tool = {
   name: "Bash",
-  description: "Exécute une commande shell (timeout 30s). Stdout/stderr capés à 8k chars chacun (tail) pour préserver l'historique agent.",
+  description:
+    "Exécute une commande shell. Mode synchrone par défaut (timeout 30s, stdout/stderr capés à 8k chars). " +
+    "Si run_in_background=true : lance la commande en arrière-plan, retourne immédiatement un shell_id. " +
+    "Utilise BashOutput pour lire les logs au fil de l'eau, KillShell pour stopper. " +
+    "À utiliser pour les tâches longues (dev server, watch, build long, tests).",
   formatInvocation: (input) => {
     const cmd = String(input.command ?? "");
-    // Préfixe `$ ` pour évoquer un prompt shell — disambig visuel
-    // immédiat avec les autres tools (path file vs commande).
+    const bg = Boolean(input.run_in_background);
+    const prefix = bg ? "$& " : "$ "; // & = arrière-plan style shell
     const trimmed = cmd.length > 70 ? cmd.slice(0, 70) + "…" : cmd;
-    return "$ " + trimmed;
+    return prefix + trimmed;
   },
-  formatResult: (_input, output) => {
+  formatResult: (input, output) => {
+    // Mode background : output commence par 'shell_id: <id>'.
+    if (Boolean(input.run_in_background)) {
+      const idMatch = /shell_id:\s*(\w+)/.exec(output);
+      const id = idMatch ? idMatch[1] : "?";
+      return `started · shell_id ${id}`;
+    }
     // output = "exit N\nstdout:\n…\nstderr:\n…"
     const exitMatch = /^exit (\S+)/m.exec(output);
     const code = exitMatch ? exitMatch[1] : "?";
@@ -72,13 +83,24 @@ export const bashTool: Tool = {
     type: "object",
     properties: {
       command: { type: "string", description: "Commande à exécuter" },
-      timeout_ms: { type: "number", description: "Timeout en millisecondes (défaut 30000)" },
+      timeout_ms: {
+        type: "number",
+        description: "Timeout en ms (défaut 30000). Ignoré si run_in_background=true.",
+      },
+      run_in_background: {
+        type: "boolean",
+        description:
+          "Lance en arrière-plan, retourne shell_id immédiatement. " +
+          "Utilise pour dev server / watch / build long. " +
+          "Lis les logs avec BashOutput, stoppe avec KillShell.",
+      },
     },
     required: ["command"],
   },
   async run(input, ctx) {
     const command = String(input.command ?? "");
     const timeout = Number(input.timeout_ms ?? 30000);
+    const runInBackground = Boolean(input.run_in_background);
     if (!command) throw new Error("Bash: 'command' manquant");
 
     // Bloque les `echo`, `printf`, `Write-Host` purs (sans redirection, sans
@@ -125,6 +147,24 @@ export const bashTool: Tool = {
           );
         }
       }
+    }
+
+    // Mode arrière-plan : on délègue au ShellManager qui retourne
+    // immédiatement un shell_id. L'agent peut ensuite poll les logs
+    // via BashOutput sans bloquer la boucle. Useful pour : dev server,
+    // watch (vitest --watch), build long, tail -f.
+    if (runInBackground) {
+      const { id, pid } = shellManager.spawn(command, ctx.cwd);
+      const lines: string[] = [
+        `shell_id: ${id}`,
+        `pid: ${pid ?? "?"}`,
+        `status: running`,
+        ``,
+        `command launched in background. Use:`,
+        `  BashOutput({ shell_id: "${id}" }) to read accumulated logs`,
+        `  KillShell({ shell_id: "${id}" }) to stop`,
+      ];
+      return lines.join("\n");
     }
 
     // Détection cross-plateforme : sh sur Unix, Git Bash / WSL / pwsh /

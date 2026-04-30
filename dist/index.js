@@ -27383,7 +27383,7 @@ var require_websocket = __commonJS({
     var http = __require("http");
     var net = __require("net");
     var tls = __require("tls");
-    var { randomBytes: randomBytes3, createHash: createHash2 } = __require("crypto");
+    var { randomBytes: randomBytes4, createHash: createHash2 } = __require("crypto");
     var { Duplex, Readable } = __require("stream");
     var { URL: URL2 } = __require("url");
     var PerMessageDeflate2 = require_permessage_deflate();
@@ -27916,7 +27916,7 @@ var require_websocket = __commonJS({
         }
       }
       const defaultPort = isSecure ? 443 : 80;
-      const key = randomBytes3(16).toString("base64");
+      const key = randomBytes4(16).toString("base64");
       const request = isSecure ? https.request : http.request;
       const protocolSet = /* @__PURE__ */ new Set();
       let perMessageDeflate;
@@ -31995,7 +31995,7 @@ function takeAllAndClear() {
 async function pasteFromClipboard(cwd2) {
   const { tmpdir } = await import("node:os");
   const { join: join16 } = await import("node:path");
-  const { spawnSync: spawnSync2, spawn: spawn5 } = await import("node:child_process");
+  const { spawnSync: spawnSync2, spawn: spawn6 } = await import("node:child_process");
   const { createWriteStream } = await import("node:fs");
   const tmpPath = join16(
     tmpdir(),
@@ -32028,7 +32028,7 @@ async function pasteFromClipboard(cwd2) {
   } else if (process.platform === "linux") {
     const tryTool = /* @__PURE__ */ __name((tool, args2) => {
       return new Promise((resolve6) => {
-        const child = spawn5(tool, args2);
+        const child = spawn6(tool, args2);
         const stream = createWriteStream(tmpPath);
         child.stdout.pipe(stream);
         child.on("error", () => resolve6(false));
@@ -33174,6 +33174,292 @@ var init_favorites = __esm({
     ];
     __name(resolveFavoritesFromCatalog, "resolveFavoritesFromCatalog");
     __name(resolveAlias, "resolveAlias");
+  }
+});
+
+// src/tools/shell-detect.ts
+import { execSync } from "node:child_process";
+import { existsSync as existsSync6 } from "node:fs";
+function detectShell() {
+  if (cached2) return cached2;
+  cached2 = doDetect();
+  return cached2;
+}
+function doDetect() {
+  if (process.platform !== "win32") {
+    return {
+      cmd: "sh",
+      args: /* @__PURE__ */ __name((c2) => ["-c", c2], "args"),
+      kind: "posix",
+      label: "sh (POSIX)"
+    };
+  }
+  const candidates = [
+    // Git for Windows — installé chez la majorité des devs Windows.
+    {
+      path: "C:\\Program Files\\Git\\bin\\bash.exe",
+      kind: "posix",
+      label: "Git Bash"
+    },
+    {
+      path: "C:\\Program Files (x86)\\Git\\bin\\bash.exe",
+      kind: "posix",
+      label: "Git Bash (x86)"
+    },
+    // WSL : wsl.exe est dispo de base sur Windows 10+.
+    { path: "wsl.exe", kind: "posix", label: "WSL" }
+  ];
+  for (const cand of candidates) {
+    if (cand.path.includes("\\") && existsSync6(cand.path)) {
+      return {
+        cmd: cand.path,
+        args: /* @__PURE__ */ __name((c2) => ["-c", c2], "args"),
+        kind: cand.kind,
+        label: cand.label
+      };
+    }
+    if (!cand.path.includes("\\") && hasCommand(cand.path)) {
+      return {
+        cmd: cand.path,
+        // wsl.exe : `wsl bash -c "cmd"` ou directement `wsl -- cmd` (run in
+        // default distro). On utilise bash -c pour que la syntaxe reste la
+        // même que sur Unix.
+        args: cand.path === "wsl.exe" ? (c2) => ["bash", "-c", c2] : (c2) => ["-c", c2],
+        kind: cand.kind,
+        label: cand.label
+      };
+    }
+  }
+  if (hasCommand("bash")) {
+    return {
+      cmd: "bash",
+      args: /* @__PURE__ */ __name((c2) => ["-c", c2], "args"),
+      kind: "posix",
+      label: "bash (PATH)"
+    };
+  }
+  if (hasCommand("pwsh")) {
+    return {
+      cmd: "pwsh",
+      args: /* @__PURE__ */ __name((c2) => ["-NoProfile", "-Command", c2], "args"),
+      kind: "pwsh",
+      label: "PowerShell 7"
+    };
+  }
+  if (hasCommand("powershell")) {
+    return {
+      cmd: "powershell",
+      args: /* @__PURE__ */ __name((c2) => ["-NoProfile", "-Command", c2], "args"),
+      kind: "pwsh",
+      label: "PowerShell 5"
+    };
+  }
+  return {
+    cmd: "cmd.exe",
+    args: /* @__PURE__ */ __name((c2) => ["/d", "/s", "/c", c2], "args"),
+    kind: "cmd",
+    label: "cmd.exe"
+  };
+}
+function hasCommand(bin) {
+  try {
+    const cmd = process.platform === "win32" ? "where" : "which";
+    execSync(`${cmd} ${bin}`, { stdio: "ignore" });
+    return true;
+  } catch {
+    return false;
+  }
+}
+function shellSyntaxHint(info) {
+  if (info.kind === "posix") {
+    return `Shell disponible : ${info.label}. Utilise la syntaxe POSIX bash (|, &&, $VAR, ls/cat/grep/head, etc.).`;
+  }
+  if (info.kind === "pwsh") {
+    return `Shell disponible : ${info.label} (PowerShell). Utilise la syntaxe PowerShell (Get-ChildItem au lieu de ls, Select-String au lieu de grep, | pour pipe). Les commandes POSIX ne marchent PAS.`;
+  }
+  return `Shell disponible : ${info.label} (Windows cmd). Syntaxe limit\xE9e : utilise dir/type/findstr, pas de ls/cat/grep. Les pipes | marchent mais && est limit\xE9.`;
+}
+var cached2;
+var init_shell_detect = __esm({
+  "src/tools/shell-detect.ts"() {
+    "use strict";
+    cached2 = null;
+    __name(detectShell, "detectShell");
+    __name(doDetect, "doDetect");
+    __name(hasCommand, "hasCommand");
+    __name(shellSyntaxHint, "shellSyntaxHint");
+  }
+});
+
+// src/tools/shell-manager.ts
+var shell_manager_exports = {};
+__export(shell_manager_exports, {
+  shellManager: () => shellManager
+});
+import { spawn } from "node:child_process";
+import { randomBytes as randomBytes2 } from "node:crypto";
+var MAX_BUFFER_BYTES, ShellManager, shellManager;
+var init_shell_manager = __esm({
+  "src/tools/shell-manager.ts"() {
+    "use strict";
+    init_shell_detect();
+    MAX_BUFFER_BYTES = 8 * 1024 * 1024;
+    ShellManager = class {
+      static {
+        __name(this, "ShellManager");
+      }
+      shells = /* @__PURE__ */ new Map();
+      cleanupInstalled = false;
+      // Génère un id court lisible (8 chars hex). Collisions improbables
+      // pour <100 shells/session — pas de namespace nécessaire.
+      newId() {
+        return randomBytes2(4).toString("hex");
+      }
+      // Installe le cleanup global au 1er spawn — pas avant pour éviter
+      // d'ajouter des handlers process inutiles si le user n'utilise jamais
+      // les background shells.
+      ensureCleanup() {
+        if (this.cleanupInstalled) return;
+        this.cleanupInstalled = true;
+        process.on("exit", () => {
+          for (const s of this.shells.values()) {
+            if (s.status === "running") {
+              try {
+                s.child.kill("SIGKILL");
+              } catch {
+              }
+            }
+          }
+        });
+      }
+      spawn(command, cwd2) {
+        this.ensureCleanup();
+        const id = this.newId();
+        const shell = detectShell();
+        const child = spawn(shell.cmd, shell.args(command), {
+          cwd: cwd2,
+          env: process.env,
+          // detached:false pour que SIGINT du parent propage aux children
+          // (sinon un Ctrl-C dans le REPL ne tue pas le dev server bg).
+          detached: false
+        });
+        const state2 = {
+          id,
+          command,
+          cwd: cwd2,
+          child,
+          stdout: "",
+          stderr: "",
+          exitCode: null,
+          signal: null,
+          startedAt: Date.now(),
+          endedAt: null,
+          status: "running",
+          lastReadOffset: 0
+        };
+        child.stdout?.on("data", (chunk) => {
+          state2.stdout += chunk.toString();
+          if (state2.stdout.length > MAX_BUFFER_BYTES) {
+            const drop = state2.stdout.length - MAX_BUFFER_BYTES;
+            state2.stdout = state2.stdout.slice(drop);
+            state2.lastReadOffset = Math.max(0, state2.lastReadOffset - drop);
+          }
+        });
+        child.stderr?.on("data", (chunk) => {
+          state2.stderr += chunk.toString();
+          if (state2.stderr.length > MAX_BUFFER_BYTES) {
+            const drop = state2.stderr.length - MAX_BUFFER_BYTES;
+            state2.stderr = state2.stderr.slice(drop);
+          }
+        });
+        child.on("close", (code, signal) => {
+          state2.exitCode = code;
+          state2.signal = signal;
+          state2.endedAt = Date.now();
+          if (state2.status === "running") {
+            state2.status = signal ? "killed" : "done";
+          }
+        });
+        child.on("error", () => {
+          state2.status = "error";
+          state2.endedAt = Date.now();
+        });
+        this.shells.set(id, state2);
+        return { id, pid: child.pid };
+      }
+      // Retourne le delta stdout+stderr depuis le dernier getOutput, et
+      // avance lastReadOffset. filter optionnel = regex à matcher ligne par
+      // ligne sur le combiné stdout (pas stderr).
+      getOutput(id, filter) {
+        const s = this.shells.get(id);
+        if (!s) return { found: false };
+        const newStdout = s.stdout.slice(s.lastReadOffset);
+        s.lastReadOffset = s.stdout.length;
+        let stdout = newStdout;
+        if (filter) {
+          stdout = newStdout.split("\n").filter((l) => filter.test(l)).join("\n");
+        }
+        const runtimeMs = (s.endedAt ?? Date.now()) - s.startedAt;
+        return {
+          found: true,
+          stdout,
+          stderr: s.stderr,
+          status: s.status,
+          exitCode: s.exitCode,
+          runtimeMs
+        };
+      }
+      kill(id) {
+        const s = this.shells.get(id);
+        if (!s) return { found: false };
+        if (s.status !== "running") {
+          return { found: true, status: s.status };
+        }
+        try {
+          s.child.kill("SIGTERM");
+          setTimeout(() => {
+            if (s.status === "running") {
+              try {
+                s.child.kill("SIGKILL");
+              } catch {
+              }
+            }
+          }, 2e3).unref();
+        } catch {
+        }
+        s.status = "killed";
+        return { found: true, status: "killed" };
+      }
+      list() {
+        const out = [];
+        for (const s of this.shells.values()) {
+          out.push({
+            id: s.id,
+            command: s.command,
+            status: s.status,
+            runtimeMs: (s.endedAt ?? Date.now()) - s.startedAt,
+            exitCode: s.exitCode
+          });
+        }
+        return out;
+      }
+      // Évince les shells terminés depuis plus de N minutes pour pas
+      // accumuler indéfiniment. Appelé manuellement via /shells clean ou
+      // au-delà de 50 shells stockés. Préserve les running.
+      prune(maxAgeMs = 60 * 60 * 1e3) {
+        const now = Date.now();
+        let removed = 0;
+        for (const [id, s] of this.shells.entries()) {
+          if (s.status === "running") continue;
+          if (s.endedAt && now - s.endedAt > maxAgeMs) {
+            this.shells.delete(id);
+            removed++;
+          }
+        }
+        return removed;
+      }
+    };
+    shellManager = new ShellManager();
   }
 });
 
@@ -53463,113 +53749,8 @@ var BetterModelWatcher = class {
   }
 };
 
-// src/tools/shell-detect.ts
-import { execSync } from "node:child_process";
-import { existsSync as existsSync6 } from "node:fs";
-var cached2 = null;
-function detectShell() {
-  if (cached2) return cached2;
-  cached2 = doDetect();
-  return cached2;
-}
-__name(detectShell, "detectShell");
-function doDetect() {
-  if (process.platform !== "win32") {
-    return {
-      cmd: "sh",
-      args: /* @__PURE__ */ __name((c2) => ["-c", c2], "args"),
-      kind: "posix",
-      label: "sh (POSIX)"
-    };
-  }
-  const candidates = [
-    // Git for Windows — installé chez la majorité des devs Windows.
-    {
-      path: "C:\\Program Files\\Git\\bin\\bash.exe",
-      kind: "posix",
-      label: "Git Bash"
-    },
-    {
-      path: "C:\\Program Files (x86)\\Git\\bin\\bash.exe",
-      kind: "posix",
-      label: "Git Bash (x86)"
-    },
-    // WSL : wsl.exe est dispo de base sur Windows 10+.
-    { path: "wsl.exe", kind: "posix", label: "WSL" }
-  ];
-  for (const cand of candidates) {
-    if (cand.path.includes("\\") && existsSync6(cand.path)) {
-      return {
-        cmd: cand.path,
-        args: /* @__PURE__ */ __name((c2) => ["-c", c2], "args"),
-        kind: cand.kind,
-        label: cand.label
-      };
-    }
-    if (!cand.path.includes("\\") && hasCommand(cand.path)) {
-      return {
-        cmd: cand.path,
-        // wsl.exe : `wsl bash -c "cmd"` ou directement `wsl -- cmd` (run in
-        // default distro). On utilise bash -c pour que la syntaxe reste la
-        // même que sur Unix.
-        args: cand.path === "wsl.exe" ? (c2) => ["bash", "-c", c2] : (c2) => ["-c", c2],
-        kind: cand.kind,
-        label: cand.label
-      };
-    }
-  }
-  if (hasCommand("bash")) {
-    return {
-      cmd: "bash",
-      args: /* @__PURE__ */ __name((c2) => ["-c", c2], "args"),
-      kind: "posix",
-      label: "bash (PATH)"
-    };
-  }
-  if (hasCommand("pwsh")) {
-    return {
-      cmd: "pwsh",
-      args: /* @__PURE__ */ __name((c2) => ["-NoProfile", "-Command", c2], "args"),
-      kind: "pwsh",
-      label: "PowerShell 7"
-    };
-  }
-  if (hasCommand("powershell")) {
-    return {
-      cmd: "powershell",
-      args: /* @__PURE__ */ __name((c2) => ["-NoProfile", "-Command", c2], "args"),
-      kind: "pwsh",
-      label: "PowerShell 5"
-    };
-  }
-  return {
-    cmd: "cmd.exe",
-    args: /* @__PURE__ */ __name((c2) => ["/d", "/s", "/c", c2], "args"),
-    kind: "cmd",
-    label: "cmd.exe"
-  };
-}
-__name(doDetect, "doDetect");
-function hasCommand(bin) {
-  try {
-    const cmd = process.platform === "win32" ? "where" : "which";
-    execSync(`${cmd} ${bin}`, { stdio: "ignore" });
-    return true;
-  } catch {
-    return false;
-  }
-}
-__name(hasCommand, "hasCommand");
-function shellSyntaxHint(info) {
-  if (info.kind === "posix") {
-    return `Shell disponible : ${info.label}. Utilise la syntaxe POSIX bash (|, &&, $VAR, ls/cat/grep/head, etc.).`;
-  }
-  if (info.kind === "pwsh") {
-    return `Shell disponible : ${info.label} (PowerShell). Utilise la syntaxe PowerShell (Get-ChildItem au lieu de ls, Select-String au lieu de grep, | pour pipe). Les commandes POSIX ne marchent PAS.`;
-  }
-  return `Shell disponible : ${info.label} (Windows cmd). Syntaxe limit\xE9e : utilise dir/type/findstr, pas de ls/cat/grep. Les pipes | marchent mais && est limit\xE9.`;
-}
-__name(shellSyntaxHint, "shellSyntaxHint");
+// src/repl.ts
+init_shell_detect();
 
 // src/tools/read.ts
 import { readFile as readFile2 } from "node:fs/promises";
@@ -53706,7 +53887,9 @@ var writeTool = {
 };
 
 // src/tools/bash.ts
-import { spawn } from "node:child_process";
+init_shell_detect();
+init_shell_manager();
+import { spawn as spawn2 } from "node:child_process";
 var MAX_STREAM_CHARS = 8e3;
 function tailCap(text, label) {
   if (text.length <= MAX_STREAM_CHARS) return text;
@@ -53720,13 +53903,20 @@ function tailCap(text, label) {
 __name(tailCap, "tailCap");
 var bashTool = {
   name: "Bash",
-  description: "Ex\xE9cute une commande shell (timeout 30s). Stdout/stderr cap\xE9s \xE0 8k chars chacun (tail) pour pr\xE9server l'historique agent.",
+  description: "Ex\xE9cute une commande shell. Mode synchrone par d\xE9faut (timeout 30s, stdout/stderr cap\xE9s \xE0 8k chars). Si run_in_background=true : lance la commande en arri\xE8re-plan, retourne imm\xE9diatement un shell_id. Utilise BashOutput pour lire les logs au fil de l'eau, KillShell pour stopper. \xC0 utiliser pour les t\xE2ches longues (dev server, watch, build long, tests).",
   formatInvocation: /* @__PURE__ */ __name((input) => {
     const cmd = String(input.command ?? "");
+    const bg = Boolean(input.run_in_background);
+    const prefix = bg ? "$& " : "$ ";
     const trimmed = cmd.length > 70 ? cmd.slice(0, 70) + "\u2026" : cmd;
-    return "$ " + trimmed;
+    return prefix + trimmed;
   }, "formatInvocation"),
-  formatResult: /* @__PURE__ */ __name((_input, output) => {
+  formatResult: /* @__PURE__ */ __name((input, output) => {
+    if (Boolean(input.run_in_background)) {
+      const idMatch = /shell_id:\s*(\w+)/.exec(output);
+      const id = idMatch ? idMatch[1] : "?";
+      return `started \xB7 shell_id ${id}`;
+    }
     const exitMatch = /^exit (\S+)/m.exec(output);
     const code = exitMatch ? exitMatch[1] : "?";
     const stdoutBlock = output.split("stdout:\n")[1]?.split("\nstderr:")[0] ?? "";
@@ -53751,13 +53941,21 @@ ${stdoutTrimmed}`;
     type: "object",
     properties: {
       command: { type: "string", description: "Commande \xE0 ex\xE9cuter" },
-      timeout_ms: { type: "number", description: "Timeout en millisecondes (d\xE9faut 30000)" }
+      timeout_ms: {
+        type: "number",
+        description: "Timeout en ms (d\xE9faut 30000). Ignor\xE9 si run_in_background=true."
+      },
+      run_in_background: {
+        type: "boolean",
+        description: "Lance en arri\xE8re-plan, retourne shell_id imm\xE9diatement. Utilise pour dev server / watch / build long. Lis les logs avec BashOutput, stoppe avec KillShell."
+      }
     },
     required: ["command"]
   },
   async run(input, ctx) {
     const command = String(input.command ?? "");
     const timeout = Number(input.timeout_ms ?? 3e4);
+    const runInBackground = Boolean(input.run_in_background);
     if (!command) throw new Error("Bash: 'command' manquant");
     const trimmed = command.trim();
     const speakPatterns = [
@@ -53789,9 +53987,22 @@ stderr:
         }
       }
     }
+    if (runInBackground) {
+      const { id, pid } = shellManager.spawn(command, ctx.cwd);
+      const lines = [
+        `shell_id: ${id}`,
+        `pid: ${pid ?? "?"}`,
+        `status: running`,
+        ``,
+        `command launched in background. Use:`,
+        `  BashOutput({ shell_id: "${id}" }) to read accumulated logs`,
+        `  KillShell({ shell_id: "${id}" }) to stop`
+      ];
+      return lines.join("\n");
+    }
     const shell = detectShell();
     return await new Promise((resolvePromise) => {
-      const child = spawn(shell.cmd, shell.args(command), {
+      const child = spawn2(shell.cmd, shell.args(command), {
         cwd: ctx.cwd,
         env: process.env
       });
@@ -53836,6 +54047,111 @@ ${body}`.trim());
         resolvePromise(`[erreur spawn] ${err.message}`);
       });
     });
+  }
+};
+
+// src/tools/bash-output.ts
+init_shell_manager();
+var bashOutputTool = {
+  name: "BashOutput",
+  description: "Lit les logs accumul\xE9s d'un shell lanc\xE9 en arri\xE8re-plan (Bash run_in_background). Retourne le delta stdout depuis la derni\xE8re lecture + stderr complet + status. filter optionnel : regex appliqu\xE9e ligne par ligne sur stdout (ex: 'ERROR|WARN').",
+  formatInvocation: /* @__PURE__ */ __name((input) => {
+    const id = String(input.shell_id ?? "?");
+    const filter = input.filter ? ` /${String(input.filter)}/` : "";
+    return id + filter;
+  }, "formatInvocation"),
+  formatResult: /* @__PURE__ */ __name((_input, output) => {
+    if (output.startsWith("not_found:")) return "shell_id not found";
+    const statusMatch = /^status:\s*(\w+)/m.exec(output);
+    const linesMatch = /^stdout_lines:\s*(\d+)/m.exec(output);
+    const status = statusMatch ? statusMatch[1] : "?";
+    const lines = linesMatch ? linesMatch[1] : "0";
+    return `${status} \xB7 ${lines} new stdout lines`;
+  }, "formatResult"),
+  schema: {
+    type: "object",
+    properties: {
+      shell_id: {
+        type: "string",
+        description: "ID du shell retourn\xE9 par Bash run_in_background"
+      },
+      filter: {
+        type: "string",
+        description: "Regex optionnelle, filtre les lignes stdout matchantes"
+      }
+    },
+    required: ["shell_id"]
+  },
+  async run(input) {
+    const id = String(input.shell_id ?? "");
+    if (!id) throw new Error("BashOutput: 'shell_id' manquant");
+    const rawFilter = input.filter ? String(input.filter) : null;
+    let filter;
+    if (rawFilter) {
+      try {
+        filter = new RegExp(rawFilter);
+      } catch (err) {
+        throw new Error(
+          `BashOutput: regex 'filter' invalide (${err instanceof Error ? err.message : err})`
+        );
+      }
+    }
+    const result = shellManager.getOutput(id, filter);
+    if (!result.found) {
+      return `not_found: shell_id ${id} (peut-\xEAtre d\xE9j\xE0 \xE9vinc\xE9 via /shells clean ou jamais lanc\xE9)`;
+    }
+    const stdoutLines = result.stdout ? result.stdout.split(/\r?\n/).filter(Boolean).length : 0;
+    const lines = [
+      `shell_id: ${id}`,
+      `status: ${result.status}`,
+      `runtime_ms: ${result.runtimeMs}`,
+      `exit_code: ${result.exitCode ?? "\u2014"}`,
+      `stdout_lines: ${stdoutLines}`
+    ];
+    if (result.stdout) {
+      lines.push("");
+      lines.push("stdout:");
+      lines.push(result.stdout);
+    }
+    if (result.stderr) {
+      lines.push("");
+      lines.push("stderr:");
+      lines.push(result.stderr);
+    }
+    return lines.join("\n");
+  }
+};
+
+// src/tools/kill-shell.ts
+init_shell_manager();
+var killShellTool = {
+  name: "KillShell",
+  description: "Tue un shell lanc\xE9 en arri\xE8re-plan via Bash run_in_background. Envoie SIGTERM puis SIGKILL apr\xE8s 2s si pas mort. Idempotent : si d\xE9j\xE0 termin\xE9, retourne juste le status courant.",
+  formatInvocation: /* @__PURE__ */ __name((input) => String(input.shell_id ?? "?"), "formatInvocation"),
+  formatResult: /* @__PURE__ */ __name((_input, output) => {
+    if (output.startsWith("not_found:")) return "shell_id not found";
+    const m = /^status:\s*(\w+)/m.exec(output);
+    return m ? m[1] : "ok";
+  }, "formatResult"),
+  schema: {
+    type: "object",
+    properties: {
+      shell_id: {
+        type: "string",
+        description: "ID du shell \xE0 tuer"
+      }
+    },
+    required: ["shell_id"]
+  },
+  async run(input) {
+    const id = String(input.shell_id ?? "");
+    if (!id) throw new Error("KillShell: 'shell_id' manquant");
+    const result = shellManager.kill(id);
+    if (!result.found) {
+      return `not_found: shell_id ${id}`;
+    }
+    return `shell_id: ${id}
+status: ${result.status}`;
   }
 };
 
@@ -54123,7 +54439,7 @@ function splitTopLevelCommas(s) {
 __name(splitTopLevelCommas, "splitTopLevelCommas");
 
 // src/tools/grep.ts
-import { spawn as spawn2 } from "node:child_process";
+import { spawn as spawn3 } from "node:child_process";
 import { isAbsolute as isAbsolute4, resolve as resolve4 } from "node:path";
 import { readFile as readFile4, readdir as readdir2 } from "node:fs/promises";
 import { join as join6, relative as relative2, sep as sep4 } from "node:path";
@@ -54249,7 +54565,7 @@ function truncateOutput(output, headLimit, mode) {
 __name(truncateOutput, "truncateOutput");
 function runProcess(cmd, args2) {
   return new Promise((resolvePromise, rejectPromise) => {
-    const child = spawn2(cmd, args2, { stdio: ["ignore", "pipe", "pipe"] });
+    const child = spawn3(cmd, args2, { stdio: ["ignore", "pipe", "pipe"] });
     let stdout = "";
     let stderr = "";
     child.stdout.on("data", (d) => {
@@ -54524,6 +54840,8 @@ function createBaseRegistry() {
   registry.register(grepTool);
   registry.register(lsTool);
   registry.register(bashTool);
+  registry.register(bashOutputTool);
+  registry.register(killShellTool);
   registry.register(askTool);
   return registry;
 }
@@ -55126,10 +55444,14 @@ var SAFE_TOOLS = /* @__PURE__ */ new Set([
   "Ls",
   // AskUser = pose une question à l'user via Ink picker. Aucune IO système,
   // doit passer en plan mode (l'agent a besoin de clarifier pour son plan).
-  "AskUser"
+  "AskUser",
+  // BashOutput = lecture seule des logs d'un shell background lancé via
+  // Bash run_in_background. Aucune IO disque, juste un read d'un buffer
+  // mémoire — safe en plan mode pour que l'agent puisse monitor.
+  "BashOutput"
 ]);
 var EDIT_TOOLS = /* @__PURE__ */ new Set(["Write", "Edit"]);
-var EXECUTE_TOOLS = /* @__PURE__ */ new Set(["Bash"]);
+var EXECUTE_TOOLS = /* @__PURE__ */ new Set(["Bash", "KillShell"]);
 function categorize(toolName) {
   if (SAFE_TOOLS.has(toolName)) return "safe";
   if (EDIT_TOOLS.has(toolName)) return "edit";
@@ -55581,10 +55903,10 @@ init_logger();
 
 // src/auth/login.ts
 import { createServer } from "node:http";
-import { randomBytes as randomBytes2 } from "node:crypto";
+import { randomBytes as randomBytes3 } from "node:crypto";
 
 // src/auth/open-browser.ts
-import { spawn as spawn3 } from "node:child_process";
+import { spawn as spawn4 } from "node:child_process";
 function openBrowser(url) {
   let cmd;
   let args2;
@@ -55599,7 +55921,7 @@ function openBrowser(url) {
     args2 = [url];
   }
   try {
-    const child = spawn3(cmd, args2, { detached: true, stdio: "ignore" });
+    const child = spawn4(cmd, args2, { detached: true, stdio: "ignore" });
     child.unref();
     child.on("error", () => {
     });
@@ -55690,7 +56012,7 @@ async function runLoginFlow(opts = {}) {
   const webUrl = opts.webUrl ?? DEFAULT_WEB_URL;
   const apiUrl = opts.apiUrl ?? DEFAULT_BASE_URL;
   const model = opts.model ?? DEFAULT_MODEL;
-  const state2 = randomBytes2(16).toString("hex");
+  const state2 = randomBytes3(16).toString("hex");
   return new Promise((resolve6, reject) => {
     let settled = false;
     const settle = /* @__PURE__ */ __name((fn) => {
@@ -55807,6 +56129,7 @@ __name(runLoginFlow, "runLoginFlow");
 // src/commands/builtin.ts
 init_paths();
 init_context_window();
+init_shell_detect();
 init_theme();
 function builtinCommands(allCommands) {
   return [
@@ -55992,6 +56315,44 @@ function builtinCommands(allCommands) {
       }
     },
     {
+      name: "shells",
+      description: "Liste les shells lanc\xE9s en arri\xE8re-plan (Bash run_in_background). /shells kill <id> tue un shell, /shells clean \xE9vince les termin\xE9s.",
+      async run(_ctx, args2) {
+        const { shellManager: shellManager2 } = await Promise.resolve().then(() => (init_shell_manager(), shell_manager_exports));
+        const trimmed = args2.trim();
+        if (trimmed.startsWith("kill ")) {
+          const id = trimmed.slice("kill ".length).trim();
+          const r = shellManager2.kill(id);
+          if (!r.found) log.warn(`shell_id ${id} introuvable`);
+          else log.info(`shell ${id} \u2192 ${r.status}`);
+          return;
+        }
+        if (trimmed === "clean") {
+          const removed = shellManager2.prune(0);
+          log.info(`${removed} shell${removed > 1 ? "s" : ""} \xE9vinc\xE9(s).`);
+          return;
+        }
+        const items = shellManager2.list();
+        if (items.length === 0) {
+          log.info("Aucun shell en arri\xE8re-plan.");
+          return;
+        }
+        log.banner("Shells", void 0, "background");
+        for (const s of items) {
+          const cmd = s.command.length > 60 ? s.command.slice(0, 60) + "\u2026" : s.command;
+          const runtime = s.runtimeMs < 1e3 ? `${s.runtimeMs}ms` : s.runtimeMs < 6e4 ? `${(s.runtimeMs / 1e3).toFixed(1)}s` : `${Math.round(s.runtimeMs / 6e4)}m`;
+          const exit = s.exitCode !== null ? ` exit ${s.exitCode}` : "";
+          console.log(
+            "  " + import_chalk4.default.hex(c.accent).bold(s.id) + "  " + import_chalk4.default.hex(c.inkDim)(s.status.padEnd(8)) + import_chalk4.default.hex(c.inkMuted)(runtime.padEnd(8)) + import_chalk4.default.hex(c.inkDim)(exit.padEnd(10)) + import_chalk4.default.hex(c.ink)(cmd)
+          );
+        }
+        console.log();
+        log.faint(
+          "  /shells kill <id>  \xB7 /shells clean  \xB7 BashOutput shell_id=<id> pour les logs"
+        );
+      }
+    },
+    {
       name: "model",
       description: "Change le mod\xE8le actif (picker restreint aux favoris). /model <alias> \u2192 switch direct.",
       async run({ auth }, args2) {
@@ -56157,10 +56518,10 @@ function builtinCommands(allCommands) {
         }
         const installSpec = `@juliank./aicli@${status.channel}`;
         log.info(`Installation : ${installSpec}\u2026`);
-        const { spawn: spawn5 } = await import("node:child_process");
+        const { spawn: spawn6 } = await import("node:child_process");
         const npmCmd = process.platform === "win32" ? "npm.cmd" : "npm";
         const installOk = await new Promise((resolve6) => {
-          const child = spawn5(npmCmd, ["install", "-g", installSpec], {
+          const child = spawn6(npmCmd, ["install", "-g", installSpec], {
             stdio: "inherit",
             env: process.env,
             shell: process.platform === "win32"
@@ -56720,7 +57081,7 @@ import { homedir as homedir7 } from "node:os";
 import { join as join13 } from "node:path";
 
 // src/mcp/client.ts
-import { spawn as spawn4 } from "node:child_process";
+import { spawn as spawn5 } from "node:child_process";
 var MCP_ENV_WHITELIST = [
   "PATH",
   "HOME",
@@ -56766,7 +57127,7 @@ function sanitizeEnv(userEnv) {
   return out;
 }
 __name(sanitizeEnv, "sanitizeEnv");
-var MAX_BUFFER_BYTES = 1e7;
+var MAX_BUFFER_BYTES2 = 1e7;
 var INIT_TIMEOUT_MS = 1e4;
 var DEFAULT_CALL_TIMEOUT_MS = 6e4;
 function callTimeoutMs() {
@@ -56778,7 +57139,7 @@ var CLI_VERSION2 = true ? "0.3.1-dev.21" : "dev";
 var McpClient = class {
   constructor(name, config) {
     this.name = name;
-    this.child = spawn4(config.command, config.args ?? [], {
+    this.child = spawn5(config.command, config.args ?? [], {
       env: sanitizeEnv(config.env),
       stdio: ["pipe", "pipe", "pipe"]
     });
@@ -56807,10 +57168,10 @@ var McpClient = class {
   killed = false;
   onStdout(chunk) {
     this.buffer += chunk;
-    if (this.buffer.length > MAX_BUFFER_BYTES && !this.killed) {
+    if (this.buffer.length > MAX_BUFFER_BYTES2 && !this.killed) {
       this.killed = true;
       console.warn(
-        `[mcp:${this.name}] buffer > ${MAX_BUFFER_BYTES} bytes, kill`
+        `[mcp:${this.name}] buffer > ${MAX_BUFFER_BYTES2} bytes, kill`
       );
       this.child.kill();
       return;
